@@ -115,6 +115,8 @@ button.btn-primary:disabled{opacity:.5;cursor:wait}
 }
 .rc-actions button:hover{border-color:var(--accent2)}
 .rc-actions button.done-btn{background:var(--accent2);border-color:var(--accent2);color:#fff}
+.rc-actions button.nav-start-btn{background:var(--accent);border-color:var(--accent);color:#fff;flex:1.4}
+.rc-actions button.nav-start-btn:hover{filter:brightness(1.1)}
 
 #foot{font-size:10.5px;color:var(--muted);text-align:center;margin-top:auto;padding-top:8px;line-height:1.6}
 #foot a{color:var(--muted)}
@@ -163,3 +165,69 @@ button.btn-primary:disabled{opacity:.5;cursor:wait}
   .fb-grid{grid-template-columns:repeat(5,1fr)}
   #elevation-panel{height:130px}
 }
+
+/* ---------- "Mein Standort"-Button ---------- */
+.btn-loc{
+  width:100%;margin-top:7px;background:var(--card2);border:1px solid var(--line);
+  color:var(--accent2);padding:9px;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;
+}
+.btn-loc:hover{border-color:var(--accent2);color:var(--text)}
+.btn-loc.active{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+
+/* GPS-Positionsmarker (Live) */
+.gps-dot{width:22px;height:22px}
+.gps-dot .ring{position:absolute;inset:0;border-radius:50%;background:rgba(74,158,255,.25);animation:pulse 2s infinite}
+.gps-dot .core{position:absolute;inset:5px;border-radius:50%;background:#4a9eff;border:2px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.5)}
+.gps-dot .cone{position:absolute;left:50%;top:50%;width:0;height:0;border-left:11px solid transparent;border-right:11px solid transparent;border-bottom:26px solid rgba(74,158,255,.6);transform-origin:50% 100%;transform:translate(-50%,-100%) rotate(0deg)}
+@keyframes pulse{0%{transform:scale(.7);opacity:.9}70%{transform:scale(1.8);opacity:0}100%{opacity:0}}
+
+/* ---------- Live-Navigation Vollbild ---------- */
+#nav-overlay{position:fixed;inset:0;z-index:2500;pointer-events:none}
+#nav-overlay.hidden{display:none}
+#nav-overlay.active{pointer-events:none}
+/* Im Nav-Modus: Panel weg, Karte voll */
+body.navigating #panel{display:none}
+body.navigating #map-wrap{position:fixed!important;inset:0;height:100vh!important;width:100vw!important;z-index:1}
+body.navigating #elevation-panel{display:none}
+
+#nav-top{
+  position:absolute;top:0;left:0;right:0;z-index:2600;pointer-events:auto;
+  background:linear-gradient(180deg,#1b5e20,#2e7d32);color:#fff;
+  padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 14px;box-shadow:0 4px 16px rgba(0,0,0,.4);
+}
+#nav-maneuver{display:flex;align-items:center;gap:16px}
+#nav-arrow{font-size:46px;line-height:1;min-width:54px;text-align:center}
+#nav-instr{flex:1;min-width:0}
+#nav-dist{font-size:30px;font-weight:800;line-height:1.1}
+#nav-street{font-size:15px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+#nav-then{margin-top:8px;font-size:13px;opacity:.8;border-top:1px solid rgba(255,255,255,.2);padding-top:7px}
+#nav-then.hidden{display:none}
+
+#nav-side{position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:2600;
+  display:flex;flex-direction:column;gap:12px;pointer-events:auto}
+.nav-fab{width:52px;height:52px;border-radius:50%;border:none;background:rgba(23,30,38,.92);color:#fff;
+  font-size:22px;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.4);backdrop-filter:blur(4px)}
+.nav-fab:active{transform:scale(.92)}
+.nav-fab.off{opacity:.5}
+
+#nav-bottom{
+  position:absolute;left:0;right:0;bottom:0;z-index:2600;pointer-events:auto;
+  background:rgba(15,20,25,.96);backdrop-filter:blur(8px);border-top:1px solid var(--line);
+  display:flex;align-items:center;gap:6px;padding:12px 14px calc(env(safe-area-inset-bottom,0px) + 12px);
+}
+.nav-stat{flex:1;text-align:center;display:flex;flex-direction:column;line-height:1.15}
+.nav-stat b{font-size:18px;color:#fff;font-weight:800}
+.nav-stat span{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+#nav-eta{color:var(--green)!important}
+#nav-stop{background:var(--accent);color:#fff;border:none;padding:12px 16px;border-radius:11px;
+  font-size:14px;font-weight:700;cursor:pointer;margin-left:6px}
+#nav-stop:active{transform:scale(.95)}
+
+#nav-toast{position:absolute;top:calc(env(safe-area-inset-top,0px) + 120px);left:50%;transform:translateX(-50%);
+  z-index:2700;background:rgba(0,0,0,.85);color:#fff;padding:10px 18px;border-radius:24px;font-size:13.5px;
+  pointer-events:none;max-width:84%;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+#nav-toast.hidden{display:none}
+#nav-toast.warn{background:rgba(230,57,70,.95)}
+
+/* Off-route Linie / Restroute */
+.leaflet-pane .nav-traveled{opacity:.45}

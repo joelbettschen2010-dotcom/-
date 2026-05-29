@@ -2,8 +2,16 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Velo Navi Schweiz 🚲🇨🇭</title>
+<meta name="theme-color" content="#e63946">
+<meta name="description" content="Velo- und E-Bike-Navigation für die ganze Schweiz mit Live-Navigation, Sprachführung, Höhen- und Zeitberechnung.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Velo Navi">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <link rel="stylesheet" href="style.css"/>
@@ -14,7 +22,7 @@
   <aside id="panel">
     <header id="brand">
       <h1>🚲 Velo Navi <span>Schweiz</span></h1>
-      <p class="subtitle">Routen für die ganze Schweiz – mit Höhen- und Zeitberechnung</p>
+      <p class="subtitle">Routen + Live-Navigation für die ganze Schweiz</p>
     </header>
 
     <!-- Start / Ziel -->
@@ -26,6 +34,7 @@
           <input type="text" id="startInput" placeholder="Ort suchen oder auf Karte klicken" autocomplete="off">
           <ul class="suggestions" id="startSuggest"></ul>
         </div>
+        <button class="btn-loc" id="useLocBtn">📡 Mein Standort als Start</button>
       </div>
       <div class="field">
         <label>Ziel</label>
@@ -119,6 +128,42 @@
     <p class="fb-explain">„Schneller" = du warst schneller als angezeigt → künftig kürzere Zeiten.</p>
     <button class="btn-ghost" id="fbCancel">Abbrechen</button>
   </div>
+</div>
+
+<!-- ============ LIVE-NAVIGATION (Vollbild) ============ -->
+<div id="nav-overlay" class="hidden">
+  <!-- obere Manöver-Anweisung -->
+  <div id="nav-top">
+    <div id="nav-maneuver">
+      <div id="nav-arrow">↑</div>
+      <div id="nav-instr">
+        <div id="nav-dist">—</div>
+        <div id="nav-street">Navigation startet …</div>
+      </div>
+    </div>
+    <div id="nav-then" class="hidden">dann <span id="nav-then-arrow">↑</span> <span id="nav-then-street"></span></div>
+  </div>
+
+  <!-- Karte teilt sich #map mit dem Planungsmodus -->
+
+  <!-- rechts: Aktionen -->
+  <div id="nav-side">
+    <button id="nav-recenter" class="nav-fab" title="Zentrieren">🎯</button>
+    <button id="nav-mute" class="nav-fab" title="Ton">🔊</button>
+    <button id="nav-overview" class="nav-fab" title="Übersicht">🗺️</button>
+  </div>
+
+  <!-- unten: ETA-Leiste -->
+  <div id="nav-bottom">
+    <div class="nav-stat"><b id="nav-eta">—</b><span>Ankunft</span></div>
+    <div class="nav-stat"><b id="nav-rem-time">—</b><span>Restzeit</span></div>
+    <div class="nav-stat"><b id="nav-rem-dist">—</b><span>Distanz</span></div>
+    <div class="nav-stat"><b id="nav-speed">—</b><span>km/h</span></div>
+    <button id="nav-stop">Beenden</button>
+  </div>
+
+  <!-- Status / GPS-Hinweis -->
+  <div id="nav-toast" class="hidden"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
