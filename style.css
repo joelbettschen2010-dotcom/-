@@ -123,7 +123,9 @@ button.btn-primary:disabled{opacity:.5;cursor:wait}
 
 /* ---------- Map ---------- */
 #map-wrap{flex:1;position:relative}
-#map{height:100%;width:100%;background:#0a0d11;z-index:1}
+#map{height:100%;width:100%;background:#0a0d11;z-index:1;
+  -webkit-touch-callout:none;-webkit-user-select:none;user-select:none;
+  -webkit-tap-highlight-color:transparent}
 .leaflet-container{background:#0a0d11}
 
 /* Elevation panel */

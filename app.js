@@ -89,8 +89,10 @@ function lpClear(){ if(lpTimer){clearTimeout(lpTimer);lpTimer=null;} if(lpRing){
 map.on('mousedown', e=>{
   if(typeof nav!=='undefined' && nav.active) return;     // im Navi-Modus keine Punkte setzen
   if(e.originalEvent && e.originalEvent.button!==0) return;
+  // iOS-Auswahl-/Kopiermenü beim Halten unterdrücken
+  if(e.originalEvent && e.originalEvent.preventDefault) e.originalEvent.preventDefault();
   lpStart=e.latlng; lpRing=makeLpRing(e.containerPoint);
-  lpTimer=setTimeout(()=>{ lpClear(); placeFromMap(lpStart); }, 700);
+  lpTimer=setTimeout(()=>{ lpClear(); placeFromMap(lpStart); navigator.vibrate&&navigator.vibrate(15); }, 450);
 });
 map.on('mouseup', lpClear);
 map.on('movestart dragstart zoomstart', lpClear);
