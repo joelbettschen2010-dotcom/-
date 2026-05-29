@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Velo Navi Schweiz 🚲🇨🇭</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div id="app">
+  <!-- ============ SEITENLEISTE / STEUERUNG ============ -->
+  <aside id="panel">
+    <header id="brand">
+      <h1>🚲 Velo Navi <span>Schweiz</span></h1>
+      <p class="subtitle">Routen für die ganze Schweiz – mit Höhen- und Zeitberechnung</p>
+    </header>
+
+    <!-- Start / Ziel -->
+    <section class="card">
+      <h2>📍 Strecke</h2>
+      <div class="field">
+        <label>Start</label>
+        <div class="search-wrap">
+          <input type="text" id="startInput" placeholder="Ort suchen oder auf Karte klicken" autocomplete="off">
+          <ul class="suggestions" id="startSuggest"></ul>
+        </div>
+      </div>
+      <div class="field">
+        <label>Ziel</label>
+        <div class="search-wrap">
+          <input type="text" id="endInput" placeholder="Ort suchen oder auf Karte klicken" autocomplete="off">
+          <ul class="suggestions" id="endSuggest"></ul>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn-ghost" id="swapBtn" title="Start und Ziel tauschen">⇅ Tauschen</button>
+        <button class="btn-ghost" id="clearBtn" title="Zurücksetzen">✕ Leeren</button>
+      </div>
+      <p class="hint" id="clickHint">Tipp: Klick auf die Karte setzt zuerst <b>Start</b>, dann <b>Ziel</b>.</p>
+    </section>
+
+    <!-- Velo-Typ -->
+    <section class="card">
+      <h2>🚴 Velo-Typ</h2>
+      <div class="seg" id="bikeType">
+        <button data-val="velo" class="active">Velo</button>
+        <button data-val="ebike25">E-Bike 25</button>
+        <button data-val="ebike45">E-Bike 45</button>
+      </div>
+      <div class="calib-info" id="calibInfo"></div>
+    </section>
+
+    <!-- Fahrstil / Untergrund -->
+    <section class="card">
+      <h2>🗺️ Routen-Stil</h2>
+      <div class="seg seg-wrap" id="rideStyle">
+        <button data-val="trekking" class="active">Trekking / Stadt</button>
+        <button data-val="road-bike">Rennvelo</button>
+        <button data-val="gravel">Gravel</button>
+        <button data-val="mtb">MTB Trail</button>
+      </div>
+      <label class="check">
+        <input type="checkbox" id="multiStyle">
+        Auch andere Stile als Varianten vorschlagen
+      </label>
+    </section>
+
+    <!-- Fitness -->
+    <section class="card">
+      <h2>💪 Fitness / Tempo</h2>
+      <div class="field">
+        <label>Eigene Tretleistung: <b id="powerVal">130</b> W</label>
+        <input type="range" id="power" min="70" max="300" step="5" value="130">
+        <div class="ticks"><span>gemütlich</span><span>sportlich</span><span>Profi</span></div>
+      </div>
+    </section>
+
+    <button class="btn-primary" id="routeBtn">Routen berechnen</button>
+    <div id="status" class="status"></div>
+
+    <!-- Ergebnisliste -->
+    <section id="results"></section>
+
+    <footer id="foot">
+      Karten © <a href="https://www.swisstopo.admin.ch" target="_blank">swisstopo</a> ·
+      Routing © <a href="https://brouter.de" target="_blank">BRouter</a> /
+      <a href="https://www.openstreetmap.org/copyright" target="_blank">OSM</a>
+    </footer>
+  </aside>
+
+  <!-- ============ KARTE ============ -->
+  <main id="map-wrap">
+    <div id="map"></div>
+    <div id="elevation-panel" class="hidden">
+      <div class="ep-head">
+        <span id="ep-title">Höhenprofil</span>
+        <button id="ep-close">✕</button>
+      </div>
+      <canvas id="elevation-canvas"></canvas>
+    </div>
+  </main>
+</div>
+
+<!-- ============ FEEDBACK-DIALOG (nach Fahrt) ============ -->
+<div id="feedback-modal" class="modal hidden">
+  <div class="modal-box">
+    <h2>🏁 Fahrt-Feedback</h2>
+    <p>War die angezeigte Zeit für diese Route realistisch? So lernt die App dein Tempo (pro Velo-Typ).</p>
+    <p class="fb-route" id="fbRoute"></p>
+    <div class="fb-grid">
+      <button data-fb="muchslower">War viel<br>langsamer</button>
+      <button data-fb="slower">War etwas<br>langsamer</button>
+      <button data-fb="ok">Hat<br>gepasst ✓</button>
+      <button data-fb="faster">War etwas<br>schneller</button>
+      <button data-fb="muchfaster">War viel<br>schneller</button>
+    </div>
+    <p class="fb-explain">„Schneller" = du warst schneller als angezeigt → künftig kürzere Zeiten.</p>
+    <button class="btn-ghost" id="fbCancel">Abbrechen</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="app.js"></script>
+</body>
+</html>
