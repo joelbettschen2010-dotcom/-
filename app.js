@@ -517,42 +517,57 @@ function selectRoute(i){
 /* ---------------------------------------------------------------------
    9)  HÖHENPROFIL (Canvas)
    ------------------------------------------------------------------- */
+let _elevRoute=null;
 function showElevation(r){
   const panel=document.getElementById('elevation-panel');
   panel.classList.remove('hidden');
   document.getElementById('ep-title').textContent=`Höhenprofil – ${r.name} (${fmtKm(r.dist)}, ↑${Math.round(r.ascend)} hm)`;
+  _elevRoute=r;
+  // Nach Layout zeichnen, damit die Canvas-Masse korrekt sind (sonst unterer Teil abgeschnitten)
+  requestAnimationFrame(()=>requestAnimationFrame(()=>drawElevation(r)));
+}
+function drawElevation(r){
+  const panel=document.getElementById('elevation-panel');
+  if(panel.classList.contains('hidden')||!r) return;
   const cv=document.getElementById('elevation-canvas');
   const dpr=window.devicePixelRatio||1;
-  const w=cv.clientWidth, h=cv.clientHeight;
+  const w=Math.max(cv.clientWidth, 120), h=Math.max(cv.clientHeight, 80);
   cv.width=w*dpr; cv.height=h*dpr;
-  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
 
   // Daten: kumulative Distanz + Höhe
   const pts=[]; let cum=0;
   for(let i=0;i<r.coords.length;i++){ if(i>0)cum+=hav(r.coords[i-1],r.coords[i]); pts.push([cum,r.coords[i][2]||0]); }
+  if(cum<=0) return;
   const eles=pts.map(p=>p[1]), minE=Math.min(...eles), maxE=Math.max(...eles), range=Math.max(maxE-minE,20);
-  const padL=42,padB=18,padT=8,padR=8;
+  // Padding adaptiv: genug Platz unten für km-Beschriftung, oben kleiner Puffer
+  const padL=46, padR=10, padT=12, padB=Math.min(24, Math.max(18, h*0.16));
+  const plotH=Math.max(h-padB-padT, 10);
   const X=d=>padL+(d/cum)*(w-padL-padR);
-  const Y=e=>h-padB-((e-minE)/range)*(h-padB-padT);
+  const Y=e=>padT+plotH-((e-minE)/range)*plotH;
 
   // Fläche
   ctx.beginPath(); ctx.moveTo(X(0),Y(eles[0]));
   pts.forEach(p=>ctx.lineTo(X(p[0]),Y(p[1])));
-  ctx.lineTo(X(cum),h-padB); ctx.lineTo(X(0),h-padB); ctx.closePath();
-  const grad=ctx.createLinearGradient(0,padT,0,h-padB);
+  ctx.lineTo(X(cum),padT+plotH); ctx.lineTo(X(0),padT+plotH); ctx.closePath();
+  const grad=ctx.createLinearGradient(0,padT,0,padT+plotH);
   grad.addColorStop(0,r.color+'cc'); grad.addColorStop(1,r.color+'10');
   ctx.fillStyle=grad; ctx.fill();
   // Linie
   ctx.beginPath(); ctx.moveTo(X(0),Y(eles[0]));
   pts.forEach(p=>ctx.lineTo(X(p[0]),Y(p[1])));
   ctx.strokeStyle=r.color; ctx.lineWidth=2; ctx.stroke();
-  // Achsen
-  ctx.fillStyle='#94a6b5'; ctx.font='10px sans-serif'; ctx.textBaseline='middle';
+  // Höhen-Achse (3 Werte)
+  ctx.fillStyle='#94a6b5'; ctx.font='10px sans-serif'; ctx.textBaseline='middle'; ctx.textAlign='left';
   [minE,(minE+maxE)/2,maxE].forEach(e=>{ const y=Y(e); ctx.fillText(Math.round(e)+'m',4,y);
     ctx.strokeStyle='rgba(148,166,181,.12)';ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(w-padR,y);ctx.stroke(); });
-  ctx.textBaseline='alphabetic';
-  for(let k=0;k<=4;k++){ const d=cum*k/4; ctx.fillText((d/1000).toFixed(1)+'km',X(d)-12,h-5); }
+  // km-Achse unten (innerhalb des Canvas, mittig ausgerichtet)
+  ctx.textBaseline='bottom'; ctx.fillStyle='#94a6b5';
+  for(let k=0;k<=4;k++){ const d=cum*k/4; ctx.textAlign = k===0?'left':k===4?'right':'center';
+    ctx.fillText((d/1000).toFixed(d<10000?1:0)+' km', X(d), h-3); }
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
 }
+window.addEventListener('resize',()=>{ if(_elevRoute && !document.getElementById('elevation-panel').classList.contains('hidden')) drawElevation(_elevRoute); });
 document.getElementById('ep-close').onclick=()=>document.getElementById('elevation-panel').classList.add('hidden');
 
 /* ---------------------------------------------------------------------
