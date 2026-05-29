@@ -73,11 +73,35 @@ L.control.layers(
 let startMarker=null, endMarker=null;
 function makeIcon(emoji){ return L.divIcon({className:'',html:`<div class="pin">${emoji}</div>`,iconSize:[30,30],iconAnchor:[15,28]}); }
 
-map.on('click', e=>{
-  const p = { lat:+e.latlng.lat.toFixed(6), lon:+e.latlng.lng.toFixed(6), label:`Kartenpunkt (${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)})` };
+// Punkt auf Karte setzen: 1 Sekunde gedrückt halten (Long-Press) statt einfachem Klick,
+// damit beim Verschieben/Auswählen nicht versehentlich ein Standort gesetzt wird.
+function placeFromMap(latlng){
+  const p = { lat:+latlng.lat.toFixed(6), lon:+latlng.lng.toFixed(6), label:`Kartenpunkt (${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)})` };
   if(!state.start || (state.start && state.end)){ setPoint('start',p,true); clearPoint('end'); }
   else { setPoint('end',p,true); }
+  // kleines Feedback
+  setStatus(state.end?'Ziel gesetzt.':'Start gesetzt – jetzt Ziel wählen.','');
+}
+
+// Long-Press-Erkennung (Maus + Touch), ~700 ms, mit Bewegungs-Abbruch
+let lpTimer=null, lpStart=null, lpRing=null;
+function lpClear(){ if(lpTimer){clearTimeout(lpTimer);lpTimer=null;} if(lpRing){lpRing.remove();lpRing=null;} }
+map.on('mousedown', e=>{
+  if(typeof nav!=='undefined' && nav.active) return;     // im Navi-Modus keine Punkte setzen
+  if(e.originalEvent && e.originalEvent.button!==0) return;
+  lpStart=e.latlng; lpRing=makeLpRing(e.containerPoint);
+  lpTimer=setTimeout(()=>{ lpClear(); placeFromMap(lpStart); }, 700);
 });
+map.on('mouseup', lpClear);
+map.on('movestart dragstart zoomstart', lpClear);
+map.on('mousemove', e=>{
+  if(lpStart && lpStart.distanceTo(e.latlng)>12) lpClear(); // bei Bewegung abbrechen (Karte verschieben)
+});
+function makeLpRing(pt){
+  const el=document.createElement('div'); el.className='lp-ring';
+  el.style.left=pt.x+'px'; el.style.top=pt.y+'px';
+  document.getElementById('map').appendChild(el); return el;
+}
 
 function setPoint(which,p,fromMap){
   state[which]=p;
@@ -103,31 +127,43 @@ function clearPoint(which){
 /* ---------------------------------------------------------------------
    3)  GEOCODING (Ortssuche Schweiz)
    ------------------------------------------------------------------- */
+// Geokodierung für freien Text (gibt beste Treffer zurück)
+async function geocode(q){
+  const url=`${GEOCODE}?searchText=${encodeURIComponent(q)}&type=locations&sr=4326&limit=8&origins=zipcode,gg25,address`;
+  const r=await fetch(url); const d=await r.json();
+  return (d.results||[]).map(x=>({
+    label:String(x.attrs.label).replace(/<\/?[^>]+>/g,''),
+    lat:x.attrs.lat, lon:x.attrs.lon, detail:x.attrs.detail||'' }));
+}
+
 function setupSearch(inputId, suggestId, which){
   const input=document.getElementById(inputId), box=document.getElementById(suggestId);
-  let timer=null, items=[], sel=-1;
+  let timer=null, items=[], sel=-1, chosenLabel=null;
 
   input.addEventListener('input',()=>{
-    clearTimeout(timer); const q=input.value.trim();
+    clearTimeout(timer); chosenLabel=null; const q=input.value.trim();
     if(q.length<2){ box.classList.remove('show'); return; }
     timer=setTimeout(async()=>{
-      try{
-        const url=`${GEOCODE}?searchText=${encodeURIComponent(q)}&type=locations&sr=4326&limit=8&origins=zipcode,gg25,address`;
-        const r=await fetch(url); const d=await r.json();
-        items=(d.results||[]).map(x=>({
-          label:String(x.attrs.label).replace(/<\/?[^>]+>/g,''),
-          lat:x.attrs.lat, lon:x.attrs.lon, detail:x.attrs.detail||'' }));
-        renderSuggest();
-      }catch(e){ box.classList.remove('show'); }
+      try{ items=await geocode(q); renderSuggest(); }
+      catch(e){ box.classList.remove('show'); }
     },220);
   });
   input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){
+      e.preventDefault();
+      if(box.classList.contains('show') && sel>=0){ choose(items[sel]); }
+      else { commitText(); }                       // Enter ohne Auswahl → Text übernehmen
+      input.blur(); return;
+    }
     if(!box.classList.contains('show'))return;
     if(e.key==='ArrowDown'){sel=Math.min(sel+1,items.length-1);hi();e.preventDefault();}
     else if(e.key==='ArrowUp'){sel=Math.max(sel-1,0);hi();e.preventDefault();}
-    else if(e.key==='Enter'){ if(sel>=0){choose(items[sel]);e.preventDefault();} }
     else if(e.key==='Escape'){box.classList.remove('show');}
   });
+  // Wichtigster Fix: Beim Verlassen des Feldes Text automatisch übernehmen,
+  // auch wenn kein Vorschlag angetippt wurde.
+  input.addEventListener('blur',()=>{ setTimeout(()=>{ if(!box.matches(':hover')) commitText(); }, 180); });
+
   document.addEventListener('click',e=>{ if(!box.contains(e.target)&&e.target!==input) box.classList.remove('show'); });
 
   function renderSuggest(){
@@ -139,11 +175,32 @@ function setupSearch(inputId, suggestId, which){
   }
   function hi(){ box.querySelectorAll('li').forEach((li,i)=>li.classList.toggle('sel',i===sel)); }
   function choose(it){
-    input.value=it.label;
+    chosenLabel=it.label; input.value=it.label;
     setPoint(which,{lat:it.lat,lon:it.lon,label:it.label},false);
     box.classList.remove('show');
     map.setView([it.lat,it.lon],13);
   }
+  // Übernimmt den getippten Text: nutzt den ersten Geocoding-Treffer
+  async function commitText(){
+    box.classList.remove('show');
+    const q=input.value.trim();
+    if(q.length<2) return;
+    if(chosenLabel===input.value) return;          // schon gesetzt
+    // bereits geladene Treffer nutzen, sonst frisch holen
+    let list=items;
+    if(!list.length || (list[0]&&list[0].label.toLowerCase().indexOf(q.toLowerCase().slice(0,3))<0)){
+      try{ list=await geocode(q); }catch(e){ list=[]; }
+    }
+    if(list.length){ const it=list[0]; chosenLabel=it.label; input.value=it.label;
+      setPoint(which,{lat:it.lat,lon:it.lon,label:it.label},false);
+      if(!(state.start&&state.end)) map.setView([it.lat,it.lon],13);
+      setStatus(which==='start'?'Start gesetzt.':'Ziel gesetzt.','');
+    } else {
+      setStatus(`Kein Ort für „${q}" gefunden – bitte genauer eingeben.`,'err');
+    }
+  }
+  // nach aussen, damit Tausch/Enter zuverlässig committen kann
+  input._commit = commitText;
 }
 setupSearch('startInput','startSuggest','start');
 setupSearch('endInput','endSuggest','end');
@@ -333,7 +390,11 @@ async function brouterFetch(profile, altIdx){
 }
 
 async function computeRoutes(){
-  if(!state.start||!state.end){ setStatus('Bitte Start und Ziel wählen.','err'); return; }
+  // Falls noch Text in den Feldern steht, der nicht als Punkt übernommen wurde: jetzt nachholen
+  const si=document.getElementById('startInput'), ei=document.getElementById('endInput');
+  if(!state.start && si.value.trim().length>=2 && si._commit){ setStatus('Start wird gesucht …','work'); await si._commit(); }
+  if(!state.end && ei.value.trim().length>=2 && ei._commit){ setStatus('Ziel wird gesucht …','work'); await ei._commit(); }
+  if(!state.start||!state.end){ setStatus('Bitte Start und Ziel wählen (Ort eingeben oder Karte 1 Sek. gedrückt halten).','err'); return; }
   const btn=document.getElementById('routeBtn'); btn.disabled=true;
   setStatus('Routen werden berechnet …','work');
   clearRoutes(); state.routes=[]; document.getElementById('results').innerHTML='';

@@ -231,3 +231,9 @@ body.navigating #elevation-panel{display:none}
 
 /* Off-route Linie / Restroute */
 .leaflet-pane .nav-traveled{opacity:.45}
+
+/* Long-Press-Ring beim Setzen eines Punkts auf der Karte */
+.lp-ring{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;
+  border:3px solid var(--accent);pointer-events:none;z-index:1100;
+  animation:lpgrow .7s linear forwards}
+@keyframes lpgrow{0%{transform:scale(.4);opacity:.3}100%{transform:scale(3.2);opacity:1}}
