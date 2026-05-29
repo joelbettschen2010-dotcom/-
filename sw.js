@@ -1,6 +1,6 @@
 /* Service Worker – Velo Navi Schweiz
    App-Shell offline verfügbar machen. Karten/Routing brauchen weiterhin Internet. */
-const CACHE = 'velonavi-v3';
+const CACHE = 'velonavi-v4';
 const SHELL = [
   './', './index.html', './style.css', './app.js', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png',
