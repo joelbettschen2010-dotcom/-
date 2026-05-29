@@ -129,14 +129,45 @@ function clearPoint(which){
 /* ---------------------------------------------------------------------
    3)  GEOCODING (Ortssuche Schweiz)
    ------------------------------------------------------------------- */
-// Geokodierung für freien Text (gibt beste Treffer zurück)
+// Geokodierung für freien Text – sucht Orte, Berge, Gipfel, Seen/Flüsse,
+// Flurnamen, Strassen, Adressen und PLZ (alle geo.admin.ch-Quellen).
 async function geocode(q){
-  const url=`${GEOCODE}?searchText=${encodeURIComponent(q)}&type=locations&sr=4326&limit=8&origins=zipcode,gg25,address`;
+  const origins='zipcode,gg25,district,kantone,gazetteer,address';
+  const url=`${GEOCODE}?searchText=${encodeURIComponent(q)}&type=locations&sr=4326&limit=10&origins=${origins}`;
   const r=await fetch(url); const d=await r.json();
-  return (d.results||[]).map(x=>({
-    label:String(x.attrs.label).replace(/<\/?[^>]+>/g,''),
-    lat:x.attrs.lat, lon:x.attrs.lon, detail:x.attrs.detail||'' }));
+  return (d.results||[]).map(x=>{
+    const raw=String(x.attrs.label).replace(/<\/?[^>]+>/g,'').trim();
+    const c=categorize(x.attrs.origin, raw);
+    return { label:c.label, raw, icon:c.icon, lat:x.attrs.lat, lon:x.attrs.lon };
+  });
 }
+// Wandelt die teils technischen geo.admin-Bezeichnungen in lesbare Labels + Icon um
+function categorize(origin, raw){
+  // gazetteer-Labels beginnen oft mit einem Typ, z.B. "Hauptgipfel Niesen (BE) - …",
+  // "Fliessgewaesser Aare (BE) - …", "Flurname swisstopo … "
+  let icon='📍', label=raw;
+  const typeMatch=raw.match(/^(Alpiner Gipfel|Hauptgipfel|Gipfel|Aussichtspunkt|Strassenpass|Pass|Huegel|Hügel|Fliessgewaesser|Fliessgewässer|Stehendes Gewaesser|Stehendes Gewässer|See|Gletscher|Flurname(?: swisstopo)?|Quartier|Ort|Haltestelle|Bahnhof|Gebäude|Gebaeude)\s+/i);
+  if(origin==='address'){ icon='🏠'; }
+  else if(origin==='zipcode'){ icon='✉️'; }
+  else if(origin==='gg25'){ icon='🏘️'; }       // Gemeinde
+  else if(origin==='district'){ icon='🗺️'; }
+  else if(origin==='kantone'){ icon='🏛️'; }
+  else if(origin==='gazetteer'){
+    const t=(typeMatch?typeMatch[1]:'').toLowerCase();
+    if(/gipfel|aussichtspunkt|huegel|hügel/.test(t)) icon='⛰️';
+    else if(/pass/.test(t)) icon='🛤️';   // Strassenpass/Pass
+    else if(/gewaesser|gewässer|see/.test(t)) icon='💧';
+    else if(/gletscher/.test(t)) icon='🏔️';
+    else if(/bahnhof|haltestelle/.test(t)) icon='🚉';
+    else if(/flurname/.test(t)) icon='🌲';
+    else icon='📌';
+    // Typ-Präfix entfernen, "swisstopo" raus, für ein sauberes Label
+    if(typeMatch) label=raw.slice(typeMatch[0].length);
+    label=label.replace(/^swisstopo\s+/i,'');
+  }
+  return { icon, label };
+}
+
 
 function setupSearch(inputId, suggestId, which){
   const input=document.getElementById(inputId), box=document.getElementById(suggestId);
@@ -171,7 +202,7 @@ function setupSearch(inputId, suggestId, which){
   function renderSuggest(){
     if(!items.length){box.classList.remove('show');return;}
     sel=-1;
-    box.innerHTML=items.map((it,i)=>`<li data-i="${i}">${it.label}</li>`).join('');
+    box.innerHTML=items.map((it,i)=>`<li data-i="${i}"><span class="sg-ic">${it.icon||'📍'}</span><span class="sg-tx">${it.label}</span></li>`).join('');
     box.querySelectorAll('li').forEach(li=>li.onclick=()=>choose(items[+li.dataset.i]));
     box.classList.add('show');
   }
@@ -180,7 +211,7 @@ function setupSearch(inputId, suggestId, which){
     chosenLabel=it.label; input.value=it.label;
     setPoint(which,{lat:it.lat,lon:it.lon,label:it.label},false);
     box.classList.remove('show');
-    map.setView([it.lat,it.lon],13);
+    map.setView([it.lat,it.lon],14);
   }
   // Übernimmt den getippten Text: nutzt den ersten Geocoding-Treffer
   async function commitText(){
@@ -190,15 +221,13 @@ function setupSearch(inputId, suggestId, which){
     if(chosenLabel===input.value) return;          // schon gesetzt
     // bereits geladene Treffer nutzen, sonst frisch holen
     let list=items;
-    if(!list.length || (list[0]&&list[0].label.toLowerCase().indexOf(q.toLowerCase().slice(0,3))<0)){
-      try{ list=await geocode(q); }catch(e){ list=[]; }
-    }
+    if(!list.length){ try{ list=await geocode(q); }catch(e){ list=[]; } }
     if(list.length){ const it=list[0]; chosenLabel=it.label; input.value=it.label;
       setPoint(which,{lat:it.lat,lon:it.lon,label:it.label},false);
-      if(!(state.start&&state.end)) map.setView([it.lat,it.lon],13);
+      if(!(state.start&&state.end)) map.setView([it.lat,it.lon],14);
       setStatus(which==='start'?'Start gesetzt.':'Ziel gesetzt.','');
     } else {
-      setStatus(`Kein Ort für „${q}" gefunden – bitte genauer eingeben.`,'err');
+      setStatus(`Nichts für „${q}" gefunden – versuch einen Ort, Berg oder eine Strasse.`,'err');
     }
   }
   // nach aussen, damit Tausch/Enter zuverlässig committen kann

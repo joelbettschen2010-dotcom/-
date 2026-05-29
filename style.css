@@ -44,8 +44,10 @@ input[type=text]:focus{border-color:var(--accent2)}
   box-shadow:var(--shadow);max-height:240px;overflow-y:auto;display:none;
 }
 .suggestions.show{display:block}
-.suggestions li{padding:9px 12px;font-size:13.5px;cursor:pointer;border-bottom:1px solid var(--line)}
+.suggestions li{padding:9px 12px;font-size:13.5px;cursor:pointer;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px}
 .suggestions li:last-child{border-bottom:none}
+.suggestions li .sg-ic{flex:0 0 auto;font-size:15px;width:20px;text-align:center}
+.suggestions li .sg-tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .suggestions li:hover,.suggestions li.sel{background:var(--accent2);color:#fff}
 .suggestions li small{display:block;color:var(--muted);font-size:11px}
 .suggestions li:hover small{color:rgba(255,255,255,.8)}
