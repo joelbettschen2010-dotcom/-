@@ -83,7 +83,7 @@ def sheet_usb_tb():
     jtb0 = usbc_tb("J_TB0", "TB0", "VBUS_C0")
     jtb1 = usbc_tb("J_TB1", "TB1", "VBUS_C1")
 
-    def mux3220(ref, pfx, host):
+    def _unused_mux3220(ref, pfx, host):
         return Comp(ref, "HD3SS3220_Mux", [
             P("H_TXP", "L", "i", f"{host}_TXP"),
             P("H_TXN", "L", "i", f"{host}_TXN"),
@@ -105,8 +105,6 @@ def sheet_usb_tb():
             width=33.02, fp=FP + "QFN30_4x4",
             desc="USB-C CC-Logik + SS-Lane-Mux (10G)", mpn="TI HD3SS3220RNHR")
 
-    u28 = mux3220("U28", "C2", "USBC2")
-    u29 = mux3220("U29", "C3", "USBC3")
 
     def usbc_data(ref, pfx, usb2):
         return Comp(ref, "USB-C_10G", [
@@ -128,8 +126,6 @@ def sheet_usb_tb():
             width=30.48, fp=FP + "USBC_24",
             desc="USB-C-Buchse USB 3.2 Gen2 (Daten, 5V/3A)", mpn="JAE DX07S024WJ1R350")
 
-    jc2 = usbc_data("J_USBC2", "C2", 3)
-    jc3 = usbc_data("J_USBC3", "C3", 4)
 
     def usba(ref, pfx, usb2, vbus):
         return Comp(ref, "USB-A_3G1", [
@@ -156,23 +152,20 @@ def sheet_usb_tb():
             desc="VBUS-Lastschalter 5V/2.1A mit Strombegrenzung",
             mpn="Silergy SY6280AAC")
 
-    u30 = vsw("U30", "EN_USBC2", "C2_VBUS")
-    u31 = vsw("U31", "EN_USBC3", "C3_VBUS")
     u32 = vsw("U32", "EN_USBA1", "+5V_USBA1")
     u33 = vsw("U33", "EN_USBA2", "+5V_USBA2")
 
     notes = [
-        "TB0 = Ladeport (100W Sink via TPS65988, Blatt 1), TB1 = 15W Source.",
+        "Portlayout wie HP EliteBook 850 G7: TB0 sitzt an der Position des",
+        "Barrel-Jacks (rechts hinten) = 100W-PD-Ladeport, TB1 = originaler",
+        "USB-C/TB-Port. Beide Thunderbolt 4 ueber JHL8540.",
         "JHL8540: PCIe Gen3 x4 Uplink + 2x DP1.4-Sink vom SoC.",
-        "ESD-Schutz (TPD4E02B04 an allen SS-Paaren, TPD6E05U06 an USB2/CC)",
-        "direkt an den Buchsen - in Stueckliste, hier nicht gezeichnet.",
-        "USB-C Gen2-Ports: Orientierungs-Mux HD3SS3220 pro Port.",
+        "ESD-Schutz und USB2-Chokes: Blatt 10 (Kleinteile).",
     ]
     comps = cols([
         (100, [u23]),
-        (250, [jtb0, jtb1, u30, u31]),
-        (390, [u28, u29, u32, u33]),
-        (520, [jc2, jc3, ja1, ja2]),
+        (260, [jtb0, jtb1]),
+        (420, [ja1, ja2, u32, u33]),
     ], gap=12.7)
     return ("Thunderbolt 4 + USB", "06_usb_tb4.kicad_sch", comps, notes)
 
@@ -242,24 +235,23 @@ def sheet_ethernet():
             width=15.24, fp=FP + "C_1812",
             desc="Bob-Smith-Abschluss 1nF/2kV", mpn="Murata GA355QR7GF102KW01L")
 
-    u34, u35 = phy("U34", "LAN1", 3, 0), phy("U35", "LAN2", 4, 0)
-    j1, j2 = jack("J_LAN1", "LAN1"), jack("J_LAN2", "LAN2")
-    y3, y4 = xtal("Y3", "LAN1"), xtal("Y4", "LAN2")
-    c13, c14 = mct_cap("C13", "LAN1"), mct_cap("C14", "LAN2")
+    u34 = phy("U34", "LAN1", 3, 0)
+    j1 = jack("J_LAN1", "LAN1")
+    y3 = xtal("Y3", "LAN1")
+    c13 = mct_cap("C13", "LAN1")
 
     notes = [
-        "2x Realtek RTL8125BG an SoC-GPP-Lanes G0/G1 (PCIe Gen2 x1).",
+        "Realtek RTL8125BG an SoC-GPP-Lane G0 (PCIe Gen2 x1).",
+        "RJ45 rechts vorn wie beim EliteBook 850 G7 (Klappmechanik-Buchse).",
         "Kernspannung 1.1V ueber internen LDO des RTL8125BG.",
         "MDI-Paare 100 Ohm differentiell, max. 25mm bis zum Magjack.",
-        "Wake-on-LAN ueber PE_WAKE# (gemeinsame Open-Drain-Leitung).",
+        "Wake-on-LAN ueber PE_WAKE# (Open-Drain).",
     ]
     comps = cols([
-        (110, [u34, y3]),
-        (270, [j1, c13]),
-        (400, [u35, y4]),
-        (540, [j2, c14]),
+        (140, [u34, y3]),
+        (320, [j1, c13]),
     ])
-    return ("2x 2.5-Gigabit-Ethernet", "07_ethernet.kicad_sch", comps, notes)
+    return ("2.5-Gigabit-Ethernet", "07_ethernet.kicad_sch", comps, notes)
 
 
 # ----------------------------------------------------------------------------
@@ -321,8 +313,8 @@ def sheet_display():
         width=15.24, fp=FP + "SMA_DIODE",
         desc="Schottky-Diode 40V/3A", mpn="Vishay SS3P4")
     jcam = Comp("J_CAM", "Webcam_Conn", [
-        P("3V3", "L", "pi", "+3V3"), P("USB_DP", "L", "b", "USB2_P8"),
-        P("USB_DN", "L", "b", "USB2_N8"), P("DMIC_CLK", "L", "o", "DMIC_CLK"),
+        P("3V3", "L", "pi", "+3V3"), P("USB_DP", "L", "b", "USB2_P8_C"),
+        P("USB_DN", "L", "b", "USB2_N8_C"), P("DMIC_CLK", "L", "o", "DMIC_CLK"),
         P("DMIC_DAT", "L", "i", "DMIC_DAT"), P("GND", "L", "pi", "GND")],
         width=27.94, fp=FP + "FPC6_05",
         desc="Webcam-/Mikrofon-Stecker (USB2 + DMIC)", mpn="Molex 5051100692")
@@ -386,36 +378,6 @@ def sheet_audio_sd_ec():
         width=22.86, fp=FP + "CONN_SPK2",
         desc="Lautsprecher rechts 4 Ohm/2W", mpn="JST BM02B-SRSS-TB")
 
-    u40 = Comp("U40", "GL3224_SD", [
-        P("SS_TXP", "L", "o", "SD_SS_RXP"),
-        P("SS_TXN", "L", "o", "SD_SS_RXN"),
-        P("SS_RXP", "L", "i", "SD_SS_TXP"),
-        P("SS_RXN", "L", "i", "SD_SS_TXN"),
-        P("USB_DP", "L", "b", "USB2_P9"),
-        P("USB_DN", "L", "b", "USB2_N9"),
-        P("SD_CLK", "R", "o", "SD_CLK"),
-        P("SD_CMD", "R", "b", "SD_CMD"),
-        P("SD_D0", "R", "b", "SD_D0"),
-        P("SD_D1", "R", "b", "SD_D1"),
-        P("SD_D2", "R", "b", "SD_D2"),
-        P("SD_D3", "R", "b", "SD_D3"),
-        P("SD_CD#", "R", "i", "SD_CD#"),
-        P("SD_WP", "R", "i", "SD_WP"),
-        P("SD_PWR_EN", "R", "o", "SD_PWR"),
-        P("VDD33", "L", "pi", "+3V3"),
-        P("GND", "L", "pi", "GND")],
-        width=33.02, fp=FP + "QFN48_6x6",
-        desc="USB-3.2-SD-4.0-Kartenleser (UHS-II)", mpn="Genesys Logic GL3224")
-    jsd = Comp("J_SD", "SD_Slot_PushPush", [
-        P("CLK", "L", "i", "SD_CLK"), P("CMD", "L", "b", "SD_CMD"),
-        P("DAT0", "L", "b", "SD_D0"), P("DAT1", "L", "b", "SD_D1"),
-        P("DAT2", "L", "b", "SD_D2"), P("DAT3", "L", "b", "SD_D3"),
-        P("VDD", "L", "pi", "SD_PWR"), P("CD", "L", "o", "SD_CD#"),
-        P("WP", "L", "o", "SD_WP"), P("GND", "L", "pi", "GND"),
-        P("SHELL", "L", "p", "GND")],
-        width=27.94, fp=FP + "SD_PUSH",
-        desc="SD-Kartenslot (full size, Push-Push)", mpn="GCT MEM2075-00-140-01-A")
-
     u41 = Comp("U41", "IT5570E_EC", [
         P("ESPI_IO[3:0]", "L", "b", "ESPI_IO[3:0]"),
         P("ESPI_CLK", "L", "i", "ESPI_CLK"),
@@ -456,8 +418,6 @@ def sheet_audio_sd_ec():
         P("EN_SSD2", "R", "o", "EN_SSD2"),
         P("EN_USBA1", "R", "o", "EN_USBA1"),
         P("EN_USBA2", "R", "o", "EN_USBA2"),
-        P("EN_USBC2", "R", "o", "EN_USBC2"),
-        P("EN_USBC3", "R", "o", "EN_USBC3"),
         P("TB_PWR_EN", "R", "o", "TB_PWR_EN"),
         P("TB_FORCE_PWR", "R", "o", "TB_FORCE_PWR"),
         P("TB_RESET#", "R", "o", "TB_RESET#"),
@@ -465,7 +425,6 @@ def sheet_audio_sd_ec():
         P("PE_RST_SSD2#", "R", "o", "NVME2_PERST#"),
         P("PE_RST_TB#", "R", "o", "TB_PERST#"),
         P("PE_RST_LAN1#", "R", "o", "LAN1_PERST#"),
-        P("PE_RST_LAN2#", "R", "o", "LAN2_PERST#"),
         P("PE_RST_WIFI#", "R", "o", "WIFI_PERST#"),
         P("SSD1_DEVSLP", "R", "o", "NVME1_DEVSLP"),
         P("SSD2_DEVSLP", "R", "o", "NVME2_DEVSLP"),
@@ -504,14 +463,16 @@ def sheet_audio_sd_ec():
         P("BL-", "L", "i", "KB_BL_CTL"),
         P("GND", "L", "pi", "GND")],
         width=30.48, fp=FP + "FPC30_05",
-        desc="Tastatur-FPC 30-polig inkl. Power-Taste + Backlight",
-        mpn="Molex 5051103092")
+        desc="FPC fuer HP-EliteBook-850-G7-Tastatur (Matrix-Zuordnung am "
+             "Original ausmessen!)",
+        mpn="HP-kompatibel, FPC 0.5mm")
     jtp = Comp("J_TP", "Touchpad_FPC8", [
         P("3V3", "L", "pi", "+3V3"), P("SCL", "L", "b", "TP_SCL"),
         P("SDA", "L", "b", "TP_SDA"), P("INT#", "L", "o", "TP_INT#"),
         P("GND", "L", "pi", "GND")],
         width=27.94, fp=FP + "FPC8_05",
-        desc="Touchpad-FPC 8-polig (I2C-HID)", mpn="Molex 5051100892")
+        desc="FPC fuer HP-Clickpad (I2C-HID, Pinout am Original verifizieren)",
+        mpn="HP-kompatibel, FPC 0.5mm")
 
     def fan(ref, n):
         return Comp(ref, "Luefter_4pol", [
@@ -543,14 +504,117 @@ def sheet_audio_sd_ec():
         "EC IT5570E: Power-Sequencing S5->S0, Tastaturmatrix 8x18,",
         "Akku-/Lader-SMBus, Luefterregelung, Deckel- und Power-Taste.",
         "Sequenz: +3V3_ALW -> EN_5V/EN_3V3 -> EN_1V8 -> EN_VRM -> SYS_PWROK.",
-        "Audio: ALC256 am SoC-HDA-Link; Klinke = AUX-Kombiport.",
-        "SD-Leser GL3224 an USB3-Port 5 des SoC (UHS-II faehig).",
+        "Audio: ALC256 am SoC-HDA-Link; Klinke links wie beim 850 G7.",
+        "HP-FPC-Pinouts (Tastatur/Touchpad/Akku): docs/elitebook.md.",
     ]
     comps = cols([
         (100, [u39, jaux, jspl, jspr]),
-        (240, [u40, jsd, bt1, rt1, rt2, rt3]),
+        (240, [bt1, rt1, rt2, rt3]),
         (400, [u41]),
         (540, [u42, jkb, jtp, jf1, jf2, jlid]),
     ], gap=11.43)
-    return ("Audio / SD-Leser / Embedded Controller", "09_audio_sd_ec.kicad_sch",
+    return ("Audio / Embedded Controller", "09_audio_sd_ec.kicad_sch",
+            comps, notes)
+
+
+# ----------------------------------------------------------------------------
+# Blatt 10: Kleinteile - Entkopplung, ESD, Filter, Straps
+# ----------------------------------------------------------------------------
+
+def sheet_kleinteile():
+    comps_list = []
+
+    def cap(ref, val, rail, fp_name, desc):
+        return Comp(ref, val, [
+            P("1", "L", "pi", rail), P("2", "R", "pi", "GND")],
+            width=15.24, fp=FP + fp_name, desc=desc,
+            mpn={"22u": "Murata GRM155R60J226ME15", "10u": "Murata GRM188R61A106KE69",
+                 "1u": "Murata GRM155R61A105KE15", "100n": "Murata GRM155R71C104KA88"
+                 }[val.split("_")[0].replace("uF", "u").replace("nF", "n")])
+
+    # MLCC-Baenke: VDDCR (unter dem Sockel, B.Cu)
+    for i in range(12):
+        comps_list.append(cap(f"C{20+i}", "22u_0402", "+VDDCR_CPU", "R_0603",
+                              "MLCC 22uF/6.3V 0402 - VDDCR_CPU-Bank unter Sockel"))
+    for i in range(6):
+        comps_list.append(cap(f"C{32+i}", "22u_0402", "+VDDCR_SOC", "R_0603",
+                              "MLCC 22uF/6.3V 0402 - VDDCR_SOC-Bank unter Sockel"))
+    # VDDIO / Schienen-Bulk
+    rails = ["+1V1_MEM", "+1V1_MEM", "+1V8", "+3V3", "+3V3", "+5V", "+5V",
+             "+1V05_TB", "+0V88_TB", "+3V3_ALW"]
+    for i, r in enumerate(rails):
+        comps_list.append(cap(f"C{40+i}", "10u_0603", r, "R_0603",
+                              f"MLCC 10uF/10V 0603 - Schiene {r}"))
+    # 100n-Entkopplung pro IC (repraesentativ, 1 Symbol = 4 Stk. am IC)
+    for i, ic in enumerate(["U1 PD", "U3 Lader", "U11 VRM", "U19 BIOS",
+                            "U23 TB4", "U34 LAN", "U39 Codec", "U41 EC",
+                            "U42 ECFlash", "Sockel-Rand"]):
+        comps_list.append(cap(f"C{52+i}", "100n_0402", "+3V3", "R_0603",
+                              f"MLCC 100nF 0402 x4 - Entkopplung {ic}"))
+
+    def esd4(ref, nets, port):
+        return Comp(ref, "TPD4E02B04", [
+            P("IO1", "L", "b", nets[0]), P("IO2", "L", "b", nets[1]),
+            P("IO3", "L", "b", nets[2]), P("IO4", "L", "b", nets[3]),
+            P("GND", "R", "pi", "GND")],
+            width=25.4, fp=FP + "DFN6_2x2",
+            desc=f"ESD-Array 4-Kanal 0.25pF - {port}", mpn="TI TPD4E02B04DQAR")
+
+    comps_list += [
+        esd4("U50", ["TB0_TX1P", "TB0_TX1N", "TB0_RX1P", "TB0_RX1N"], "TB0 Lane1"),
+        esd4("U51", ["TB0_TX2P", "TB0_TX2N", "TB0_RX2P", "TB0_RX2N"], "TB0 Lane2"),
+        esd4("U52", ["TB1_TX1P", "TB1_TX1N", "TB1_RX1P", "TB1_RX1N"], "TB1 Lane1"),
+        esd4("U53", ["TB1_TX2P", "TB1_TX2N", "TB1_RX2P", "TB1_RX2N"], "TB1 Lane2"),
+        esd4("U54", ["USBA1_TXP", "USBA1_TXN", "USBA1_RXP", "USBA1_RXN"], "USB-A1 SS"),
+        esd4("U55", ["USBA2_TXP", "USBA2_TXN", "USBA2_RXP", "USBA2_RXN"], "USB-A2 SS"),
+        esd4("U56", ["HDMI_D0P", "HDMI_D0N", "HDMI_D1P", "HDMI_D1N"], "HDMI D0/D1"),
+        esd4("U57", ["HDMI_D2P", "HDMI_D2N", "HDMI_CLKP", "HDMI_CLKN"], "HDMI D2/CLK"),
+        esd4("U58", ["C0_CC1", "C0_CC2", "C1_CC1", "C1_CC2"], "USB-C CC-Pins"),
+        esd4("U59", ["USB2_P5", "USB2_N5", "USB2_P6", "USB2_N6"], "TB USB2"),
+        esd4("U60", ["USB2_P1", "USB2_N1", "USB2_P2", "USB2_N2"], "USB-A USB2"),
+    ]
+
+    def choke(ref, pn, nn, port):
+        return Comp(ref, "DLW21SN900", [
+            P("1A", "L", "b", pn), P("1B", "R", "b", pn + "_C"),
+            P("2A", "L", "b", nn), P("2B", "R", "b", nn + "_C")],
+            width=20.32, fp=FP + "R_0603",
+            desc=f"USB2-Gleichtaktdrossel 90 Ohm - {port}",
+            mpn="Murata DLW21SN900SQ2L")
+
+    comps_list += [
+        choke("FL1", "USB2_P8", "USB2_N8", "Webcam"),
+        choke("FL2", "USB2_P7", "USB2_N7", "WLAN/BT"),
+    ]
+
+    def strap(ref, net, updown, desc):
+        return Comp(ref, "R_10k", [
+            P("1", "L", "p", net), P("2", "R", "p", updown)],
+            width=15.24, fp=FP + "R_0603", desc=desc,
+            mpn="Yageo RC0402FR-0710KL")
+
+    comps_list += [
+        strap("R10", "TB_FORCE_PWR", "GND", "Pulldown TB Force-Power"),
+        strap("R11", "PE_WAKE#", "+3V3_ALW", "Pullup PCIe-Wake (Open-Drain)"),
+        strap("R12", "PROCHOT#", "+3V3", "Pullup PROCHOT# (Open-Drain)"),
+        strap("R13", "SPD_HSCL", "+3V3", "Pullup DDR5-SPD-Bus"),
+        strap("R14", "SPD_HSDA", "+3V3", "Pullup DDR5-SPD-Bus"),
+        strap("R15", "PWRBTN_IN#", "+3V3_ALW", "Pullup Power-Taste"),
+    ]
+
+    notes = [
+        "Kleinteile: MLCC-Baenke (VDDCR-Baenke werden auf B.Cu direkt unter",
+        "dem Sockel bestueckt), ESD-Arrays an allen externen Ports,",
+        "USB2-Gleichtaktdrosseln, Pull-Widerstaende fuer Open-Drain-Busse.",
+        "_C-Netze der Chokes: buchsenseitige Segmente der USB2-Paare.",
+        "100n-Positionen stehen stellvertretend fuer je 4 Stueck am IC.",
+    ]
+    comps = cols([
+        (90, comps_list[0:12]),
+        (200, comps_list[12:28]),
+        (310, comps_list[28:38]),
+        (430, comps_list[38:49]),
+        (540, comps_list[49:]),
+    ], gap=8.89)
+    return ("Kleinteile: Entkopplung / ESD / Filter", "10_kleinteile.kicad_sch",
             comps, notes)

@@ -38,7 +38,7 @@ def main():
     sheets_src = [
         d1.sheet_power(), d1.sheet_vrm(), d1.sheet_cpu(), d1.sheet_memory(),
         d1.sheet_storage(), d2.sheet_usb_tb(), d2.sheet_ethernet(),
-        d2.sheet_display(), d2.sheet_audio_sd_ec(),
+        d2.sheet_display(), d2.sheet_audio_sd_ec(), d2.sheet_kleinteile(),
     ]
 
     root_uuid = uid("root")
@@ -64,9 +64,9 @@ def main():
         y = 40 + (i // 3) * 60
         sheets_layout.append((title, fname, s_uuid, x, y, str(page)))
     root_notes = [
-        note("Laptop-Mainboard 15.6\\\" - AMD Ryzen 5 8600G (AM5, gesockelt)", 30, 240, 3),
-        note("2x DDR5 SO-DIMM | 2x M.2 NVMe Gen4 | 2x Thunderbolt 4 (JHL8540)", 30, 250, 2),
-        note("2x USB-C 10G | 2x USB-A | 2x 2.5GbE | HDMI 2.1 | SD | Klinke | 100W USB-PD", 30, 257, 2),
+        note("Laptop-Mainboard fuer HP-EliteBook-850-G7-Chassis - Ryzen 5 8600G (AM5, gesockelt)", 30, 240, 3),
+        note("2x DDR5 SO-DIMM | 2x M.2 NVMe Gen4 | WLAN | AM5-Pinbelegung: docs/am5_pinmap.csv", 30, 250, 2),
+        note("Ports wie 850 G7: 2x TB4 (einer = 100W-PD statt Barrel-Jack), HDMI, 2x USB-A, RJ45, Klinke", 30, 257, 2),
         note("Generiert aus tools/gen_all.py - Aenderungen dort vornehmen.", 30, 267, 1.6),
     ]
     write(os.path.join(KICAD, "laptop-mainboard.kicad_sch"),
@@ -106,7 +106,9 @@ def main():
               fp.mod_file())
 
     # ------------------------------------------------------------------
-    # Board: Floorplan 330 x 115 mm (15.6"-Gehaeuse, Akku unterhalb)
+    # Board: 340 x 112 mm fuer HP-EliteBook-850-G7-Chassis (358.5 x 233.9mm)
+    # Rechte Kante (hinten->vorn): USB-C-PD (Barrel-Position), TB4, HDMI,
+    # USB-A, RJ45. Linke Kante: USB-A, Klinke. Akku-Schacht unterhalb.
     # ------------------------------------------------------------------
     PL = [
         # CPU + Speicher + Storage
@@ -130,15 +132,16 @@ def main():
         ("IND_7x7", "L5", "220n", 84, 94, 90),
         ("IND_7x7", "L6", "220n", 69, 108, 90),
         ("IND_7x7", "L7", "220n", 69, 120, 90),
-        ("CAP_7343", "C5", "470u", 104, 122, 0),
-        ("CAP_7343", "C6", "470u", 113, 122, 0),
-        ("CAP_7343", "C7", "470u", 122, 122, 0),
-        ("CAP_7343", "C8", "470u", 146, 122, 0),
-        ("CAP_7343", "C9", "470u", 155, 122, 0),
-        # BIOS + RTC
+        ("CAP_7343", "C5", "470u", 104, 120, 0),
+        ("CAP_7343", "C6", "470u", 113, 120, 0),
+        ("CAP_7343", "C7", "470u", 122, 120, 0),
+        ("CAP_7343", "C8", "470u", 146, 120, 0),
+        ("CAP_7343", "C9", "470u", 155, 120, 0),
+        # BIOS + RTC + Systemtakt
         ("SOIC8", "U19", "W25Q256JW", 168, 48, 0),
         ("XTAL_3215", "Y1", "32.768k", 176, 48, 0),
-        ("COIN_ML1220", "BT1", "ML1220", 172, 135, 0),
+        ("XTAL_3225", "Y2", "48M", 183, 48, 0),
+        ("COIN_ML1220", "BT1", "ML1220", 223, 133, 90),
         # Systemwandler oben links neben dem Sockel
         ("QFN20_3x4", "U4", "5V Buck", 98, 38, 0),
         ("QFN20_3x4", "U5", "3V3 Buck", 109, 38, 0),
@@ -154,37 +157,25 @@ def main():
         ("IND_4x4", "L13", "470n", 137, 44, 0),
         ("IND_4x4", "L14", "470n", 145, 44, 0),
         ("IND_4x4", "L15", "470n", 153, 44, 0),
-        # Linke Kante: LAN, USB-A, Audio
-        ("RJ45_MAGJACK", "J_LAN1", "2.5GbE", 42, 46, 90),
-        ("RJ45_MAGJACK", "J_LAN2", "2.5GbE", 42, 72, 90),
-        ("QFN48_6x6", "U34", "RTL8125BG", 60, 46, 0),
-        ("QFN48_6x6", "U35", "RTL8125BG", 60, 72, 0),
-        ("XTAL_3225", "Y3", "25M", 68, 52, 0),
-        ("XTAL_3225", "Y4", "25M", 68, 78, 0),
-        ("C_1812", "C13", "1n/2kV", 60, 56, 0),
-        ("C_1812", "C14", "1n/2kV", 60, 84, 0),
-        ("USBA3_TH", "J_USBA1", "USB-A 5G", 40, 96, 90),
-        ("SOT23-5", "U32", "VBUS-SW", 68, 92, 0),
-        ("TRRS_35", "J_AUX", "Klinke", 38, 114, 90),
+        # Linke Kante (wie 850 G7): USB-A, Klinke; Audio-Codec
+        ("USBA3_TH", "J_USBA1", "USB-A 5G", 40, 60, 90),
+        ("SOT23-5", "U32", "VBUS-SW", 58, 60, 0),
+        ("TRRS_35", "J_AUX", "Klinke", 38, 84, 90),
         ("QFN48_6x6", "U39", "ALC256", 60, 98, 0),
-        # Rechte Kante: TB4, USB-C, HDMI, USB-A, SD
-        ("USBC_24", "J_TB0", "TB4 / 100W PD", 352, 42, 270),
+        # Rechte Kante (wie 850 G7, hinten->vorn)
+        ("USBC_24", "J_TB0", "USB-C PD 100W + TB4", 352, 42, 270),
         ("USBC_24", "J_TB1", "TB4", 352, 54, 270),
-        ("USBC_24", "J_USBC2", "USB-C 10G", 352, 68, 270),
-        ("USBC_24", "J_USBC3", "USB-C 10G", 352, 80, 270),
-        ("HDMI_A", "J_HDMI", "HDMI 2.1", 350, 96, 270),
-        ("USBA3_TH", "J_USBA2", "USB-A 5G", 40, 132, 90),
-        ("SD_PUSH", "J_SD", "SD UHS-II", 352, 124, 270),
+        ("HDMI_A", "J_HDMI", "HDMI 2.1", 350, 70, 270),
+        ("USBA3_TH", "J_USBA2", "USB-A 5G", 352, 90, 270),
+        ("RJ45_MAGJACK", "J_LAN1", "2.5GbE", 352, 112, 270),
         ("BGA_10x9_JHL8540", "U23", "JHL8540 TB4", 330, 48, 0),
         ("BGA96_9x9", "U1", "TPS65988 PD", 322, 64, 0),
         ("SOIC8", "U2", "PD-Cfg", 308, 64, 0),
-        ("QFN30_4x4", "U28", "HD3SS3220", 336, 74, 0),
-        ("QFN30_4x4", "U29", "HD3SS3220", 336, 86, 0),
-        ("SOT23-5", "U30", "VBUS-SW", 326, 74, 0),
-        ("SOT23-5", "U31", "VBUS-SW", 326, 86, 0),
-        ("SOT23-5", "U33", "VBUS-SW", 68, 130, 0),
-        ("TSSOP24", "U36", "TPD12S016", 332, 96, 90),
-        ("QFN48_6x6", "U40", "GL3224 SD", 322, 96, 0),
+        ("TSSOP24", "U36", "TPD12S016", 332, 84, 90),
+        ("SOT23-5", "U33", "VBUS-SW", 330, 92, 0),
+        ("QFN48_6x6", "U34", "RTL8125BG", 325, 112, 0),
+        ("XTAL_3225", "Y3", "25M", 316, 118, 0),
+        ("C_1812", "C13", "1n/2kV", 330, 104, 0),
         # Laderegler unten rechts
         ("QFN32_4x4", "U3", "BQ25731", 287, 124, 0),
         ("R_2512", "R2", "10m", 296, 124, 0),
@@ -195,10 +186,11 @@ def main():
         ("IND_7x7", "L1", "3u3", 300, 136, 0),
         ("PowerPAK_1212", "Q3", "SiSS22DN", 309, 136, 0),
         ("PowerPAK_1212", "Q4", "SiSS22DN", 316, 136, 0),
-        ("CAP_7343", "C1", "330u", 258, 142, 0),
-        ("CAP_7343", "C2", "330u", 267, 142, 0),
-        ("CAP_7343", "C3", "330u", 276, 142, 0),
-        ("CAP_7343", "C4", "330u", 285, 142, 0),
+        ("R_0603", "RT3", "NTC CHG", 287, 130, 0),
+        ("CAP_7343", "C1", "330u", 250, 138, 0),
+        ("CAP_7343", "C2", "330u", 259, 138, 0),
+        ("CAP_7343", "C3", "330u", 268, 138, 0),
+        ("CAP_7343", "C4", "330u", 277, 138, 0),
         # Obere Kante: eDP, Webcam, Backlight, Luefter
         ("FPC40_05", "J_EDP", "eDP-Panel", 183, 35, 0),
         ("FPC6_05", "J_CAM", "Webcam", 203, 35, 0),
@@ -209,34 +201,94 @@ def main():
         ("CONN_FAN4", "J_FAN1", "Luefter L", 78, 35, 0),
         ("CONN_FAN4", "J_FAN2", "Luefter R", 290, 35, 0),
         # Untere Kante: Akku, Tastatur, Touchpad, Lautsprecher, EC
-        ("CONN_BAT8_2mm", "J_BAT", "Akku 4S", 195, 140, 0),
-        ("FPC30_05", "J_KB", "Tastatur", 154, 140, 0),
-        ("FPC8_05", "J_TP", "Touchpad", 115, 140, 0),
-        ("FPC6_05", "J_LID", "Lid-Sensor", 100, 140, 0),
-        ("CONN_SPK2", "J_SPKL", "Spk L", 62, 141, 0),
-        ("CONN_SPK2", "J_SPKR", "Spk R", 238, 141, 0),
-        ("LQFP128_14x14", "U41", "IT5570E EC", 135, 133, 0),
-        ("SOIC8", "U42", "EC-Flash", 152, 133, 0),
-        ("SOT23-5", "U21", "SSD1-SW", 277, 118, 0),
-        ("SOT23-5", "U22", "SSD2-SW", 277, 111, 0),
+        ("CONN_BAT8_2mm", "J_BAT", "HP-Akku 3S 56Wh", 195, 138, 0),
+        ("FPC30_05", "J_KB", "HP-Tastatur", 154, 137, 0),
+        ("FPC8_05", "J_TP", "HP-Clickpad", 115, 137, 0),
+        ("FPC6_05", "J_LID", "Lid-Sensor", 100, 137, 0),
+        ("CONN_SPK2", "J_SPKL", "Spk L", 52, 138, 0),
+        ("CONN_SPK2", "J_SPKR", "Spk R", 276, 131, 0),
+        ("LQFP128_14x14", "U41", "IT5570E EC", 135, 131, 0),
+        ("SOIC8", "U42", "EC-Flash", 152, 131, 0),
+        ("SOT23-5", "U21", "SSD1-SW", 277, 111, 0),
+        ("SOT23-5", "U22", "SSD2-SW", 277, 104, 0),
         ("R_0603", "RT1", "NTC CPU", 163, 90, 0),
         ("R_0603", "RT2", "NTC VRM", 90, 48, 0),
-        ("R_0603", "RT3", "NTC CHG", 270, 136, 0),
-        # Befestigung
-        ("MTG_M2_5", "H1", "", 33, 33, 0),
+        # Befestigung (Raster am 850-G7-Chassis final ausmessen!)
+        ("MTG_M2_5", "H1", "", 28, 33, 0),
         ("MTG_M2_5", "H2", "", 160, 33, 0),
         ("MTG_M2_5", "H3", "", 345, 33, 0),
-        ("MTG_M2_5", "H4", "", 33, 142, 0),
-        ("MTG_M2_5", "H5", "", 248, 141, 0),
+        ("MTG_M2_5", "H4", "", 30, 138, 0),
+        ("MTG_M2_5", "H5", "", 240, 139, 0),
         ("MTG_M2_5", "H6", "", 274, 80, 0),
-        ("MTG_M2_5", "H7", "", 33, 86, 0),
+        ("MTG_M2_5", "H7", "", 28, 105, 0),
         ("MTG_M2_5", "H8", "", 300, 33, 0),
+        # Bestueckung Unterseite (B.Cu): Entkopplungsbaenke unter dem Sockel
+        ("R_0603", "C20", "22u", 112, 72, 0, "B"),
+        ("R_0603", "C21", "22u", 122, 72, 0, "B"),
+        ("R_0603", "C22", "22u", 132, 72, 0, "B"),
+        ("R_0603", "C23", "22u", 142, 72, 0, "B"),
+        ("R_0603", "C24", "22u", 112, 80, 0, "B"),
+        ("R_0603", "C25", "22u", 122, 80, 0, "B"),
+        ("R_0603", "C26", "22u", 132, 80, 0, "B"),
+        ("R_0603", "C27", "22u", 142, 80, 0, "B"),
+        ("R_0603", "C28", "22u", 112, 88, 0, "B"),
+        ("R_0603", "C29", "22u", 122, 88, 0, "B"),
+        ("R_0603", "C30", "22u", 132, 88, 0, "B"),
+        ("R_0603", "C31", "22u", 142, 88, 0, "B"),
+        ("R_0603", "C32", "22u", 104, 96, 0, "B"),
+        ("R_0603", "C33", "22u", 114, 96, 0, "B"),
+        ("R_0603", "C34", "22u", 124, 96, 0, "B"),
+        ("R_0603", "C35", "22u", 104, 64, 0, "B"),
+        ("R_0603", "C36", "22u", 114, 64, 0, "B"),
+        ("R_0603", "C37", "22u", 124, 64, 0, "B"),
+        # Schienen-Entkopplung (B.Cu, unter DIMM-/Wandlerbereich)
+        ("R_0603", "C40", "10u", 170, 60, 0, "B"),
+        ("R_0603", "C41", "10u", 178, 60, 0, "B"),
+        ("R_0603", "C42", "10u", 186, 60, 0, "B"),
+        ("R_0603", "C43", "10u", 194, 60, 0, "B"),
+        ("R_0603", "C44", "10u", 202, 60, 0, "B"),
+        ("R_0603", "C45", "10u", 210, 60, 0, "B"),
+        ("R_0603", "C46", "10u", 218, 60, 0, "B"),
+        ("R_0603", "C47", "10u", 226, 60, 0, "B"),
+        ("R_0603", "C48", "10u", 234, 60, 0, "B"),
+        ("R_0603", "C49", "10u", 242, 60, 0, "B"),
+        ("R_0603", "C52", "100n", 170, 68, 0, "B"),
+        ("R_0603", "C53", "100n", 178, 68, 0, "B"),
+        ("R_0603", "C54", "100n", 186, 68, 0, "B"),
+        ("R_0603", "C55", "100n", 194, 68, 0, "B"),
+        ("R_0603", "C56", "100n", 202, 68, 0, "B"),
+        ("R_0603", "C57", "100n", 210, 68, 0, "B"),
+        ("R_0603", "C58", "100n", 218, 68, 0, "B"),
+        ("R_0603", "C59", "100n", 226, 68, 0, "B"),
+        ("R_0603", "C60", "100n", 234, 68, 0, "B"),
+        ("R_0603", "C61", "100n", 242, 68, 0, "B"),
+        # ESD-Arrays (B.Cu, direkt hinter den Buchsen)
+        ("DFN6_2x2", "U50", "ESD TB0-L1", 344, 40, 0, "B"),
+        ("DFN6_2x2", "U51", "ESD TB0-L2", 344, 46, 0, "B"),
+        ("DFN6_2x2", "U52", "ESD TB1-L1", 344, 52, 0, "B"),
+        ("DFN6_2x2", "U53", "ESD TB1-L2", 344, 58, 0, "B"),
+        ("DFN6_2x2", "U54", "ESD USBA1", 46, 60, 0, "B"),
+        ("DFN6_2x2", "U55", "ESD USBA2", 344, 90, 0, "B"),
+        ("DFN6_2x2", "U56", "ESD HDMI-1", 342, 70, 0, "B"),
+        ("DFN6_2x2", "U57", "ESD HDMI-2", 342, 76, 0, "B"),
+        ("DFN6_2x2", "U58", "ESD CC", 350, 34, 0, "B"),
+        ("DFN6_2x2", "U59", "ESD TB-USB2", 344, 64, 0, "B"),
+        ("DFN6_2x2", "U60", "ESD A-USB2", 46, 68, 0, "B"),
+        # USB2-Chokes + Straps (B.Cu)
+        ("R_0603", "FL1", "CMC Webcam", 203, 40, 0, "B"),
+        ("R_0603", "FL2", "CMC WLAN", 292, 52, 0, "B"),
+        ("R_0603", "R10", "10k", 60, 40, 0, "B"),
+        ("R_0603", "R11", "10k", 60, 46, 0, "B"),
+        ("R_0603", "R12", "10k", 60, 52, 0, "B"),
+        ("R_0603", "R13", "10k", 60, 58, 0, "B"),
+        ("R_0603", "R14", "10k", 60, 64, 0, "B"),
+        ("R_0603", "R15", "10k", 60, 70, 0, "B"),
     ]
 
     lib_board = pcb.build_library()
     extras = []
-    # Platinenumriss 330 x 115
-    X0, Y0, X1, Y1 = 30, 30, 360, 145
+    # Platinenumriss 340 x 112 (EliteBook-850-G7-Innenraum, final ausmessen)
+    X0, Y0, X1, Y1 = 25, 30, 365, 142
     extras += [pcb.gr_line(X0, Y0, X1, Y0), pcb.gr_line(X1, Y0, X1, Y1),
                pcb.gr_line(X1, Y1, X0, Y1), pcb.gr_line(X0, Y1, X0, Y0)]
     # Zonen
@@ -245,40 +297,54 @@ def main():
     extras.append(pcb.zone(1, "GND", "In5.Cu", all_pts, "GND2"))
     extras.append(pcb.zone(1, "GND", "B.Cu", all_pts, "GND-Bottom"))
     extras.append(pcb.zone(2, "+VSYS", "In3.Cu",
-                           [(180, 30), (360, 30), (360, 145), (180, 145)], "VSYS"))
+                           [(180, 30), (365, 30), (365, 142), (180, 142)], "VSYS"))
     extras.append(pcb.zone(2, "+VSYS", "In3.Cu",
-                           [(30, 30), (115, 30), (115, 120), (30, 120)], "VSYS-VRM"))
+                           [(25, 30), (115, 30), (115, 125), (25, 125)], "VSYS-VRM"))
     extras.append(pcb.zone(3, "+5V", "In4.Cu",
                            [(150, 30), (270, 30), (270, 80), (150, 80)], "5V"))
     extras.append(pcb.zone(4, "+3V3", "In4.Cu",
-                           [(30, 30), (150, 30), (150, 145), (30, 145)], "3V3"))
+                           [(25, 30), (150, 30), (150, 142), (25, 142)], "3V3"))
     extras.append(pcb.zone(4, "+3V3", "In4.Cu",
-                           [(270, 30), (360, 30), (360, 145), (270, 145)], "3V3-IO"))
+                           [(270, 30), (365, 30), (365, 142), (270, 142)], "3V3-IO"))
     extras.append(pcb.zone(5, "+VDDCR_CPU", "In1.Cu",
                            [(95, 55), (160, 55), (160, 112), (95, 112)], "VDDCR_CPU"))
     extras.append(pcb.zone(6, "+VDDCR_SOC", "In1.Cu",
                            [(75, 60), (93, 60), (93, 105), (75, 105)], "VDDCR_SOC"))
-    # Repraesentative Routing-Korridore (Hauptsignale)
-    for i in range(4):  # PCIe P0 -> SSD1 (vertikal bei x=243)
+    # Routing-Korridore (Hauptsignale, Feinabgleich siehe docs/layout.md)
+    for i in range(4):  # PCIe P0 -> SSD1 (vertikal bei x=248)
         extras.append(pcb.diff_pair(160, 88 + i * 1.5, 240, 66 + i * 1.2, "In6.Cu"))
     for i in range(4):  # PCIe P2 -> JHL8540
         extras.append(pcb.diff_pair(160, 58 + i * 1.5, 322, 46 + i * 0.8, "In6.Cu"))
     for i in range(4):  # HDMI TMDS -> Buchse
-        extras.append(pcb.diff_pair(160, 100 + i * 1.5, 344, 94 + i * 0.8, "F.Cu"))
+        extras.append(pcb.diff_pair(160, 100 + i * 1.5, 342, 68 + i * 0.8, "F.Cu"))
     for i in range(4):  # DDR-Korridor Kanal A (Beispielpaare)
         extras.append(pcb.diff_pair(160, 70 + i * 1.5, 178, 58 + i * 1.2, "In1.Cu"))
+    for i in range(4):  # MDI: RTL8125 -> RJ45
+        extras.append(pcb.diff_pair(331, 108 + i * 2, 342, 106 + i * 3, "F.Cu"))
+    for i in range(2):  # DP0/DP1 -> JHL8540 DP-IN
+        extras.append(pcb.diff_pair(160, 64 + i * 1.5, 324, 54 + i * 1, "In6.Cu"))
+    # GND-Stitching-Vias (Raster 15mm, Sockel- und Randzonen ausgespart)
+    yv = 36
+    while yv < 140:
+        xv = 32
+        while xv < 362:
+            in_socket = 92 < xv < 165 and 40 < yv < 118
+            in_edge = xv > 336 or xv < 44
+            in_dimm = 158 < xv < 238 and 50 < yv < 124
+            in_ssd = 228 < xv < 300 and 34 < yv < 122
+            if not (in_socket or in_edge or in_dimm or in_ssd):
+                extras.append(pcb.via(xv, yv, net=1))
+            xv += 15
+        yv += 13
     # Beschriftungen
-    extras.append(pcb.gr_text("Laptop-Mainboard 15.6\\\" Rev A", 195, 26, "F.SilkS", 3))
-    extras.append(pcb.gr_text("AM5 - Kuehlerzone 100x75mm freihalten", 130, 82,
-                              "Cmts.User", 2))
-    extras.append(pcb.gr_text("Akku-Bereich unterhalb der Platine", 195, 150,
-                              "Cmts.User", 2))
-    extras.append(pcb.gr_text("Korridore In1/In6: DDR5- und PCIe-Gen4-Paare "
-                              "(repraesentativ, Feinrouting offen)", 195, 155,
-                              "Cmts.User", 1.5))
+    extras.append(pcb.gr_text("Laptop-Mainboard fuer HP EliteBook 850 G7 - Rev B", 195, 26, "F.SilkS", 3))
+    extras.append(pcb.gr_text("AM5 - Kuehlerzone 100x75mm freihalten", 130, 82, "Cmts.User", 2))
+    extras.append(pcb.gr_text("HP-Akkuschacht (3S 56Wh) unterhalb", 195, 147, "Cmts.User", 2))
+    extras.append(pcb.gr_text("Umriss + Lochbild am realen 850-G7-Chassis verifizieren (docs/elitebook.md)", 195, 152, "Cmts.User", 1.5))
 
-    write(os.path.join(KICAD, "laptop-mainboard.kicad_pcb"),
-          pcb.board_file(PL, lib_board, extras))
+    board_text, netmap = pcb.board_file(PL, lib_board, extras)
+    write(os.path.join(KICAD, "laptop-mainboard.kicad_pcb"), board_text)
+    print(f"  Board-Netze: {len(netmap)}")
 
     # Stueckliste
     bom_path = os.path.join(DOCS, "bom.csv")

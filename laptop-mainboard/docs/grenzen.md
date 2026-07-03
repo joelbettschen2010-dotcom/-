@@ -1,50 +1,52 @@
-# Grenzen dieses Designs (bewusst offen gelegt)
+# Stand des Designs und verbleibende Grenzen
 
-Dieses Projekt liefert eine vollständige, in sich konsistente
-System-Architektur auf Prototyp-Niveau. Ein fertigungsreifes
-Laptop-Mainboard braucht darüber hinaus Dinge, die hier prinzipbedingt
-fehlen — Transparenz ist besser als so zu tun, als wäre das ein
-Wochenendprojekt:
+## Was seit Rev A dazugekommen ist (Rev B)
 
-1. **AM5-Ballout (NDA):** Die exakte Belegung der 1718 Sockelpins gibt AMD
-   nur unter NDA an Boardpartner heraus. Das Sockelsymbol ist daher
-   **funktional gruppiert** (Busse), der Footprint trägt ein
-   repräsentatives 0.9-mm-Raster mit 1716 Pads. Für die echte Zuordnung:
-   AMD Infrastructure Roadmap + Referenzdesign (über AMD-Partnerprogramm).
+1. **Echte AM5-Pinbelegung:** Alle 1718 Sockelpins sind jetzt einzeln
+   benannt — Quelle ist die Public-Domain-Pinmap von WikiChip
+   (Wikimedia Commons, „Socket AM5 pinmap.svg", Autor QuietRub).
+   Tabelle: `docs/am5_pinmap.csv`. Der Sockel-Footprint trägt die echten
+   Padnamen (A1…) und **1708 Pads haben ihr echtes Signal als Netz** im
+   Board (VSS→GND, VDDCR, MAA/MAB/MBA/MBB-Speicherkanäle, PCIE_TX/RX[27:0],
+   DP0–2, USBC0–2, SPI, eSPI, AZ/HDA …).
+2. **Kleinteile:** Blatt 10 mit MLCC-Bänken (VDDCR/SOC unter dem Sockel,
+   Bottom-Side), Schienen-Entkopplung, 11 ESD-Arrays an allen externen
+   Ports, USB2-Gleichtaktdrosseln, Pull-Up/Down-Straps. 48-MHz-Systemquarz
+   ergänzt (X48M-Pins der Pinmap). Bestückung beidseitig (B.Cu-Parts).
+3. **Mehr Routing:** GND-Stitching-Via-Raster, MDI-, DP-, PCIe-, HDMI- und
+   DDR-Korridore als Differenzpaare, Netz-Zuordnung an allen Sockelpads.
+4. **EliteBook-850-G7-Anpassung:** Umriss 340×112 mm, Portreihenfolge wie
+   beim Original (USB-C-PD statt Barrel-Jack), 3S-56-Wh-Akku, HP-FPC-
+   Steckplätze — Details und offene Messpunkte in `docs/elitebook.md`.
 
-2. **Entkopplung:** Gezeichnet sind Bulk-Kondensatoren; die ~200 MLCCs
-   (0201/0402, je IC 100 nF + 1 µF, unter dem Sockel 47× 22 µF) sind in den
-   Blattnotizen und hier dokumentiert, aber nicht einzeln im Schaltplan.
+## Was weiterhin fehlt — ehrlich gesagt
 
-3. **Feinrouting:** DDR5-Fly-by mit Längenabgleich, PCIe-Gen4-Paare und
-   TB4-Lanes sind als Korridore und Regeln (docs/layout.md) definiert,
-   nicht fertig geroutet. Das ist bei realen Boards Teamarbeit über Monate
-   mit SI-Simulation (z. B. HyperLynx/SIwave).
+1. **Pinmap-Verifikation:** Die WikiChip-Pinmap ist Community-Arbeit,
+   kein AMD-Originaldokument. Vor Fertigung gegen ein echtes AM5-Board
+   (Beeper/Multimeter, mind. Power/GND + einige Signale) gegenprüfen.
+   Die PCIe-Lane→Port-Bifurcation (welche 4er-Gruppe zu SSD/TB wird)
+   ist firmwareabhängig und muss mit dem AGESA-Port abgestimmt werden.
+2. **Feinrouting:** Die Korridore zeigen Topologie und Lagen; das
+   DRC-saubere Ausrouten aller ~640 Netze mit DDR5-Längenabgleich
+   (±0.1 mm) und SI-Simulation bleibt Monate Ingenieursarbeit.
+   Ohne dieses Feinrouting ist das Board **nicht bestellbar**.
+3. **HP-Proprietäres:** Akku-, Tastatur-, Touchpad- und Displaykabel-
+   Pinouts müssen am Originalgerät ausgemessen werden (docs/elitebook.md).
+   Chassis-Umriss und Lochbild sind Annäherungen bis zum Scan des Originals.
+4. **Firmware:** UEFI/AGESA-Port für chipsatzloses AM5, EC-Firmware
+   (inkl. HP-Tastaturmatrix), TPS65988-/JHL8540-Konfigurationsbinaries —
+   ausdrücklich noch nicht Teil des Auftrags.
+5. **Mechanik/Thermik:** 35–45 W gesockelt in einem 17.9-mm-Chassis
+   erfordert einen erhöhten Bodendeckel und eine Custom-Vapor-Chamber.
+6. **Zulassung:** TB4-/USB-IF-Zertifizierung, CE/FCC, UN38.3.
 
-4. **ESD/EMV-Kleinteile:** ESD-Arrays (TPD4E02B04 an allen SS-Paaren,
-   TPD6E05U06 an USB2/CC), Common-Mode-Chokes am HDMI, Serien-R an
-   Straps — in Stückliste/Notizen erwähnt, nicht einzeln gezeichnet.
-
-5. **Firmware:** AGESA/BIOS-Port (chipsatzloses AM5 braucht angepasstes
-   UEFI), EC-Firmware (Sequencing, Tastatur, Lüfterkurven), TPS65988- und
-   JHL8540-Konfigurationsbinaries müssen erstellt werden.
-
-6. **Zulassung:** TB4-Zertifizierung (Intel), USB-IF, CE/FCC, Akku-Transport
-   (UN38.3) sind formale Prozesse mit Mustern und Messungen.
-
-7. **Mechanik:** Gehäuse, Kühler (Vapor-Chamber für 45 W + gesockelte
-   Bauhöhe!), Scharniere, Antennenführung sind nicht Teil dieses Repos.
-
-## Realistische Einschätzung
+## Realistische Einschätzung bis zum Prototyp
 
 | Schritt | Aufwand |
 |---|---|
-| Dieser Stand (Architektur, Schaltplan-Gerüst, Floorplan) | ✔ erledigt |
-| Vollständiger Detail-Schaltplan mit NDA-Unterlagen | 4–8 Wochen (1 Ing.) |
-| Layout + SI-Simulation | 2–4 Monate |
-| Prototyp-Fertigung + Bring-up + BIOS/EC-Port | 3–6 Monate |
-| Budget bis zum laufenden Prototyp | grob 50–150 k€ |
-
-Der Weg über ein **Framework-16-Mainboard** oder ein
-**DeskMini-X600-Derivat** wäre der pragmatische Mittelweg, wenn es primär
-um einen wartbaren/aufrüstbaren Laptop geht.
+| Dieser Stand (Architektur, Pinbelegung, Kleinteile, Floorplan) | ✔ |
+| Pinmap-Verifikation + Detail-Schaltplan-Review | 2–4 Wochen |
+| Feinrouting + SI-Simulation | 2–4 Monate |
+| Chassis-Vermessung + Mechanik (Kühler, Bodendeckel) | 4–8 Wochen |
+| Prototyp + Bring-up + BIOS/EC-Port | 3–6 Monate |
+| Budget | grob 50–150 k€ |

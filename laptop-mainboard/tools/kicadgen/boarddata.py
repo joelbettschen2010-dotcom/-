@@ -88,6 +88,8 @@ def cpu_socket():
         P("SVI3_SVT", "L", "i", "SVI3_SVT"),
         P("X32K_XI", "L", "p", "X32K_XI"),
         P("X32K_XO", "L", "p", "X32K_XO"),
+        P("X48M_X1", "L", "p", "X48M_X1"),
+        P("X48M_OSC", "L", "p", "X48M_OSC"),
         # --- PCIe (rechts) ---
         P("P0_TXP[3:0]", "R", "o", "NVME1_TXP[3:0]"),
         P("P0_TXN[3:0]", "R", "o", "NVME1_TXN[3:0]"),
@@ -105,10 +107,10 @@ def cpu_socket():
         P("G0_TXN", "R", "o", "LAN1_PE_TXN"),
         P("G0_RXP", "R", "i", "LAN1_PE_RXP"),
         P("G0_RXN", "R", "i", "LAN1_PE_RXN"),
-        P("G1_TXP", "R", "o", "LAN2_PE_TXP"),
-        P("G1_TXN", "R", "o", "LAN2_PE_TXN"),
-        P("G1_RXP", "R", "i", "LAN2_PE_RXP"),
-        P("G1_RXN", "R", "i", "LAN2_PE_RXN"),
+        P("G1_TXP", "R", "o", None),
+        P("G1_TXN", "R", "o", None),
+        P("G1_RXP", "R", "i", None),
+        P("G1_RXN", "R", "i", None),
         P("G2_TXP", "R", "o", "WIFI_PE_TXP"),
         P("G2_TXN", "R", "o", "WIFI_PE_TXN"),
         P("G2_RXP", "R", "i", "WIFI_PE_RXP"),
@@ -119,7 +121,7 @@ def cpu_socket():
         P("CLKREQ1#", "R", "i", "NVME2_CLKREQ#"),
         P("CLKREQ2#", "R", "i", "TB_CLKREQ#"),
         P("CLKREQ3#", "R", "i", "LAN1_CLKREQ#"),
-        P("CLKREQ4#", "R", "i", "LAN2_CLKREQ#"),
+        P("CLKREQ4#", "R", "i", None),
         P("CLKREQ5#", "R", "i", "WIFI_CLKREQ#"),
         P("PE_WAKE#", "R", "i", "PE_WAKE#"),
         # --- USB SuperSpeed ---
@@ -131,20 +133,11 @@ def cpu_socket():
         P("U3G2_2_TXN", "R", "o", "USBA2_TXN"),
         P("U3G2_2_RXP", "R", "i", "USBA2_RXP"),
         P("U3G2_2_RXN", "R", "i", "USBA2_RXN"),
-        P("U3G2_3_TXP", "R", "o", "USBC2_TXP"),
-        P("U3G2_3_TXN", "R", "o", "USBC2_TXN"),
-        P("U3G2_3_RXP", "R", "i", "USBC2_RXP"),
-        P("U3G2_3_RXN", "R", "i", "USBC2_RXN"),
-        P("U3G2_4_TXP", "R", "o", "USBC3_TXP"),
-        P("U3G2_4_TXN", "R", "o", "USBC3_TXN"),
-        P("U3G2_4_RXP", "R", "i", "USBC3_RXP"),
-        P("U3G2_4_RXN", "R", "i", "USBC3_RXN"),
-        P("U3G1_5_TXP", "R", "o", "SD_SS_TXP"),
-        P("U3G1_5_TXN", "R", "o", "SD_SS_TXN"),
-        P("U3G1_5_RXP", "R", "i", "SD_SS_RXP"),
-        P("U3G1_5_RXN", "R", "i", "SD_SS_RXN"),
-        P("USB2_P[9:1]", "R", "b", "USB2_P[9:1]"),
-        P("USB2_N[9:1]", "R", "b", "USB2_N[9:1]"),
+        P("U3G2_3", "R", "o", None),
+        P("U3G2_4", "R", "o", None),
+        P("U3G1_5", "R", "o", None),
+        P("USB2_P[8:1]", "R", "b", "USB2_P[8:1]"),
+        P("USB2_N[8:1]", "R", "b", "USB2_N[8:1]"),
         # --- Display ---
         P("DP0_TXP[3:0]", "R", "o", "TBDP0_TXP[3:0]"),
         P("DP0_TXN[3:0]", "R", "o", "TBDP0_TXN[3:0]"),
@@ -182,7 +175,8 @@ def cpu_socket():
     ]
     return Comp("XU1", "AM5_Socket_R5-8600G", pins, width=55.88,
                 fp=FP + "AM5_Socket_LGA1718",
-                desc="CPU-Sockel AM5 (LGA-1718) mit Ryzen 5 8600G, cTDP 35-45W",
+                desc="CPU-Sockel AM5 (LGA-1718) mit Ryzen 5 8600G, cTDP 35-45W; "
+                     "Pinbelegung: docs/am5_pinmap.csv (WikiChip, Public Domain)",
                 mpn="Foxconn LGA1718 + AMD 100-100001237BOX")
 
 
@@ -192,6 +186,10 @@ def sheet_cpu():
         P("XI", "L", "p", "X32K_XI"), P("XO", "R", "p", "X32K_XO")],
         width=15.24, fp=FP + "XTAL_3215", desc="RTC-Quarz 32.768 kHz",
         mpn="Epson FC-135")
+    y2 = Comp("Y2", "XTAL_48M", [
+        P("X1", "L", "p", "X48M_X1"), P("OSC", "R", "p", "X48M_OSC")],
+        width=15.24, fp=FP + "XTAL_3225", desc="Systemtakt-Quarz 48 MHz (X48M)",
+        mpn="TXC 7M-48.000MAAJ-T")
     u19 = Comp("U19", "W25Q256JW_BIOS", [
         P("CS#", "L", "i", "BIOS_CS#"), P("CLK", "L", "i", "BIOS_CLK"),
         P("DI", "L", "i", "BIOS_MOSI"), P("DO", "R", "o", "BIOS_MISO"),
@@ -203,11 +201,12 @@ def sheet_cpu():
         "AM5-Sockel (LGA-1718) - CPU gesockelt, nicht geloetet.",
         "Ryzen 5 8600G: 6C/12T Zen4, Radeon 760M, cTDP 35-45W (Eco-Mode).",
         "Chipsatzloses Design (wie DeskMini X600): alle I/O direkt vom SoC.",
-        "PCIe Gen4 Lane-Budget: 2x4 NVMe, x4 TB4, 3x1 (2x LAN, WLAN).",
-        "Pinsymbol funktional gruppiert - vollstaendige Ballout-Zuordnung",
-        "erfordert AMD-NDA-Dokumentation (siehe docs/grenzen.md).",
+        "PCIe Gen4 Lane-Budget: 2x4 NVMe, x4 TB4, 2x1 (LAN, WLAN).",
+        "Pinbelegung aller 1718 Pads: docs/am5_pinmap.csv",
+        "(Quelle: WikiChip via Wikimedia Commons, Public Domain).",
+        "Footprint-Pads tragen die echten Signal-Netznamen.",
     ]
-    comps = cols([(120, [xu1]), (420, [y1, u19])])
+    comps = cols([(120, [xu1]), (420, [y1, y2, u19])])
     return ("CPU AM5-Sockel + BIOS", "03_cpu_am5.kicad_sch", comps, notes)
 
 
@@ -273,7 +272,7 @@ def sheet_power():
         P("SCL", "R", "b", "CHG_SMB_SCL"),
         P("GND", "R", "pi", "GND")],
         width=33.02, fp=FP + "QFN32_4x4",
-        desc="Buck-Boost-NVDC-Laderegler, 4S-Akku, 20V/5A Eingang",
+        desc="Buck-Boost-NVDC-Laderegler, 3S-Akku (CELL=3S), 20V/5A Eingang",
         mpn="TI BQ25731RSNR")
     fets = []
     fet_net = {"Q1": ("CHG_ACN", "G_Q1", "CHG_SW1"),
@@ -300,7 +299,7 @@ def sheet_power():
         width=15.24, fp=FP + "R_2512",
         desc="Shunt 10 mOhm Eingangsstrommessung (ACP/ACN)",
         mpn="Bourns CSS2H-2512R-L100F")
-    jbat = Comp("J_BAT", "AkkuStecker_4S", [
+    jbat = Comp("J_BAT", "AkkuStecker_HP_3S", [
         P("BAT+_1", "L", "pi", "+VBAT"),
         P("BAT+_2", "L", "pi", "+VBAT"),
         P("SMB_SCL", "L", "b", "BAT_SMB_SCL"),
@@ -310,8 +309,9 @@ def sheet_power():
         P("BAT-_1", "L", "pi", "GND"),
         P("BAT-_2", "L", "pi", "GND")],
         width=27.94, fp=FP + "CONN_BAT8_2mm",
-        desc="Akku-Steckverbinder 4S / 80 Wh Smart Battery",
-        mpn="JST S8B-PH-SM4-TB")
+        desc="Akku-Stecker fuer HP-Originalakku 3S / 56 Wh (EliteBook 850 G7, "
+             "HP L35766-005) - Pinout am Originalboard verifizieren!",
+        mpn="HP-kompatibel (Reverse-Engineering noetig)")
 
     def buck8633(ref, en, pg, sw, rail, desc):
         return Comp(ref, "MPQ8633B", [
@@ -362,10 +362,11 @@ def sheet_power():
             desc="Polymer-Bulkkondensator 330uF/25V", mpn="Panasonic 25SVPF330M"))
 
     notes = [
-        "Laden: 100W USB-PD (20V/5A) am Port TB0 -> TPS65988 Pfad-FET -> BQ25731.",
-        "NVDC-Topologie: +VSYS = max(Akku, Wandler); Akku 4S Li-Ion 15.4V / 80Wh.",
-        "R1-Hinweis: SW2-Knoten -> Shunt -> SRP/SRN -> BAT (Ladestrommessung).",
-        "Alle Bucks: Feedback-Teiler und MLCC-Entkopplung siehe docs/power.md.",
+        "Laden: 100W USB-PD (20V/5A) am Port TB0 (Position des HP-Barrel-Jacks)",
+        "-> TPS65988 Pfad-FET -> BQ25731. NVDC: +VSYS = max(Akku, Wandler).",
+        "Akku: HP-Original 3S Li-Ion 11.55V / 56Wh (EliteBook 850 G7).",
+        "Q5/R1: BATFET + Lade-Shunt; R2: Eingangsstrom-Shunt (ACP/ACN).",
+        "Alle Bucks: Feedback-Teiler und MLCC-Entkopplung auf Blatt 10.",
         "+3V3_ALW versorgt EC und PD-Controller auch im Soft-Off (S5).",
     ]
     comps = cols([
@@ -541,8 +542,8 @@ def sheet_storage():
         P("PERST#", "L", "i", "WIFI_PERST#"),
         P("CLKREQ#", "L", "b", "WIFI_CLKREQ#"),
         P("PEWAKE#", "L", "b", "PE_WAKE#"),
-        P("USB_DP", "L", "b", "USB2_P7"),
-        P("USB_DN", "L", "b", "USB2_N7"),
+        P("USB_DP", "L", "b", "USB2_P7_C"),
+        P("USB_DN", "L", "b", "USB2_N7_C"),
         P("W_DISABLE1#", "L", "i", "W_DISABLE1#"),
         P("W_DISABLE2#", "L", "i", "W_DISABLE2#"),
         P("GND", "L", "pi", "GND")],

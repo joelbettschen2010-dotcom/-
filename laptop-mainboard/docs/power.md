@@ -6,11 +6,11 @@
 USB-C TB0 (20V/5A, 100W PD)
    └─ TPS65988 (PD-Aushandlung, interner Pfad-FET, 5A)
         └─ +VBUS_IN ── R2 (10 mΩ, ACP/ACN) ── BQ25731 Buck-Boost (Q1–Q4 + L1 3.3µH)
-             ├─ +VSYS (NVDC-Systemschiene, 12…16.8V)
-             └─ Q5 (BATFET) ── R1 (10 mΩ, SRP/SRN) ── +VBAT (Akku 4S)
+             ├─ +VSYS (NVDC-Systemschiene, 9…13V)
+             └─ Q5 (BATFET) ── R1 (10 mΩ, SRP/SRN) ── +VBAT (HP-Akku 3S)
 ```
 
-- **Akku:** 4S1P Li-Ion, 15.4 V nominal, 80 Wh, Smart-Battery (SMBus) am J_BAT.
+- **Akku:** HP-Original 3S Li-Ion, 11.55 V nominal, 56 Wh (EliteBook 850 G7), Smart-Battery-SMBus am J_BAT.
 - **NVDC:** System läuft immer aus +VSYS; der Lader teilt die 100 W dynamisch
   zwischen System und Akku auf (Input-Current-Limit über ILIM_HIZ + SMBus).
 - Port TB1 ist Source-only (5 V/3 A über PP_HV2 aus +5V).
@@ -19,11 +19,11 @@ USB-C TB0 (20V/5A, 100W PD)
 
 | Schiene | Quelle | Spannung | Last (max.) | Verbraucher |
 |---|---|---|---|---|
-| +VSYS | BQ25731 | 12–16.8 V | 100 W | VRM, Bucks, Backlight |
+| +VSYS | BQ25731 | 9–13 V (3S) | 100 W | VRM, Bucks, Backlight |
 | +VDDCR_CPU | MP2857 + 4× MP86957 | 0.6–1.4 V (SVI3) | 60 A | CPU-Kerne |
 | +VDDCR_SOC | MP2857 + 2× MP86957 | 0.8–1.2 V (SVI3) | 30 A | SoC/iGPU |
 | +5V | MPQ8633B (U4) | 5 V | 8 A | DIMM-Bulk, USB-VBUS, Lüfter, HDA |
-| +3V3 | MPQ8633B (U5) | 3.3 V | 8 A | LAN, Audio, SD, TB-I/O, Panel |
+| +3V3 | MPQ8633B (U5) | 3.3 V | 8 A | LAN, Audio, TB-I/O, Panel |
 | +3V3_ALW | MPQ8633B (U9) | 3.3 V | 2 A | EC, PD-Controller (S5-Domäne) |
 | +1V8 | TPS62823 (U6) | 1.8 V | 3 A | BIOS-Flash, VDD_MISC, VDD_1V8 |
 | +1V1_MEM | TPS62823 (U18) | 1.1 V | 4 A | VDDIO_MEM (SoC-Seite) |

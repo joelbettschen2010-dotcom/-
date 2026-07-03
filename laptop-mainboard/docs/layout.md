@@ -2,9 +2,10 @@
 
 ## Board
 
-- **Abmessung:** 330 × 115 mm, rechteckig, 8 Befestigungslöcher M2.5.
-  Passt in ein 15.6"-Chassis (Innenbreite ≈ 350 mm); der Akku liegt
-  unterhalb der Platine (Bereich am unteren Rand vermerkt).
+- **Abmessung:** 340 × 112 mm, 8 Befestigungslöcher M2.5, ausgelegt auf das
+  HP-EliteBook-850-G7-Chassis (358.5 × 233.9 mm aussen); HP-Akkuschacht
+  unterhalb. Umriss/Lochbild vor Fertigung am Chassis verifizieren
+  (docs/elitebook.md).
 - **Dicke:** 1.6 mm (bei Bedarf 1.2 mm mit angepasstem Lagenaufbau).
 
 ## Lagenaufbau (8 Lagen)

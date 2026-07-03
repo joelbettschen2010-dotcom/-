@@ -1,7 +1,9 @@
-# Laptop-Mainboard — AMD AM5, 15.6", Thunderbolt 4
+# Laptop-Mainboard — AMD AM5 im HP-EliteBook-850-G7-Chassis (Rev B)
 
 Komplettes KiCad-8-Projekt für ein Laptop-Mainboard mit **gesockelter**
 Desktop-CPU (AM5) statt verlöteter Mobile-CPU.
+
+![Board](docs/board_render.png)
 
 ![Konzept](docs/blockdiagramm.svg)
 
@@ -10,19 +12,20 @@ Desktop-CPU (AM5) statt verlöteter Mobile-CPU.
 | Bereich | Umsetzung |
 |---|---|
 | CPU | **AMD Ryzen 5 8600G** (x86-64, Zen 4, 6C/12T, Radeon 760M) im **AM5-Sockel LGA-1718** — wechselbar wie beim Desktop-PC, per cTDP auf 35–45 W gedrosselt |
-| Chipsatz | **keiner** (chipsatzloses Design wie ASRock DeskMini X600) — alle I/O direkt vom SoC → spart Strom und Platz |
+| Chipsatz | **keiner** (chipsatzlos wie DeskMini X600) — alle I/O direkt vom SoC |
+| Pinbelegung | **alle 1718 AM5-Pins benannt** (docs/am5_pinmap.csv, WikiChip/Wikimedia Public Domain); 1708 Sockelpads im Board mit echtem Signal-Netz |
 | RAM | 2× DDR5 **SO-DIMM** (1 DIMM pro Kanal, bis DDR5-5600, max. 96 GB) |
 | Storage | 2× **M.2 2280 NVMe**, je PCIe 4.0 ×4, getrennt schaltbare 3.3-V-Schienen |
 | WLAN | 1× M.2 2230 E-Key (PCIe ×1 + USB 2.0), z. B. Wi-Fi 7 Modul |
 | Thunderbolt | 2× **Thunderbolt 4** über **Intel JHL8540** (Maple Ridge), PCIe ×4 Uplink + 2× DP-1.4-Sink |
-| Laden | **100 W USB-PD** (20 V/5 A) am TB-Port 0 → TPS65988 → **BQ25731** Buck-Boost-Lader → 4S-Akku 80 Wh (NVDC) |
-| USB | 2× USB-C 10 Gbit (HD3SS3220-Mux), 2× USB-A 5 Gbit |
-| Netzwerk | 2× **2.5-Gbit-Ethernet** (Realtek RTL8125BG, je PCIe ×1) |
+| Laden | **100 W USB-PD** am TB-Port 0 (sitzt an der Barrel-Jack-Position des 850 G7) → TPS65988 → **BQ25731** → HP-Akku 3S/56 Wh (NVDC) |
+| USB | 2× USB-A 5 Gbit (je einer links/rechts, wie 850 G7) |
+| Netzwerk | **2.5-Gbit-Ethernet** (RTL8125BG), RJ45 rechts vorn wie beim 850 G7 |
 | Video | HDMI 2.1 (nativ vom SoC, TPD12S016-Companion), intern eDP 1.4 (2 Lanes) |
 | Audio | Realtek ALC256, 3.5-mm-Kombiklinke (AUX), 2× 2-W-Lautsprecher |
-| SD | Full-Size-SD-Slot UHS-II (Genesys GL3224 an USB 3) |
+| Kleinteile | Blatt 10: MLCC-Bänke, 11 ESD-Arrays, USB2-Chokes, Straps (beidseitige Bestückung) |
 | EC | ITE IT5570E: Power-Sequencing, Tastatur 8×18, Akku-SMBus, 2× Lüfter |
-| Board | 330 × 115 mm, 8 Lagen, für 15.6"-Gehäuse (Akku unterhalb der Platine) |
+| Board | 340 × 112 mm, 8 Lagen, Portlayout/Umriss für HP EliteBook 850 G7 (docs/elitebook.md) |
 
 ## Projektstruktur
 
@@ -36,9 +39,10 @@ laptop-mainboard/
 │   ├── 04_memory.kicad_sch          2× DDR5 SO-DIMM
 │   ├── 05_storage.kicad_sch         2× M.2 NVMe + WLAN
 │   ├── 06_usb_tb4.kicad_sch         Thunderbolt 4 + USB
-│   ├── 07_ethernet.kicad_sch        2× 2.5GbE
+│   ├── 07_ethernet.kicad_sch        2.5GbE
 │   ├── 08_display.kicad_sch         eDP, HDMI, Backlight, Webcam
-│   ├── 09_audio_sd_ec.kicad_sch     Audio, SD, Embedded Controller
+│   ├── 09_audio_sd_ec.kicad_sch     Audio, Embedded Controller
+│   ├── 10_kleinteile.kicad_sch      Entkopplung, ESD, Filter, Straps
 │   ├── laptop-mainboard.kicad_pcb   Board: Umriss, Platzierung, Lagen, Zonen
 │   ├── lm.kicad_sym                 Symbolbibliothek
 │   └── laptop_mainboard.pretty/     Footprints (inkl. LGA-1718, SO-DIMM 262)
@@ -46,8 +50,11 @@ laptop-mainboard/
 │   ├── architektur.md         Blockdiagramm, PCIe-/USB-/Display-Budget
 │   ├── power.md               Schienen, Power-Budget, Sequencing
 │   ├── layout.md              Lagenaufbau, Floorplan, Routing-Regeln
+│   ├── elitebook.md           EliteBook-850-G7-Einbau: passt/zu messen
+│   ├── am5_pinmap.csv         Alle 1718 AM5-Pins mit Signalnamen
 │   ├── grenzen.md             Was dieses Projekt (bewusst) nicht abdeckt
-│   └── bom.csv                Stückliste (104 Positionen)
+│   ├── board_render.png       Bestückungsansicht (generiert)
+│   └── bom.csv                Stückliste (150 Positionen)
 └── tools/
     └── gen_all.py             Generator — erzeugt alle KiCad-Dateien
 ```
@@ -72,9 +79,12 @@ laptop-mainboard/
 
 ## Ehrlichkeit / Reifegrad
 
-Das Projekt ist ein **seriöser Prototyp-Stand**: vollständige Systemarchitektur,
-alle Hauptbauteile mit realen Teilenummern, konsistente Netzliste über alle
-Blätter, kollisionsfrei platzierter Floorplan mit Lagenkonzept und
-Versorgungszonen. Die Pinout-Feinarbeit (AM5-Ballout, DDR5-Längenabgleich,
-vollständiges Routing) erfordert AMD-NDA-Unterlagen und Monate
-Layout-Arbeit — Details in [docs/grenzen.md](docs/grenzen.md).
+Rev B ist ein **weit ausgearbeiteter Prototyp-Stand**: vollständige
+Systemarchitektur, echte AM5-Pinbelegung (Public-Domain-Quelle) an allen
+Sockelpads, Kleinteile (Entkopplung/ESD/Filter) auf eigenem Blatt,
+kollisionsfreier beidseitiger Floorplan im EliteBook-Format mit Zonen,
+Stitching-Vias und Routing-Korridoren. **Noch nicht bestellbar:** das
+DRC-saubere Feinrouting aller ~640 Netze, die Verifikation der
+Community-Pinmap und die HP-Mechanik-/FPC-Vermessung stehen aus —
+Details in [docs/grenzen.md](docs/grenzen.md) und
+[docs/elitebook.md](docs/elitebook.md).

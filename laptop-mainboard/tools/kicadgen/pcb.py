@@ -12,17 +12,17 @@ class Fp:
         self.lines = []
         self.texts = []
 
-    def pad_smd(self, num, x, y, w, h, shape="roundrect"):
+    def pad_smd(self, num, x, y, w, h, shape="roundrect", net=None):
         self.pads.append(dict(num=num, kind="smd", shape=shape, x=x, y=y,
-                              w=w, h=h, drill=None))
+                              w=w, h=h, drill=None, net=net))
 
-    def pad_th(self, num, x, y, d, drill):
+    def pad_th(self, num, x, y, d, drill, net=None):
         self.pads.append(dict(num=num, kind="thru_hole", shape="circle",
-                              x=x, y=y, w=d, h=d, drill=drill))
+                              x=x, y=y, w=d, h=d, drill=drill, net=net))
 
     def pad_npth(self, x, y, d):
         self.pads.append(dict(num="", kind="np_thru_hole", shape="circle",
-                              x=x, y=y, w=d, h=d, drill=d))
+                              x=x, y=y, w=d, h=d, drill=d, net=None))
 
     def rect(self, x1, y1, x2, y2, layer="F.SilkS", w=0.12):
         self.lines += [(x1, y1, x2, y1, layer, w), (x2, y1, x2, y2, layer, w),
@@ -31,7 +31,7 @@ class Fp:
     def courtyard(self, x1, y1, x2, y2):
         self.rect(x1, y1, x2, y2, "F.CrtYd", 0.05)
 
-    def body(self):
+    def body(self, netmap=None):
         s = []
         s.append(f'  (descr "{self.desc}")')
         s.append('  (attr smd)' if all(p["kind"] == "smd" for p in self.pads)
@@ -46,15 +46,18 @@ class Fp:
             s.append('    (effects (font (size 1 1) (thickness 0.15)))')
             s.append('  )')
         for p in self.pads:
+            net = ''
+            if netmap is not None and p.get("net"):
+                net = f' (net {netmap[p["net"]]} "{p["net"]}")'
             if p["kind"] == "smd":
                 extra = ' (roundrect_rratio 0.25)' if p["shape"] == "roundrect" else ''
                 s.append(f'  (pad "{p["num"]}" smd {p["shape"]} '
                          f'(at {f(p["x"])} {f(p["y"])}) (size {f(p["w"])} {f(p["h"])}) '
-                         f'(layers "F.Cu" "F.Paste" "F.Mask"){extra} (uuid "{uid("pd")}"))')
+                         f'(layers "F.Cu" "F.Paste" "F.Mask"){extra}{net} (uuid "{uid("pd")}"))')
             elif p["kind"] == "thru_hole":
                 s.append(f'  (pad "{p["num"]}" thru_hole circle '
                          f'(at {f(p["x"])} {f(p["y"])}) (size {f(p["w"])} {f(p["h"])}) '
-                         f'(drill {f(p["drill"])}) (layers "*.Cu" "*.Mask") '
+                         f'(drill {f(p["drill"])}) (layers "*.Cu" "*.Mask"){net} '
                          f'(uuid "{uid("pd")}"))')
             else:
                 s.append(f'  (pad "" np_thru_hole circle '
@@ -78,19 +81,24 @@ class Fp:
         s.append(')')
         return "\n".join(s) + "\n"
 
-    def board_instance(self, ref, value, x, y, rot):
+    def board_instance(self, ref, value, x, y, rot, netmap=None, side="F"):
         s = []
         s.append(f'  (footprint "laptop_mainboard:{self.name}"')
-        s.append('    (layer "F.Cu")')
+        s.append(f'    (layer "{side}.Cu")')
         s.append(f'    (uuid "{uid("bf")}")')
         s.append(f'    (at {f(x)} {f(y)} {rot})')
         s.append(f'    (property "Reference" "{ref}" (at 0 -3 {-rot if rot else 0}) '
-                 f'(layer "F.SilkS") (uuid "{uid("br")}") '
+                 f'(layer "{side}.SilkS") (uuid "{uid("br")}") '
                  f'(effects (font (size 1.2 1.2) (thickness 0.2))))')
         s.append(f'    (property "Value" "{value}" (at 0 3 {-rot if rot else 0}) '
-                 f'(layer "F.Fab") (uuid "{uid("bv")}") '
+                 f'(layer "{side}.Fab") (uuid "{uid("bv")}") '
                  f'(effects (font (size 1 1) (thickness 0.15))))')
-        body = self.body()
+        body = self.body(netmap)
+        if side == "B":
+            for a, b in [('"F.Cu"', '"B.Cu"'), ('"F.Paste"', '"B.Paste"'),
+                         ('"F.Mask"', '"B.Mask"'), ('"F.SilkS"', '"B.SilkS"'),
+                         ('"F.CrtYd"', '"B.CrtYd"'), ('"F.Fab"', '"B.Fab"')]:
+                body = body.replace(a, b)
         s.append("\n".join("  " + ln for ln in body.split("\n")))
         s.append('  )')
         return "\n".join(s)
@@ -100,25 +108,13 @@ class Fp:
 # Footprint-Bibliothek
 # ---------------------------------------------------------------------------
 
-def fp_am5():
-    fp = Fp("AM5_Socket_LGA1718",
-            "AM5 LGA-1718 Sockel, repraesentatives Pad-Raster 0.9mm "
-            "(exakte Ballout-Zuordnung: AMD-NDA)")
-    cols, rows, pitch = 44, 39, 0.9
-    n = 0
-    for r in range(rows):
-        for c in range(cols):
-            n += 1
-            x = (c - (cols - 1) / 2) * pitch
-            y = (r - (rows - 1) / 2) * pitch
-            fp.pad_smd(str(n), round(x, 3), round(y, 3), 0.5, 0.5, "circle")
-    fp.rect(-20, -20, 20, 20, "F.Fab", 0.1)
-    fp.rect(-29, -35, 29, 35, "F.SilkS")          # ILM/Rahmen
-    fp.courtyard(-29.5, -35.5, 29.5, 35.5)
-    fp.pad_npth(0, -31, 3.2)                      # ILM-Schrauben
-    fp.pad_npth(0, 31, 3.2)
-    fp.texts.append(("AM5 LGA-1718", 0, -37, "F.SilkS"))
-    return fp
+def fp_am5(base_dir=None):
+    """Echter AM5-Footprint aus der Pinmap-CSV (siehe kicadgen/am5.py)."""
+    from . import am5
+    if base_dir is None:
+        base_dir = __import__("os").path.dirname(__import__("os").path.dirname(
+            __import__("os").path.dirname(__import__("os").path.abspath(__file__))))
+    return am5.build_fp(base_dir, Fp)
 
 
 def fp_sodimm():
@@ -437,8 +433,8 @@ LAYERS = """  (layers
     (49 "F.Fab" user)
   )"""
 
-NETS = ["", "GND", "+VSYS", "+5V", "+3V3", "+VDDCR_CPU", "+VDDCR_SOC",
-        "+VBAT", "+1V8", "+3V3_ALW"]
+BASE_NETS = ["", "GND", "+VSYS", "+5V", "+3V3", "+VDDCR_CPU", "+VDDCR_SOC",
+             "+VBAT", "+1V8", "+3V3_ALW", "+1V1_MEM"]
 
 
 def gr_line(x1, y1, x2, y2, layer="Edge.Cuts", w=0.15):
@@ -473,6 +469,11 @@ def segment(x1, y1, x2, y2, w=0.1, layer="F.Cu", net=0):
             f'(width {f(w)}) (layer "{layer}") (net {net}) (uuid "{uid("sg")}"))')
 
 
+def via(x, y, net=1, size=0.45, drill=0.25):
+    return (f'  (via (at {f(x)} {f(y)}) (size {f(size)}) (drill {f(drill)}) '
+            f'(layers "F.Cu" "B.Cu") (net {net}) (uuid "{uid("vi")}"))')
+
+
 def diff_pair(x1, y1, x2, y2, layer="F.Cu"):
     """Repraesentatives 100-Ohm-Paar (0.1mm Breite, 0.15mm Abstand)."""
     return "\n".join([segment(x1, y1, x2, y2, 0.1, layer),
@@ -480,7 +481,17 @@ def diff_pair(x1, y1, x2, y2, layer="F.Cu"):
 
 
 def board_file(placements, lib, extras):
-    """placements: (fp_name, ref, value, x, y, rot)."""
+    """placements: (fp_name, ref, value, x, y, rot[, side])."""
+    # Netztabelle: Basis-Netze + alle Pad-Netze der platzierten Footprints
+    netmap = {}
+    for i, n in enumerate(BASE_NETS):
+        netmap[n] = i
+    for pl in placements:
+        fp_name = pl[0]
+        for p in lib[fp_name].pads:
+            n = p.get("net")
+            if n and n not in netmap:
+                netmap[n] = len(netmap)
     s = []
     s.append('(kicad_pcb')
     s.append('  (version 20240108)')
@@ -493,10 +504,13 @@ def board_file(placements, lib, extras):
     s.append('    (pad_to_mask_clearance 0)')
     s.append('    (allow_soldermask_bridges_in_footprints no)')
     s.append('  )')
-    for i, n in enumerate(NETS):
+    for n, i in sorted(netmap.items(), key=lambda kv: kv[1]):
         s.append(f'  (net {i} "{n}")')
-    for fp_name, ref, value, x, y, rot in placements:
-        s.append(lib[fp_name].board_instance(ref, value, x, y, rot))
+    for pl in placements:
+        fp_name, ref, value, x, y, rot = pl[:6]
+        side = pl[6] if len(pl) > 6 else "F"
+        s.append(lib[fp_name].board_instance(ref, value, x, y, rot,
+                                             netmap=netmap, side=side))
     s += extras
     s.append(')')
-    return "\n".join(s) + "\n"
+    return "\n".join(s) + "\n", netmap
