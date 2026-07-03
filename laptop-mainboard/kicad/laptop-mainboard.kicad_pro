@@ -1,0 +1,27 @@
+{
+  "board": {
+    "3dviewports": [],
+    "design_settings": {},
+    "layer_presets": [],
+    "viewports": []
+  },
+  "libraries": {
+    "pinned_footprint_libs": [
+      "laptop_mainboard"
+    ],
+    "pinned_symbol_libs": [
+      "lm"
+    ]
+  },
+  "meta": {
+    "filename": "laptop-mainboard.kicad_pro",
+    "version": 1
+  },
+  "sheets": [
+    [
+      "d22f2c28-8e23-5b8e-ba77-63ae2c13187c",
+      "Root"
+    ]
+  ],
+  "text_variables": {}
+}
