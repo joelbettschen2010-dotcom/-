@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "laptop_mainboard")(type "KiCad")(uri "${KIPRJMOD}/laptop_mainboard.pretty")(options "")(descr "Projekt-Footprints"))
+)
