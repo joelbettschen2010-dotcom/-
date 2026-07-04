@@ -16,20 +16,18 @@ flowchart LR
     SOC ---|PCIe4 x4 P0| SSD1[M.2 NVMe 1]
     SOC ---|PCIe4 x4 P1| SSD2[M.2 NVMe 2]
     SOC ---|PCIe3 x4 P2 + 2x DP1.4| TB[JHL8540 TB4]
-    TB --- TB0[USB-C TB4 #0 = Ladeport 100W]
+    TB --- TB0[USB-C TB4 #0]
     TB --- TB1[USB-C TB4 #1]
-    SOC ---|PCIe x1 G0| LAN1[RTL8125BG] --- RJ1[RJ45 2.5G]
-    SOC ---|PCIe x1 G1| LAN2[RTL8125BG] --- RJ2[RJ45 2.5G]
     SOC ---|PCIe x1 G2 + USB2| WIFI[M.2 E-Key WLAN]
-    SOC ---|USB3 Gen2 x2 + Mux| USBC[2x USB-C 10G]
     SOC ---|USB3 Gen1 x2| USBA[2x USB-A]
-    SOC ---|USB3| SD[GL3224] --- SDS[SD-Slot]
     SOC ---|HDMI 2.1| HDMI[HDMI-Buchse]
     SOC ---|eDP 1.4 2L| PANEL[15.6 Panel]
     SOC ---|HDA| AUD[ALC256] --- JACK[3.5mm AUX]
     SOC ---|eSPI| EC[IT5570E EC]
-    PD[TPS65988 USB-PD] --- TB0
-    PD ---|+VBUS 20V| CHG[BQ25731 Lader] --- BAT[Akku 4S 80Wh]
+    PWR[USB-C-Ladeport 100W] --- PD2[TPS65987D]
+    PD2 ---|+VBUS 20V| CHG[BQ25731 Lader] --- BAT[HP-Akku 3S 56Wh]
+    PD[TPS65988] --- TB0
+    PD --- TB1
     CHG ---|+VSYS| VRM[VRM 4+2 Phasen SVI3] --- SOC
 ```
 
@@ -40,8 +38,8 @@ flowchart LR
 | P0 | ×4 | 4 | M.2 NVMe #1 |
 | P1 | ×4 | 4 | M.2 NVMe #2 |
 | P2 | ×4 | 3 | Thunderbolt-Controller JHL8540 |
-| G0 | ×1 | 2 | Ethernet #1 (RTL8125BG) |
-| G1 | ×1 | 2 | Ethernet #2 (RTL8125BG) |
+| G0 | ×1 | — | frei (Reserve) |
+| G1 | ×1 | — | frei (Reserve) |
 | G2 | ×1 | 3 | WLAN M.2 E-Key |
 | Referenztakte | — | — | 6× 100 MHz vom SoC-GPP-Clocktree (PE_CLK0…5) |
 
@@ -51,9 +49,7 @@ flowchart LR
 |---|---|---|
 | U3G2_1 / USB2_1 | 10G / 480M | USB-A #1 (links) |
 | U3G2_2 / USB2_2 | 10G / 480M | USB-A #2 (links) |
-| U3G2_3 / USB2_3 | 10G / 480M | USB-C #2 (HD3SS3220-Mux) |
-| U3G2_4 / USB2_4 | 10G / 480M | USB-C #3 (HD3SS3220-Mux) |
-| U3G1_5 / USB2_9 | 5G / 480M | SD-Kartenleser GL3224 |
+| USB2_3 | 480M | USB-C-Ladeport (Datenpfad) |
 | USB2_5 / USB2_6 | 480M | TB4-Ports (USB-2.0-Pfad) |
 | USB2_7 | 480M | WLAN/Bluetooth |
 | USB2_8 | 480M | Webcam |

@@ -103,10 +103,10 @@ def cpu_socket():
         P("P2_TXN[3:0]", "R", "o", "TB_TXN[3:0]"),
         P("P2_RXP[3:0]", "R", "i", "TB_RXP[3:0]"),
         P("P2_RXN[3:0]", "R", "i", "TB_RXN[3:0]"),
-        P("G0_TXP", "R", "o", "LAN1_PE_TXP"),
-        P("G0_TXN", "R", "o", "LAN1_PE_TXN"),
-        P("G0_RXP", "R", "i", "LAN1_PE_RXP"),
-        P("G0_RXN", "R", "i", "LAN1_PE_RXN"),
+        P("G0_TXP", "R", "o", None),
+        P("G0_TXN", "R", "o", None),
+        P("G0_RXP", "R", "i", None),
+        P("G0_RXN", "R", "i", None),
         P("G1_TXP", "R", "o", None),
         P("G1_TXN", "R", "o", None),
         P("G1_RXP", "R", "i", None),
@@ -120,7 +120,7 @@ def cpu_socket():
         P("CLKREQ0#", "R", "i", "NVME1_CLKREQ#"),
         P("CLKREQ1#", "R", "i", "NVME2_CLKREQ#"),
         P("CLKREQ2#", "R", "i", "TB_CLKREQ#"),
-        P("CLKREQ3#", "R", "i", "LAN1_CLKREQ#"),
+        P("CLKREQ3#", "R", "i", None),
         P("CLKREQ4#", "R", "i", None),
         P("CLKREQ5#", "R", "i", "WIFI_CLKREQ#"),
         P("PE_WAKE#", "R", "i", "PE_WAKE#"),
@@ -218,7 +218,7 @@ def sheet_power():
     u1 = Comp("U1", "TPS65988DH", [
         P("VBUS1", "L", "b", "VBUS_C0"),
         P("VBUS2", "L", "b", "VBUS_C1"),
-        P("PP_HV1", "R", "po", "+VBUS_IN"),
+        P("PP_HV1", "L", "pi", "+5V"),
         P("PP_HV2", "L", "pi", "+5V"),
         P("C0_CC1", "L", "b", "C0_CC1"),
         P("C0_CC2", "L", "b", "C0_CC2"),
@@ -238,7 +238,8 @@ def sheet_power():
         P("HPD2", "R", "o", "TBDP1_HPD"),
         P("GND", "L", "pi", "GND")],
         width=35.56, fp=FP + "BGA96_9x9",
-        desc="Dual-USB-C-PD-Controller, 100W Sink Port C0 / 15W Source Port C1",
+        desc="Dual-USB-C-PD-Controller fuer die beiden TB4-Ports (je 15W "
+             "Source); Laden laeuft ueber den separaten Ladeport (Blatt 7)",
         mpn="TI TPS65988DHRSHR")
     u2 = Comp("U2", "W25Q80DV_PDCFG", [
         P("CS#", "L", "i", "PDF_CS#"), P("CLK", "L", "i", "PDF_CLK"),
@@ -362,8 +363,8 @@ def sheet_power():
             desc="Polymer-Bulkkondensator 330uF/25V", mpn="Panasonic 25SVPF330M"))
 
     notes = [
-        "Laden: 100W USB-PD (20V/5A) am Port TB0 (Position des HP-Barrel-Jacks)",
-        "-> TPS65988 Pfad-FET -> BQ25731. NVDC: +VSYS = max(Akku, Wandler).",
+        "Laden: 100W USB-PD am dedizierten Ladeport J_PWR (Barrel-Position,",
+        "Blatt 7: TPS65987D) -> +VBUS_IN -> BQ25731. NVDC: +VSYS = max(...).",
         "Akku: HP-Original 3S Li-Ion 11.55V / 56Wh (EliteBook 850 G7).",
         "Q5/R1: BATFET + Lade-Shunt; R2: Eingangsstrom-Shunt (ACP/ACN).",
         "Alle Bucks: Feedback-Teiler und MLCC-Entkopplung auf Blatt 10.",

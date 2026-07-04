@@ -18,9 +18,9 @@ Desktop-CPU (AM5) statt verlöteter Mobile-CPU.
 | Storage | 2× **M.2 2280 NVMe**, je PCIe 4.0 ×4, getrennt schaltbare 3.3-V-Schienen |
 | WLAN | 1× M.2 2230 E-Key (PCIe ×1 + USB 2.0), z. B. Wi-Fi 7 Modul |
 | Thunderbolt | 2× **Thunderbolt 4** über **Intel JHL8540** (Maple Ridge), PCIe ×4 Uplink + 2× DP-1.4-Sink |
-| Laden | **100 W USB-PD** am TB-Port 0 (sitzt an der Barrel-Jack-Position des 850 G7) → TPS65988 → **BQ25731** → HP-Akku 3S/56 Wh (NVDC) |
+| Laden | **Eigener USB-C-Ladeport** (100 W USB-PD, TPS65987D) an der Barrel-Jack-Position → **BQ25731** → HP-Akku 3S/56 Wh (NVDC) |
 | USB | 2× USB-A 5 Gbit (je einer links/rechts, wie 850 G7) |
-| Netzwerk | **2.5-Gbit-Ethernet** (RTL8125BG), RJ45 rechts vorn wie beim 850 G7 |
+| Netzwerk | WLAN/BT über M.2-Modul (das Original hat kein RJ45) |
 | Video | HDMI 2.1 (nativ vom SoC, TPD12S016-Companion), intern eDP 1.4 (2 Lanes) |
 | Audio | Realtek ALC256, 3.5-mm-Kombiklinke (AUX), 2× 2-W-Lautsprecher |
 | Kleinteile | Blatt 10: MLCC-Bänke, 11 ESD-Arrays, USB2-Chokes, Straps (beidseitige Bestückung) |
@@ -39,7 +39,7 @@ laptop-mainboard/
 │   ├── 04_memory.kicad_sch          2× DDR5 SO-DIMM
 │   ├── 05_storage.kicad_sch         2× M.2 NVMe + WLAN
 │   ├── 06_usb_tb4.kicad_sch         Thunderbolt 4 + USB
-│   ├── 07_ethernet.kicad_sch        2.5GbE
+│   ├── 07_ladeport.kicad_sch        USB-C-Ladeport 100W (TPS65987D)
 │   ├── 08_display.kicad_sch         eDP, HDMI, Backlight, Webcam
 │   ├── 09_audio_sd_ec.kicad_sch     Audio, Embedded Controller
 │   ├── 10_kleinteile.kicad_sch      Entkopplung, ESD, Filter, Straps

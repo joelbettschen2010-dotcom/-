@@ -111,10 +111,10 @@ for fp in b.footprints:
 # Board-Titel + Portbeschriftung
 ax.text(195, 24, "Laptop-Mainboard im HP-EliteBook-850-G7-Format  -  "
                  "AMD Ryzen 5 8600G (AM5, gesockelt), 2x DDR5 SO-DIMM, "
-                 "2x NVMe Gen4, 2x Thunderbolt 4, 2.5GbE",
+                 "2x NVMe Gen4, 2x Thunderbolt 4, USB-C-Ladeport",
         ha="center", fontsize=11, color="#f0f0f0", weight="bold")
-ports_r = [(42, "USB-C  100W-PD + TB4"), (54, "USB-C  TB4"), (70, "HDMI 2.1"),
-           (90, "USB-A"), (112, "RJ45 2.5GbE")]
+ports_r = [(42, "USB-C  100W-PD (Ladeport)"), (58, "USB-A"), (74, "HDMI 2.1"),
+           (90, "USB-C  TB4"), (102, "USB-C  TB4")]
 for y, t in ports_r:
     ax.text(368, y, t, ha="left", va="center", fontsize=7.5, color="#ffd27f")
 for y, t in [(60, "USB-A"), (84, "Klinke")]:

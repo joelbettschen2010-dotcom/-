@@ -37,7 +37,7 @@ def main():
 
     sheets_src = [
         d1.sheet_power(), d1.sheet_vrm(), d1.sheet_cpu(), d1.sheet_memory(),
-        d1.sheet_storage(), d2.sheet_usb_tb(), d2.sheet_ethernet(),
+        d1.sheet_storage(), d2.sheet_usb_tb(), d2.sheet_ladeport(),
         d2.sheet_display(), d2.sheet_audio_sd_ec(), d2.sheet_kleinteile(),
     ]
 
@@ -66,7 +66,7 @@ def main():
     root_notes = [
         note("Laptop-Mainboard fuer HP-EliteBook-850-G7-Chassis - Ryzen 5 8600G (AM5, gesockelt)", 30, 240, 3),
         note("2x DDR5 SO-DIMM | 2x M.2 NVMe Gen4 | WLAN | AM5-Pinbelegung: docs/am5_pinmap.csv", 30, 250, 2),
-        note("Ports wie 850 G7: 2x TB4 (einer = 100W-PD statt Barrel-Jack), HDMI, 2x USB-A, RJ45, Klinke", 30, 257, 2),
+        note("Ports wie 850 G7: USB-C-Ladeport 100W (Barrel-Position), 2x USB-C TB4, HDMI, 2x USB-A, Klinke", 30, 257, 2),
         note("Generiert aus tools/gen_all.py - Aenderungen dort vornehmen.", 30, 267, 1.6),
     ]
     write(os.path.join(KICAD, "laptop-mainboard.kicad_sch"),
@@ -107,8 +107,8 @@ def main():
 
     # ------------------------------------------------------------------
     # Board: 340 x 112 mm fuer HP-EliteBook-850-G7-Chassis (358.5 x 233.9mm)
-    # Rechte Kante (hinten->vorn): USB-C-PD (Barrel-Position), TB4, HDMI,
-    # USB-A, RJ45. Linke Kante: USB-A, Klinke. Akku-Schacht unterhalb.
+    # Rechte Kante (hinten->vorn, nach Foto): USB-C-Ladeport (Barrel-
+    # Position), USB-A, HDMI, 2x USB-C TB4. Links: USB-A, Klinke.
     # ------------------------------------------------------------------
     PL = [
         # CPU + Speicher + Storage
@@ -162,20 +162,20 @@ def main():
         ("SOT23-5", "U32", "VBUS-SW", 58, 60, 0),
         ("TRRS_35", "J_AUX", "Klinke", 38, 84, 90),
         ("QFN48_6x6", "U39", "ALC256", 60, 98, 0),
-        # Rechte Kante (wie 850 G7, hinten->vorn)
-        ("USBC_24", "J_TB0", "USB-C PD 100W + TB4", 352, 42, 270),
-        ("USBC_24", "J_TB1", "TB4", 352, 54, 270),
-        ("HDMI_A", "J_HDMI", "HDMI 2.1", 350, 70, 270),
-        ("USBA3_TH", "J_USBA2", "USB-A 5G", 352, 90, 270),
-        ("RJ45_MAGJACK", "J_LAN1", "2.5GbE", 352, 112, 270),
-        ("BGA_10x9_JHL8540", "U23", "JHL8540 TB4", 330, 48, 0),
-        ("BGA96_9x9", "U1", "TPS65988 PD", 322, 64, 0),
-        ("SOIC8", "U2", "PD-Cfg", 308, 64, 0),
-        ("TSSOP24", "U36", "TPD12S016", 332, 84, 90),
-        ("SOT23-5", "U33", "VBUS-SW", 330, 92, 0),
-        ("QFN48_6x6", "U34", "RTL8125BG", 325, 112, 0),
-        ("XTAL_3225", "Y3", "25M", 316, 118, 0),
-        ("C_1812", "C13", "1n/2kV", 330, 104, 0),
+        # Rechte Kante (hinten->vorn, wie Foto des Originals):
+        # Ladeport (Barrel-Position), USB-A, HDMI, 2x USB-C TB4
+        ("USBC_24", "J_PWR", "USB-C Ladeport 100W", 352, 42, 270),
+        ("USBA3_TH", "J_USBA2", "USB-A 5G", 352, 58, 270),
+        ("HDMI_A", "J_HDMI", "HDMI 2.1", 350, 74, 270),
+        ("USBC_24", "J_TB0", "USB-C TB4", 352, 90, 270),
+        ("USBC_24", "J_TB1", "USB-C TB4", 352, 102, 270),
+        ("BGA96_9x9", "U44", "TPS65987D Ladeport", 330, 40, 0),
+        ("SOIC8", "U45", "PD2-Cfg", 318, 40, 0),
+        ("SOT23-5", "U33", "VBUS-SW", 332, 52, 0),
+        ("TSSOP24", "U36", "TPD12S016", 332, 74, 90),
+        ("BGA_10x9_JHL8540", "U23", "JHL8540 TB4", 330, 94, 0),
+        ("BGA96_9x9", "U1", "TPS65988 PD", 322, 108, 0),
+        ("SOIC8", "U2", "PD-Cfg", 308, 108, 0),
         # Laderegler unten rechts
         ("QFN32_4x4", "U3", "BQ25731", 287, 124, 0),
         ("R_2512", "R2", "10m", 296, 124, 0),
@@ -263,16 +263,16 @@ def main():
         ("R_0603", "C60", "100n", 234, 68, 0, "B"),
         ("R_0603", "C61", "100n", 242, 68, 0, "B"),
         # ESD-Arrays (B.Cu, direkt hinter den Buchsen)
-        ("DFN6_2x2", "U50", "ESD TB0-L1", 344, 40, 0, "B"),
-        ("DFN6_2x2", "U51", "ESD TB0-L2", 344, 46, 0, "B"),
-        ("DFN6_2x2", "U52", "ESD TB1-L1", 344, 52, 0, "B"),
-        ("DFN6_2x2", "U53", "ESD TB1-L2", 344, 58, 0, "B"),
+        ("DFN6_2x2", "U50", "ESD TB0-L1", 344, 86, 0, "B"),
+        ("DFN6_2x2", "U51", "ESD TB0-L2", 344, 92, 0, "B"),
+        ("DFN6_2x2", "U52", "ESD TB1-L1", 344, 98, 0, "B"),
+        ("DFN6_2x2", "U53", "ESD TB1-L2", 344, 104, 0, "B"),
         ("DFN6_2x2", "U54", "ESD USBA1", 46, 60, 0, "B"),
-        ("DFN6_2x2", "U55", "ESD USBA2", 344, 90, 0, "B"),
+        ("DFN6_2x2", "U55", "ESD USBA2", 344, 56, 0, "B"),
         ("DFN6_2x2", "U56", "ESD HDMI-1", 342, 70, 0, "B"),
         ("DFN6_2x2", "U57", "ESD HDMI-2", 342, 76, 0, "B"),
-        ("DFN6_2x2", "U58", "ESD CC", 350, 34, 0, "B"),
-        ("DFN6_2x2", "U59", "ESD TB-USB2", 344, 64, 0, "B"),
+        ("DFN6_2x2", "U58", "ESD CC", 344, 110, 0, "B"),
+        ("DFN6_2x2", "U59", "ESD TB-USB2", 350, 80, 0, "B"),
         ("DFN6_2x2", "U60", "ESD A-USB2", 46, 68, 0, "B"),
         # USB2-Chokes + Straps (B.Cu)
         ("R_0603", "FL1", "CMC Webcam", 203, 40, 0, "B"),
@@ -314,15 +314,16 @@ def main():
     for i in range(4):  # PCIe P0 -> SSD1 (vertikal bei x=248)
         extras.append(pcb.diff_pair(160, 88 + i * 1.5, 240, 66 + i * 1.2, "In6.Cu"))
     for i in range(4):  # PCIe P2 -> JHL8540
-        extras.append(pcb.diff_pair(160, 58 + i * 1.5, 322, 46 + i * 0.8, "In6.Cu"))
+        extras.append(pcb.diff_pair(160, 58 + i * 1.5, 322, 90 + i * 0.8, "In6.Cu"))
     for i in range(4):  # HDMI TMDS -> Buchse
-        extras.append(pcb.diff_pair(160, 100 + i * 1.5, 342, 68 + i * 0.8, "F.Cu"))
+        extras.append(pcb.diff_pair(160, 100 + i * 1.5, 342, 72 + i * 0.8, "F.Cu"))
     for i in range(4):  # DDR-Korridor Kanal A (Beispielpaare)
         extras.append(pcb.diff_pair(160, 70 + i * 1.5, 178, 58 + i * 1.2, "In1.Cu"))
-    for i in range(4):  # MDI: RTL8125 -> RJ45
-        extras.append(pcb.diff_pair(331, 108 + i * 2, 342, 106 + i * 3, "F.Cu"))
     for i in range(2):  # DP0/DP1 -> JHL8540 DP-IN
-        extras.append(pcb.diff_pair(160, 64 + i * 1.5, 324, 54 + i * 1, "In6.Cu"))
+        extras.append(pcb.diff_pair(160, 64 + i * 1.5, 324, 90 + i * 1, "In6.Cu"))
+    # Ladepfad: J_PWR -> BQ25731 (breite VBUS_IN-Trasse, 2x 2mm)
+    extras.append(pcb.segment(348, 46, 300, 118, 2.0, "F.Cu"))
+    extras.append(pcb.segment(345.6, 46, 297.6, 118, 2.0, "F.Cu"))
     # GND-Stitching-Vias (Raster 15mm, Sockel- und Randzonen ausgespart)
     yv = 36
     while yv < 140:

@@ -156,9 +156,10 @@ def sheet_usb_tb():
     u33 = vsw("U33", "EN_USBA2", "+5V_USBA2")
 
     notes = [
-        "Portlayout wie HP EliteBook 850 G7: TB0 sitzt an der Position des",
-        "Barrel-Jacks (rechts hinten) = 100W-PD-Ladeport, TB1 = originaler",
-        "USB-C/TB-Port. Beide Thunderbolt 4 ueber JHL8540.",
+        "TB0/TB1 = die beiden nebeneinanderliegenden USB-C-Ports mittig an",
+        "der rechten Kante (wie beim Original). Beide Thunderbolt 4 ueber",
+        "JHL8540, je 15W Source (TPS65988). Geladen wird am separaten",
+        "Ladeport J_PWR an der Barrel-Jack-Position (Blatt 7).",
         "JHL8540: PCIe Gen3 x4 Uplink + 2x DP1.4-Sink vom SoC.",
         "ESD-Schutz und USB2-Chokes: Blatt 10 (Kleinteile).",
     ]
@@ -171,87 +172,60 @@ def sheet_usb_tb():
 
 
 # ----------------------------------------------------------------------------
-# Blatt 7: 2x 2.5-Gigabit-Ethernet
+# Blatt 7: Dedizierter USB-C-Ladeport (an der Barrel-Jack-Position)
 # ----------------------------------------------------------------------------
 
-def sheet_ethernet():
-    def phy(ref, pfx, clk, y):
-        return Comp(ref, "RTL8125BG", [
-            P("PERP", "L", "i", f"{pfx}_PE_TXP"),
-            P("PERN", "L", "i", f"{pfx}_PE_TXN"),
-            P("PETP", "L", "o", f"{pfx}_PE_RXP"),
-            P("PETN", "L", "o", f"{pfx}_PE_RXN"),
-            P("REFCLKP", "L", "i", f"PE_CLKP{clk}"),
-            P("REFCLKN", "L", "i", f"PE_CLKN{clk}"),
-            P("CLKREQ#", "L", "b", f"{pfx}_CLKREQ#"),
-            P("PERST#", "L", "i", f"{pfx}_PERST#"),
-            P("WAKE#", "L", "o", "PE_WAKE#"),
-            P("MDI0P", "R", "b", f"{pfx}_MDI0P"),
-            P("MDI0N", "R", "b", f"{pfx}_MDI0N"),
-            P("MDI1P", "R", "b", f"{pfx}_MDI1P"),
-            P("MDI1N", "R", "b", f"{pfx}_MDI1N"),
-            P("MDI2P", "R", "b", f"{pfx}_MDI2P"),
-            P("MDI2N", "R", "b", f"{pfx}_MDI2N"),
-            P("MDI3P", "R", "b", f"{pfx}_MDI3P"),
-            P("MDI3N", "R", "b", f"{pfx}_MDI3N"),
-            P("X1", "L", "p", f"{pfx}_X1"),
-            P("X2", "L", "p", f"{pfx}_X2"),
-            P("LED0", "R", "o", f"{pfx}_LED0"),
-            P("LED1", "R", "o", f"{pfx}_LED1"),
-            P("ISOLATE#", "L", "i", "+3V3"),
-            P("VCC3V3", "L", "pi", "+3V3"),
-            P("GND", "L", "pi", "GND")],
-            width=33.02, fp=FP + "QFN48_6x6",
-            desc="2.5-GbE-MAC/PHY, PCIe Gen2 x1", mpn="Realtek RTL8125BG-CG")
-
-    def jack(ref, pfx):
-        return Comp(ref, "RJ45_Magjack_2G5", [
-            P("MDI0P", "L", "b", f"{pfx}_MDI0P"),
-            P("MDI0N", "L", "b", f"{pfx}_MDI0N"),
-            P("MDI1P", "L", "b", f"{pfx}_MDI1P"),
-            P("MDI1N", "L", "b", f"{pfx}_MDI1N"),
-            P("MDI2P", "L", "b", f"{pfx}_MDI2P"),
-            P("MDI2N", "L", "b", f"{pfx}_MDI2N"),
-            P("MDI3P", "L", "b", f"{pfx}_MDI3P"),
-            P("MDI3N", "L", "b", f"{pfx}_MDI3N"),
-            P("LEDG_A", "L", "pi", "+3V3"),
-            P("LEDG_K", "L", "i", f"{pfx}_LED0"),
-            P("LEDY_A", "L", "pi", "+3V3"),
-            P("LEDY_K", "L", "i", f"{pfx}_LED1"),
-            P("MCT", "L", "p", f"{pfx}_MCT"),
-            P("SHIELD", "L", "p", "GND")],
-            width=30.48, fp=FP + "RJ45_MAGJACK",
-            desc="RJ45 mit integrierten 2.5G-Uebertragern", mpn="Halo HFJ11-2450E-L21RL")
-
-    def xtal(ref, pfx):
-        return Comp(ref, "XTAL_25M", [
-            P("XI", "L", "p", f"{pfx}_X1"), P("XO", "R", "p", f"{pfx}_X2")],
-            width=15.24, fp=FP + "XTAL_3225",
-            desc="Quarz 25 MHz", mpn="TXC 7M-25.000MAAJ-T")
-
-    def mct_cap(ref, pfx):
-        return Comp(ref, "C_1n_2kV", [
-            P("1", "L", "p", f"{pfx}_MCT"), P("2", "R", "p", "GND")],
-            width=15.24, fp=FP + "C_1812",
-            desc="Bob-Smith-Abschluss 1nF/2kV", mpn="Murata GA355QR7GF102KW01L")
-
-    u34 = phy("U34", "LAN1", 3, 0)
-    j1 = jack("J_LAN1", "LAN1")
-    y3 = xtal("Y3", "LAN1")
-    c13 = mct_cap("C13", "LAN1")
+def sheet_ladeport():
+    u44 = Comp("U44", "TPS65987D_Lader", [
+        P("VBUS", "L", "b", "VBUS_PWR"),
+        P("CC1", "L", "b", "PWR_CC1"),
+        P("CC2", "L", "b", "PWR_CC2"),
+        P("PP_HV", "R", "po", "+VBUS_IN"),
+        P("VIN_3V3", "L", "pi", "+3V3_ALW"),
+        P("LDO_3V3", "R", "po", "PD2_LDO3V3"),
+        P("I2C_SCL", "R", "b", "PD_I2C_SCL"),
+        P("I2C_SDA", "R", "b", "PD_I2C_SDA"),
+        P("SPI_CS#", "R", "o", "PDF2_CS#"),
+        P("SPI_CLK", "R", "o", "PDF2_CLK"),
+        P("SPI_MOSI", "R", "o", "PDF2_MOSI"),
+        P("SPI_MISO", "R", "i", "PDF2_MISO"),
+        P("GPIO_CHGOK", "R", "o", "PWR_SRC_OK"),
+        P("GND", "L", "pi", "GND")],
+        width=35.56, fp=FP + "BGA96_9x9",
+        desc="Single-USB-C-PD-Controller, 100W-Sink mit internem Pfad-FET "
+             "-> Ladeeingang +VBUS_IN (Dead-Battery-faehig)",
+        mpn="TI TPS65987DDHRSHR")
+    u45 = Comp("U45", "W25Q80DV_PD2CFG", [
+        P("CS#", "L", "i", "PDF2_CS#"), P("CLK", "L", "i", "PDF2_CLK"),
+        P("DI", "L", "i", "PDF2_MOSI"), P("DO", "R", "o", "PDF2_MISO"),
+        P("VCC", "R", "pi", "PD2_LDO3V3"), P("GND", "R", "pi", "GND")],
+        width=25.4, fp=FP + "SOIC8", desc="Ladeport-Konfigurations-Flash 1 MB",
+        mpn="Winbond W25Q80DVSNIG")
+    jpwr = Comp("J_PWR", "USB-C_Ladeport", [
+        P("VBUS", "L", "pi", "VBUS_PWR"),
+        P("CC1", "L", "b", "PWR_CC1"),
+        P("CC2", "L", "b", "PWR_CC2"),
+        P("DP", "L", "b", "USB2_P3"),
+        P("DN", "L", "b", "USB2_N3"),
+        P("GND", "L", "pi", "GND"),
+        P("SHIELD", "L", "p", "GND")],
+        width=30.48, fp=FP + "USBC_24",
+        desc="USB-C-Ladebuchse 100W (an der Barrel-Jack-Position des "
+             "850 G7), zusaetzlich USB-2.0-Daten", mpn="JAE DX07S024WJ1R350")
 
     notes = [
-        "Realtek RTL8125BG an SoC-GPP-Lane G0 (PCIe Gen2 x1).",
-        "RJ45 rechts vorn wie beim EliteBook 850 G7 (Klappmechanik-Buchse).",
-        "Kernspannung 1.1V ueber internen LDO des RTL8125BG.",
-        "MDI-Paare 100 Ohm differentiell, max. 25mm bis zum Magjack.",
-        "Wake-on-LAN ueber PE_WAKE# (Open-Drain).",
+        "Ersetzt den HP-Barrel-Jack an exakt derselben Gehaeuseposition",
+        "(rechts hinten) durch USB-C mit 100W USB-PD (20V/5A).",
+        "Eigener PD-Controller TPS65987D, Dead-Battery-Boot faehig;",
+        "die beiden mittigen USB-C-Ports bleiben reine TB4-Ports (Blatt 6).",
+        "SuperSpeed-Pins der Buchse unbeschaltet - Port ist Laden + USB 2.0.",
     ]
     comps = cols([
-        (140, [u34, y3]),
-        (320, [j1, c13]),
+        (120, [u44]),
+        (300, [u45]),
+        (460, [jpwr]),
     ])
-    return ("2.5-Gigabit-Ethernet", "07_ethernet.kicad_sch", comps, notes)
+    return ("USB-C-Ladeport 100W", "07_ladeport.kicad_sch", comps, notes)
 
 
 # ----------------------------------------------------------------------------
@@ -424,7 +398,6 @@ def sheet_audio_sd_ec():
         P("PE_RST_SSD1#", "R", "o", "NVME1_PERST#"),
         P("PE_RST_SSD2#", "R", "o", "NVME2_PERST#"),
         P("PE_RST_TB#", "R", "o", "TB_PERST#"),
-        P("PE_RST_LAN1#", "R", "o", "LAN1_PERST#"),
         P("PE_RST_WIFI#", "R", "o", "WIFI_PERST#"),
         P("SSD1_DEVSLP", "R", "o", "NVME1_DEVSLP"),
         P("SSD2_DEVSLP", "R", "o", "NVME2_DEVSLP"),

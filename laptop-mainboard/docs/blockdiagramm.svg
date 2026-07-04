@@ -42,7 +42,7 @@
   <!-- Thunderbolt -->
   <rect x="680" y="150" width="230" height="80" rx="8" class="hl"/>
   <text x="795" y="172" text-anchor="middle" class="t" font-size="13">Intel JHL8540 — Thunderbolt 4</text>
-  <text x="795" y="190" text-anchor="middle" class="s">2× USB-C 40G · Port 0 = 100W-Ladeport</text>
+  <text x="795" y="190" text-anchor="middle" class="s">2× USB-C 40G mittig rechts (wie Original)</text>
   <text x="795" y="207" text-anchor="middle" class="s">PCIe ×4 Uplink · 2× DP-1.4-Sink</text>
   <text x="795" y="223" text-anchor="middle" class="s">TPS65988 Dual-PD-Controller</text>
   <path class="e" d="M580,250 680,200"/>
@@ -62,11 +62,11 @@
 
   <!-- Ethernet -->
   <rect x="60" y="150" width="230" height="60" rx="8" class="box"/>
-  <text x="175" y="172" text-anchor="middle" class="t" font-size="13">2× 2.5-Gbit-Ethernet</text>
-  <text x="175" y="190" text-anchor="middle" class="s">2× Realtek RTL8125BG · je PCIe ×1</text>
-  <text x="175" y="204" text-anchor="middle" class="s">RJ45-Magjacks</text>
+  <text x="175" y="172" text-anchor="middle" class="t" font-size="13">USB-C-Ladeport 100W</text>
+  <text x="175" y="190" text-anchor="middle" class="s">TPS65987D an der Barrel-Jack-Position</text>
+  <text x="175" y="204" text-anchor="middle" class="s">Dead-Battery-Boot · 20 V/5 A</text>
   <path class="e" d="M380,235 290,190"/>
-  <text x="310" y="200" class="el">2× x1</text>
+  <text x="310" y="200" class="el">x1 WLAN</text>
 
   <!-- Audio / SD / EC -->
   <rect x="60" y="240" width="230" height="60" rx="8" class="box"/>
@@ -85,8 +85,8 @@
   <!-- Power -->
   <rect x="60" y="440" width="380" height="80" rx="8" class="pw"/>
   <text x="250" y="463" text-anchor="middle" class="t" font-size="13">Laden &amp; Versorgung</text>
-  <text x="250" y="482" text-anchor="middle" class="s">100W USB-PD (TB0) → TPS65988 → BQ25731 Buck-Boost</text>
-  <text x="250" y="498" text-anchor="middle" class="s">NVDC · Akku 4S / 80 Wh · +VSYS</text>
+  <text x="250" y="482" text-anchor="middle" class="s">100W USB-PD (Ladeport) → TPS65987D → BQ25731 Buck-Boost</text>
+  <text x="250" y="498" text-anchor="middle" class="s">NVDC · HP-Akku 3S / 56 Wh · +VSYS</text>
   <text x="250" y="513" text-anchor="middle" class="s">Bucks: 5V · 3.3V · 3.3V-ALW · 1.8V · 1.1V · 1.05V · 0.88V</text>
 
   <rect x="500" y="440" width="410" height="80" rx="8" class="pw"/>

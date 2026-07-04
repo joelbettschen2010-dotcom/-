@@ -13,18 +13,19 @@ Das Board ist auf den Einbau in ein EliteBook-850-G7-Chassis ausgelegt.
 
 ## Portlayout (wie 850 G7)
 
-**Rechte Kante, hinten → vorn:**
+**Rechte Kante, hinten → vorn (nach Foto des Originalgeräts):**
 
-| Original 850 G7 | Dieses Board |
+| Original | Dieses Board |
 |---|---|
-| Barrel-Jack (Netzteil) | **USB-C 100W-PD + Thunderbolt 4** (J_TB0) — wie gewünscht statt Barrel |
-| USB-C Thunderbolt 3 | USB-C Thunderbolt 4 (J_TB1) |
+| Netzkabel-Anschluss (Barrel) | **USB-C-Ladeport 100W-PD** (J_PWR, eigener TPS65987D) — an exakt dieser Position |
+| USB 3.1 Gen1 (USB-A) | USB-A 5G (J_USBA2) |
 | HDMI | HDMI 2.1 (J_HDMI) |
-| USB-A (Laden) | USB-A 5G (J_USBA2) |
-| RJ45 | RJ45 2.5GbE (J_LAN1) |
+| 2× USB-C Thunderbolt nebeneinander | 2× USB-C Thunderbolt 4 (J_TB0, J_TB1 am JHL8540) |
+| Optionaler SIM-Slot | nicht bestückt (kein WWAN) |
 
-**Linke Kante:** USB-A 5G (J_USBA1), 3.5-mm-Kombiklinke (J_AUX).
-Smartcard-Leser und SIM-Slot des Originals sind nicht bestückt (Blende bleibt zu).
+**Linke Kante, hinten → vorn:** Diebstahlsicherung (mechanisch, kein Bauteil),
+USB-A 5G mit Ladefunktion (J_USBA1), 3.5-mm-Kombiklinke (J_AUX).
+Das Gerät hat **kein RJ45** — Netzwerk über das WLAN-Modul oder TB4-/USB-Adapter.
 
 ## Was direkt passt und was verifiziert werden muss
 
@@ -39,6 +40,32 @@ Smartcard-Leser und SIM-Slot des Originals sind nicht bestückt (Blende bleibt z
 | Touchpad/Clickpad | ⚠️ I2C-HID üblich — Belegung des FPC verifizieren |
 | Fingerprint/NFC | ❌ nicht vorgesehen |
 | Umriss + Schraublöcher | ⚠️ **Muss am realen Chassis ausgemessen werden** (siehe unten) |
+
+## Erkenntnisse aus dem Foto des Original-Mainboards
+
+Das vom Nutzer gelieferte Foto der Originalplatine (Unterseite, mit
+Heatpipe) zeigt die internen Anschluss-Positionen — fuer die naechste
+Revision des Floorplans zu uebernehmen:
+
+| Original (Silkscreen) | Position (Draufsicht) | Dieses Board |
+|---|---|---|
+| DC (Ladebuchse) | rechts hinten bei den Ports | ✅ J_PWR dort |
+| SSD (M.2) | links | ⚠️ bei uns mittig-rechts (AM5-Sockel braucht die linke Haelfte) |
+| WLAN (M.2 2230) | vorn rechts | ⚠️ bei uns mittig — umziehen sinnvoll |
+| eDP + USB (Board-zu-Board) | rechte Kante | ⚠️ eDP bei uns oben Mitte |
+| FAN | rechts (grosser Luefter-Ausschnitt oben rechts!) | ✅ J_FAN2 rechts oben |
+| BATT | unten Mitte-rechts | ✅ J_BAT unten Mitte |
+| FPR/B-L/Tastatur-FPCs | unten Mitte | ✅ |
+| SPK | unten rechts | ✅ J_SPKR |
+| RTC | unten links | ⚠️ bei uns rechts der DIMMs |
+| S/C (Smartcard) | unten rechts aussen | nicht bestueckt |
+
+Wichtigste Abweichung: Der Original-Umriss ist **kein Rechteck** — grosser
+Luefter-Ausschnitt oben rechts, abgeschraegte Ecken, gestufte Vorderkante.
+Unser AM5-Sockel + 2 SO-DIMMs brauchen jedoch deutlich mehr Flaeche als das
+Original-Board (BGA-CPU + geloetetes RAM), daher nutzt unser Board bewusst
+das volle Rechteck inkl. des originalen Luefter-/Freibereichs — der Kuehler
+muss entsprechend als Custom-Loesung darueber liegen.
 
 ## Wichtig: Masse und Lochbild
 

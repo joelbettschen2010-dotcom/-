@@ -1,5 +1,5 @@
 Referenz;Wert;Beschreibung;Hersteller-Teilenummer;Footprint
-U1;TPS65988DH;Dual-USB-C-PD-Controller, 100W Sink Port C0 / 15W Source Port C1;TI TPS65988DHRSHR;BGA96_9x9
+U1;TPS65988DH;Dual-USB-C-PD-Controller fuer die beiden TB4-Ports (je 15W Source); Laden laeuft ueber den separaten Ladeport (Blatt 7);TI TPS65988DHRSHR;BGA96_9x9
 U2;W25Q80DV_PDCFG;PD-Konfigurations-Flash 1 MB;Winbond W25Q80DVSNIG;SOIC8
 J_BAT;AkkuStecker_HP_3S;Akku-Stecker fuer HP-Originalakku 3S / 56 Wh (EliteBook 850 G7, HP L35766-005) - Pinout am Originalboard verifizieren!;HP-kompatibel (Reverse-Engineering noetig);CONN_BAT8_2mm
 U3;BQ25731;Buck-Boost-NVDC-Laderegler, 3S-Akku (CELL=3S), 20V/5A Eingang;TI BQ25731RSNR;QFN32_4x4
@@ -65,10 +65,9 @@ J_USBA1;USB-A_3G1;USB-A-Buchse USB 3.2 Gen1;Foxconn UEA1112C-4HK1-4F;USBA3_TH
 J_USBA2;USB-A_3G1;USB-A-Buchse USB 3.2 Gen1;Foxconn UEA1112C-4HK1-4F;USBA3_TH
 U32;SY6280_5V_SW;VBUS-Lastschalter 5V/2.1A mit Strombegrenzung;Silergy SY6280AAC;SOT23-5
 U33;SY6280_5V_SW;VBUS-Lastschalter 5V/2.1A mit Strombegrenzung;Silergy SY6280AAC;SOT23-5
-U34;RTL8125BG;2.5-GbE-MAC/PHY, PCIe Gen2 x1;Realtek RTL8125BG-CG;QFN48_6x6
-Y3;XTAL_25M;Quarz 25 MHz;TXC 7M-25.000MAAJ-T;XTAL_3225
-J_LAN1;RJ45_Magjack_2G5;RJ45 mit integrierten 2.5G-Uebertragern;Halo HFJ11-2450E-L21RL;RJ45_MAGJACK
-C13;C_1n_2kV;Bob-Smith-Abschluss 1nF/2kV;Murata GA355QR7GF102KW01L;C_1812
+U44;TPS65987D_Lader;Single-USB-C-PD-Controller, 100W-Sink mit internem Pfad-FET -> Ladeeingang +VBUS_IN (Dead-Battery-faehig);TI TPS65987DDHRSHR;BGA96_9x9
+U45;W25Q80DV_PD2CFG;Ladeport-Konfigurations-Flash 1 MB;Winbond W25Q80DVSNIG;SOIC8
+J_PWR;USB-C_Ladeport;USB-C-Ladebuchse 100W (an der Barrel-Jack-Position des 850 G7), zusaetzlich USB-2.0-Daten;JAE DX07S024WJ1R350;USBC_24
 J_HDMI;HDMI-A;HDMI-Typ-A-Buchse (HDMI 2.1 TMDS/FRL vom SoC);Molex 2086581051;HDMI_A
 U36;TPD12S016;HDMI-Companion: Pegelwandler DDC/CEC + HPD + 5V-Schalter + ESD;TI TPD12S016PWR;TSSOP24
 J_EDP;eDP_40pol;eDP-1.4-Panelstecker 40-polig (15.6\" 2560x1440 IPS);I-PEX 20455-040E-12;FPC40_05

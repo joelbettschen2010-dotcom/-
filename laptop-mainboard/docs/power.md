@@ -3,8 +3,8 @@
 ## Eingangs- und Ladepfad
 
 ```
-USB-C TB0 (20V/5A, 100W PD)
-   └─ TPS65988 (PD-Aushandlung, interner Pfad-FET, 5A)
+USB-C-Ladeport J_PWR (20V/5A, 100W PD, an der Barrel-Jack-Position)
+   └─ TPS65987D (PD-Aushandlung, interner Pfad-FET, 5A, Dead-Battery-Boot)
         └─ +VBUS_IN ── R2 (10 mΩ, ACP/ACN) ── BQ25731 Buck-Boost (Q1–Q4 + L1 3.3µH)
              ├─ +VSYS (NVDC-Systemschiene, 9…13V)
              └─ Q5 (BATFET) ── R1 (10 mΩ, SRP/SRN) ── +VBAT (HP-Akku 3S)
@@ -13,7 +13,7 @@ USB-C TB0 (20V/5A, 100W PD)
 - **Akku:** HP-Original 3S Li-Ion, 11.55 V nominal, 56 Wh (EliteBook 850 G7), Smart-Battery-SMBus am J_BAT.
 - **NVDC:** System läuft immer aus +VSYS; der Lader teilt die 100 W dynamisch
   zwischen System und Akku auf (Input-Current-Limit über ILIM_HIZ + SMBus).
-- Port TB1 ist Source-only (5 V/3 A über PP_HV2 aus +5V).
+- Die beiden TB4-Ports sind Source-only (je 5 V/3 A über TPS65988 aus +5V).
 
 ## Schienenübersicht
 
