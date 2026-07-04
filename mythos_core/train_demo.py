@@ -92,6 +92,44 @@ class OnlineBigram:
         return pred
 
 
+class OnlineBackoffNgram:
+    """A genuinely strong online baseline: stupid-backoff n-gram.
+
+    Keeps hash-map counts for every context of length 0..n-1 and predicts
+    by the *longest* context it has seen before (backing off to shorter
+    contexts on novelty).  This is the standard way to squeeze predictive
+    power out of raw counts and is a far harder bar than a bigram -- for
+    text with long repeated substrings it is close to the best any pure
+    count model can do.  Matching or beating it means MythosCore's liquid
+    state is capturing structure that literal context-counting also
+    captures; beating it on *novel* continuations means it is generalizing
+    beyond counts."""
+
+    def __init__(self, vocab_size: int, order: int = 6):
+        self.V = vocab_size
+        self.order = order
+        self.ctx = tuple()
+        # tables[k] maps a length-k context tuple -> {token: count}
+        self.tables = [dict() for _ in range(order)]
+
+    def step(self, token: int) -> int:
+        pred = 0
+        # Predict using the longest context we have a record for.
+        for k in range(self.order - 1, -1, -1):
+            key = self.ctx[len(self.ctx) - k:] if k else tuple()
+            table = self.tables[k].get(key)
+            if table:
+                pred = max(table, key=table.get)
+                break
+        # Learn: update every context length with this observation.
+        for k in range(self.order):
+            key = self.ctx[len(self.ctx) - k:] if k else tuple()
+            self.tables[k].setdefault(key, {})
+            self.tables[k][key][token] = self.tables[k][key].get(token, 0) + 1
+        self.ctx = (self.ctx + (token,))[-(self.order - 1):]
+        return pred
+
+
 # --------------------------------------------------------------------- #
 # harness                                                                #
 # --------------------------------------------------------------------- #
@@ -105,8 +143,9 @@ def run_task(name: str, text: str, model_kwargs: dict, window: int = 500) -> Non
 
     model = MythosCore(vocab_size=vocab, **model_kwargs)
     bigram = OnlineBigram(vocab)
+    ngram = OnlineBackoffNgram(vocab, order=6)
 
-    hits_m = hits_b = 0
+    hits_m = hits_b = hits_n = 0
     win_m: list[int] = []
     t0 = time.perf_counter()
     print(f"\n### Task: {name}  ({len(stream)} chars, vocab {vocab}) ###")
@@ -115,6 +154,7 @@ def run_task(name: str, text: str, model_kwargs: dict, window: int = 500) -> Non
         ok = int(np.argmax(pred)) == tok
         hits_m += ok
         hits_b += bigram.step(tok) == tok
+        hits_n += ngram.step(tok) == tok
         win_m.append(ok)
         if len(win_m) > window:
             win_m.pop(0)
@@ -123,9 +163,9 @@ def run_task(name: str, text: str, model_kwargs: dict, window: int = 500) -> Non
                   f"{np.mean(win_m):5.1%} | graph nodes: {model.graph.n_nodes}")
     dt = time.perf_counter() - t0
 
-    q = len(stream) // 4
     print(f"  overall     : model {hits_m / len(stream):5.1%} | "
-          f"bigram {hits_b / len(stream):5.1%}")
+          f"bigram {hits_b / len(stream):5.1%} | "
+          f"backoff-6gram {hits_n / len(stream):5.1%}")
     print(f"  final window: model {np.mean(win_m):5.1%}")
     print(f"  throughput  : {len(stream) / dt:,.0f} tokens/s (CPU) | "
           f"graph grew {model.graph.grown}, pruned {model.graph.pruned}")

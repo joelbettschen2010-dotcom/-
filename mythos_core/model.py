@@ -47,6 +47,7 @@ class MythosCore:
         readout_lr: float = 0.05,
         graph_weight: float = 0.85,
         confidence_floor: float = 0.60,
+        smoothing: float = 0.05,
         seed: int = 0,
     ):
         self.vocab_size = vocab_size
@@ -56,9 +57,18 @@ class MythosCore:
         self.graph = ConceptGraph(
             dim, vocab_size, max_nodes=max_nodes, novelty_threshold=novelty_threshold
         )
+        # Short-horizon episodic memory over the fast cells only.  The
+        # prediction backs off long -> short -> readout, so novel long
+        # contexts still benefit from familiar recent history (the HD
+        # analogue of n-gram backoff, but in constant memory).
+        self.graph_short = ConceptGraph(
+            dim, vocab_size, max_nodes=max_nodes,
+            novelty_threshold=novelty_threshold,
+        )
         self.readout = KANReadout(dim, vocab_size, lr=readout_lr)
         self.graph_weight = graph_weight
         self.confidence_floor = confidence_floor
+        self.smoothing = smoothing
         # Unit states have entries ~ 1/sqrt(D); rescale so the KAN splines
         # (whose knots span roughly [-2.5, 2.5]) see O(1) inputs.
         self._state_scale = float(np.sqrt(dim))
@@ -67,21 +77,38 @@ class MythosCore:
     def reset(self) -> None:
         self.liquid.reset()
         self.graph.prev_node = None
+        self.graph_short.prev_node = None
 
     # ------------------------------------------------------------------ #
     def predict(self) -> np.ndarray:
         """P(next token | everything seen so far)."""
-        return self._predict(self.liquid.state())
+        return self._predict(self.liquid.state(), self.liquid.state_short())
 
-    def _predict(self, s: np.ndarray) -> np.ndarray:
-        p_graph, confidence = self.graph.predict(s)
-        p_read = self.readout.forward(s * self._state_scale)
-        if p_graph is None:
-            return p_read
-        # Gate: trust episodic recall only when the present is recognized.
+    def _gate(self, confidence: float) -> float:
         g = (confidence - self.confidence_floor) / (1.0 - self.confidence_floor)
-        g = self.graph_weight * min(max(g, 0.0), 1.0)
-        return g * p_graph + (1.0 - g) * p_read
+        return self.graph_weight * min(max(g, 0.0), 1.0)
+
+    def _predict(self, s: np.ndarray, s_short: np.ndarray) -> np.ndarray:
+        """Backoff blend: full-context recall -> short-context recall ->
+        semantic readout, each trusted in proportion to how strongly it
+        recognizes the present."""
+        p_long, conf_long = self.graph.predict(s)
+        p_short, conf_short = self.graph_short.predict(s_short)
+        p = self.readout.forward(s * self._state_scale)
+        if p_short is not None:
+            g = self._gate(conf_short)
+            p = g * p_short + (1.0 - g) * p
+        if p_long is not None:
+            g = self._gate(conf_long)
+            p = g * p_long + (1.0 - g) * p
+        # Calibration floor: never assign ~0 to any token.  Episodic recall
+        # emits near-one-hot distributions that are catastrophic under a
+        # log-loss when wrong; mixing in a little uniform mass is the same
+        # smoothing every serious n-gram model uses, and it is what makes
+        # bits-per-character a fair fight.
+        if self.smoothing > 0.0:
+            p = (1.0 - self.smoothing) * p + self.smoothing / self.vocab_size
+        return p
 
     def step(self, token: int, learn: bool = True) -> np.ndarray:
         """Predict the incoming token, learn from it, then consume it.
@@ -90,11 +117,14 @@ class MythosCore:
         token, so callers can score genuine next-token prediction.
         """
         s = self.liquid.state()
-        prediction = self._predict(s)
+        s_short = self.liquid.state_short()
+        prediction = self._predict(s, s_short)
         if learn:
-            # The similarity matvec from predict() is reused here, so the
-            # single dominant operation runs exactly once per token.
+            # The similarity matvecs from predict() are reused here, so the
+            # two dominant operations run exactly once per token.
             self.graph.learn(s, token, sims=self.graph._last_sims)
+            self.graph_short.learn(s_short, token,
+                                   sims=self.graph_short._last_sims)
             self.readout.update(s * self._state_scale, token)
         self.liquid.step(self.codebook[token])
         return prediction
@@ -127,5 +157,6 @@ class MythosCore:
             "codebook": self.codebook.nbytes(),
             "liquid": self.liquid.nbytes(),
             "concept_graph": self.graph.nbytes(),
+            "concept_graph_short": self.graph_short.nbytes(),
             "kan_readout": self.readout.nbytes(),
         }

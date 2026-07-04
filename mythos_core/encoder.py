@@ -72,10 +72,19 @@ class LiquidNCA:
         self.mu = np.zeros(space.dim, dtype=np.float32)
         self.mu_rate = 0.02
         self._acc = np.zeros(space.dim, dtype=np.float32)
+        # A second, SHORT-horizon view over the fast cells only (timescales
+        # under ~3 tokens).  The model queries memory at both horizons and
+        # backs off from long to short -- the hyperdimensional analogue of
+        # n-gram backoff, and the basis of generalization to novel contexts
+        # that share only their recent past with experience.
+        self.fast = np.flatnonzero(self.alpha[:, 0] < 0.7)
+        self.mu_s = np.zeros(space.dim, dtype=np.float32)
+        self._acc_s = np.zeros(space.dim, dtype=np.float32)
 
     def reset(self) -> None:
         self.h[:] = 0.0
         self._acc[:] = 0.0
+        self._acc_s[:] = 0.0
         # mu is a long-run statistic; it survives episode resets on purpose.
 
     def step(self, x: np.ndarray) -> None:
@@ -90,6 +99,7 @@ class LiquidNCA:
         np.tanh(pre, out=self.h)
         self._bundle()
         self.mu += self.mu_rate * (self._acc - self.mu)
+        self.mu_s += self.mu_rate * (self._acc_s - self.mu_s)
 
     def _bundle(self) -> None:
         """Collapse the ring into one vector: each cell is tagged with a
@@ -100,12 +110,21 @@ class LiquidNCA:
         query, regardless of how saturated its tanh dynamics run."""
         norms = np.linalg.norm(self.h, axis=1) / np.sqrt(self.space.dim)
         self._acc[:] = 0.0
+        self._acc_s[:] = 0.0
+        fast = set(self.fast.tolist())
         for i in range(self.K):
-            self._acc += self.h[i][self.space.perm_power(i)] / (norms[i] + 1e-6)
+            cell = self.h[i][self.space.perm_power(i)] / (norms[i] + 1e-6)
+            self._acc += cell
+            if i in fast:
+                self._acc_s += cell
 
     def state(self) -> np.ndarray:
         """Centered, unit-norm query vector for the current instant."""
         return self.space.normalize(self._acc - self.mu)
+
+    def state_short(self) -> np.ndarray:
+        """Same, but seeing only the last ~3 tokens (fast cells)."""
+        return self.space.normalize(self._acc_s - self.mu_s)
 
     def nbytes(self) -> int:
         return int(self.h.nbytes + self.gates.nbytes + self.mu.nbytes + self._acc.nbytes)

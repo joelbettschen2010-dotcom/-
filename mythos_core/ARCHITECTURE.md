@@ -166,14 +166,46 @@ everything below is frozen, one local step *is* the whole credit
 assignment. No stored activations, no Adam moments, no backward graph:
 the optimizer state is the weights themselves.
 
-### 3.5 Predicting: complementary systems, gated by recognition
+### 3.5 Predicting: complementary systems with multi-timescale backoff
 
-`P = g·P_graph + (1−g)·P_readout`, where g rises from 0 to 0.85 as
-retrieval confidence climbs from 0.60 to 1.0. Familiar situations are
-answered from episodic memory (exact, one-shot); novel ones fall back on
-distilled statistics. This is the two-speed learning that dense nets
-cannot do in a single pass: **the second time MythosCore reads a text, it
-recognizes it** (measured below).
+Prediction is a **backoff cascade** over three sources, each trusted in
+proportion to how strongly it recognizes the present:
+
+```
+P = readout                                    # semantic prior
+P = g(conf_short)·P_short + (1−g)·P            # short-context episodic
+P = g(conf_long )·P_long  + (1−g)·P            # full-context episodic
+P = (1−ε)·P + ε/V                              # calibration floor
+```
+
+where g rises from 0 to 0.85 as confidence climbs from 0.60 to 1.0. The
+**short-horizon graph** indexes only the fast liquid cells (last ~3
+tokens), so a novel long context still benefits from familiar recent
+history — this is the hyperdimensional analogue of n-gram backoff, in
+constant memory. The **calibration floor** ε (=0.05) keeps episodic
+recall's near-one-hot outputs from being catastrophic under log-loss; it
+is the same smoothing every serious n-gram model uses, and it is what
+turns a 5.9 bits/char model into a 3.2 bits/char one (§4).
+
+Familiar situations are answered from episodic memory (exact, one-shot);
+novel ones fall back on distilled statistics. This is two-speed learning
+that dense nets cannot do in a single pass: **the second time MythosCore
+reads a text, it recognizes it** (measured below).
+
+### 3.5b System 2: compositional reasoning by unbind–cleanup–rebind
+
+`reasoning.py` and `system2.py` demonstrate that the same algebra supports
+*multi-hop reasoning over facts learned one-shot from text*, with zero
+trained parameters. A whole knowledge graph is superposed into one
+vector `M = Σ (rel ⊛ ρ(subj)) ⊛ obj`; a query unbinds the key and cleans
+up against the entity codebook. Chaining hops (unbind → cleanup → rebind)
+answers queries whose compositions never appeared in the input —
+`grandmother`, `great-grandfather`, `capital of the country where X's
+mother lives` — as pure algebra, O(D) per hop. The permutation ρ on the
+subject breaks the bind symmetry so direction is preserved (mother(ben)=anna
+≠ mother(anna)=ben). Capacity per trace is O(D/log D) facts; **sharding
+the memory makes total capacity linear in bytes** (measured: 64 shards ×
+32 KB hold 10k facts at 100% on 9k multi-hop queries).
 
 ### 3.6 Continuous learning within 12 GB
 
@@ -190,16 +222,42 @@ training mode, no batch dimension, no epochs. Consequences:
 
 ## 4. Measured results (this repo, single CPU core, numpy)
 
-| Experiment | MythosCore | Online bigram baseline |
-|---|---|---|
-| Template grammar with long-range agreement, 8k chars, one online pass | **93.1%** overall, 93.8% final window | 51.6% |
-| Alice in Wonderland ×2 (episodic recall) | **51.9%** overall; pass-2 window climbs to **70%** (vs ~30% during pass 1) | 28.5% |
-| VSA reasoning ("dollar of Mexico" analogy, role extraction, 2-hop chain) | all correct, ~10× margin over runner-up | n/a — zero trained parameters |
-| 30k-step training loop | RSS drift **+0.0 MB**, 131 MB total model | — |
+Baselines are scored under the identical online prequential protocol. The
+honest bar is not a bigram (trivial) but a **stupid-backoff 6-gram** — a
+genuinely strong count model that memorizes exact contexts. Where
+MythosCore wins and loses is itself the finding:
 
-The free-run sample after the grammar task generates syntactically perfect
-sentences with correct subject–object agreement carried across ~15
-characters — structure a bigram provably cannot represent.
+| Experiment | MythosCore | Backoff-6gram | Bigram |
+|---|---|---|---|
+| **Template grammar**, long-range agreement beyond the n-gram window, 8k chars | **93.2%** | 91.2% | 51.6% |
+| **Alice ×2**, pure repetition (episodic recall) | 54.5% (pass-2 window **67%**) | **65.6%** | 28.5% |
+| **Real Alice**, 40k chars, single pass, top-1 accuracy | 50.7% | **53.8%** | — |
+| **Real Alice**, 40k chars, single pass, **bits/char** (the LM metric) | **3.23** | 4.64 | — (uniform 5.98) |
+| **System 2** multi-hop QA (grandmother / great-grandfather / 4-hop geo), sharded | **100%** on 9k queries | n/a | n/a |
+| VSA analogy ("dollar of Mexico", role extraction, 2-hop chain) | all correct, ~10× margin | n/a | n/a |
+| 30k-step training loop | RSS drift **+0.0 MB**, 261 MB model | — | — |
+
+How to read this honestly:
+
+- **On structure (grammar), MythosCore beats the strong n-gram** — the
+  agreement spans ~15 characters, past the 6-gram's window, and the liquid
+  state carries it. The free-run sample generates syntactically perfect
+  sentences with correct subject–object agreement.
+- **On pure repetition, the n-gram wins.** A backoff n-gram is a perfect
+  exact-substring memorizer; on the second pass of identical text it is
+  unbeatable at top-1. MythosCore's recognition is approximate, so it
+  trails here. This is a real limitation, stated plainly.
+- **On real single-pass prose, the split is instructive**: the n-gram has
+  higher top-1 accuracy (it nails frequent exact contexts) but MythosCore
+  has **substantially better bits/char** — its full distribution is far
+  better calibrated. Cross-entropy, not arg-max, is what language models
+  are trained on, so the calibration win is the meaningful one; a
+  Kneser-Ney-smoothed n-gram would narrow the gap, and that comparison is
+  the honest next benchmark.
+- **On compositional reasoning, there is no n-gram baseline** because the
+  task is answering questions never stated in the text. This is the
+  clearest evidence of reasoning beyond the training distribution, and it
+  costs zero trained parameters.
 
 ## 5. VRAM budget at scale (fp16 / 1-bit, exact closed form)
 
@@ -216,16 +274,27 @@ O(K·D + N). Every op is elementwise or a single matvec/popcount — the
 port to CUDA is mechanical (`cupy`/`torch` drop-in), and the retrieval
 matvec at Mythos scale is ~a few ms on a 3060.
 
-## 6. Limitations and the road forward
+## 6. Honest limitations and the road forward
 
+- **This is not a language model competitive with transformers.** On raw
+  next-character prediction of real prose it trails a backoff n-gram on
+  top-1 accuracy. Its wins are specific: long-range *structure*,
+  *calibration* (bits/char), one-shot *episodic recall*, and *symbolic
+  compositional reasoning*. Those are real and measured; general fluent
+  generation is not claimed.
 - The delta-rule readout is a linear decoder over a rich random feature
-  space — powerful, but not a 70B transformer. The scaling hypothesis
-  here is that *capacity should live in episodic structure (nodes, edges)
-  rather than in deep weights*; validating that beyond toy corpora is the
-  open research question.
-- The confidence gate and novelty threshold are calibrated constants;
-  they should themselves be homeostatic (target a node-growth rate).
-- Multi-step "System 2" reasoning currently exists only as explicit VSA
-  algebra (`reasoning.py`); wiring the concept graph's edges into
-  iterative query refinement (spread activation N hops, re-bind, re-query)
-  is the natural next layer, and it is O(D) per hop.
+  space — powerful, but shallow. The scaling hypothesis is that *capacity
+  should live in episodic/compositional structure (nodes, edges, superposed
+  traces) rather than in deep trained weights*. The System 2 sharding
+  result (capacity linear in bytes, O(D) queries) is the first evidence for
+  it; whether it carries to open-domain reasoning is the open question.
+- The n-gram baseline should be strengthened to Kneser-Ney before the
+  bits/char win is treated as decisive.
+- The confidence gate, novelty threshold, and smoothing floor are
+  calibrated constants; they should be homeostatic (target a node-growth
+  rate and a running cross-entropy).
+- System 2 reasoning (`system2.py`) currently runs on a hand-parsed fact
+  grammar and a separate holographic store. Fusing it with the online
+  concept graph — so the sequence model *populates* the reasoning memory as
+  it reads, then queries it mid-stream — is the natural next layer and the
+  path from "predicts text" to "reasons over what it read."

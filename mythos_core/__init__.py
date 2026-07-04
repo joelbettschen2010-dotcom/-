@@ -10,6 +10,7 @@ from .encoder import LiquidNCA
 from .memory import ConceptGraph
 from .readout import KANReadout
 from .model import MythosCore
+from .system2 import HolographicKB, ShardedKB
 
 __all__ = [
     "HDSpace",
@@ -18,4 +19,6 @@ __all__ = [
     "ConceptGraph",
     "KANReadout",
     "MythosCore",
+    "HolographicKB",
+    "ShardedKB",
 ]

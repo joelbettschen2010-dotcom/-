@@ -32,26 +32,42 @@ a single matvec, so a CUDA port is a mechanical `torch`/`cupy` swap.
 # 1. Symbolic reasoning with zero trained parameters (Kanerva analogies)
 python -m mythos_core.reasoning
 
-# 2. Online sequence learning: template grammar + Alice-in-Wonderland
-#    episodic recall, scored against an online bigram baseline
+# 2. System 2: one-shot fact learning + compositional multi-hop QA
+#    (grandmother / great-grandfather / 4-hop geography never stated in text)
+python -m mythos_core.system2
+
+# 3. Online sequence learning: grammar + Alice recall, scored against a
+#    strong stupid-backoff 6-gram baseline (not just a bigram)
 python -m mythos_core.train_demo
 
-# 3. Validation: 30k-step training loop, flat-memory leak check (exits
+# 4. Honest scale test: single-pass generalization on real English prose,
+#    top-1 accuracy AND bits/char vs the backoff n-gram
+python -m mythos_core.scale_test 40000
+
+# 5. Validation: 30k-step training loop, flat-memory leak check (exits
 #    nonzero on failure), measured footprint, 12GB VRAM projection
 python -m mythos_core.benchmark
 ```
 
-## Expected results
+## Expected results (honest, with a strong baseline)
 
 - `reasoning.py` — "dollar of Mexico → peso" and a two-hop analogy chain,
-  each answered by one elementwise multiply + nearest-neighbor lookup.
-- `train_demo.py` — grammar task ~93% online accuracy vs ~52% bigram;
-  Alice pass-2 accuracy roughly doubles pass-1 as episodic recognition
-  kicks in; free-run generation produces grammatical sentences with
-  correct long-range agreement.
-- `benchmark.py` — `LEAK CHECK: PASS` with 0.0 MB RSS drift over 30,000
-  online learning steps; scaled "Mythos" config (D=16384, 2M concept
-  nodes) projected at ~4.9 GB — 40% of an RTX 3060's 12 GB.
+  each one elementwise multiply + nearest-neighbor lookup.
+- `system2.py` — **100%** on ~9k multi-hop queries whose compositions never
+  appear in the fact stream; capacity scales linearly with sharded memory.
+- `train_demo.py` — grammar task **93.2%** vs **91.2%** backoff-6gram (win:
+  agreement spans past the n-gram window); Alice ×2 the n-gram wins on pure
+  repetition (it memorizes exact substrings) — stated plainly, not hidden.
+- `scale_test.py` — real single-pass prose: n-gram wins top-1 (53.8% vs
+  50.7%), **MythosCore wins bits/char 3.23 vs 4.64** — better-calibrated
+  distributions, which is the metric language models actually optimize.
+- `benchmark.py` — `LEAK CHECK: PASS`, 0.0 MB RSS drift over 30,000 steps;
+  scaled config (D=16384, 2M nodes, 1-bit) at ~4.9 GB, 40% of a 3060.
+
+**What this is and isn't:** wins on long-range structure, calibration,
+one-shot episodic recall, and zero-parameter compositional reasoning. It
+does **not** beat a transformer at fluent generation, and a plain n-gram
+still beats it at memorizing exact seen substrings. See ARCHITECTURE.md §6.
 
 ## Layout
 
@@ -61,7 +77,9 @@ python -m mythos_core.benchmark
 | `encoder.py` | LiquidNCA — frozen multi-timescale cellular ring |
 | `memory.py` | ConceptGraph — grow/prune episodic memory with edges |
 | `readout.py` | KANReadout — spline edge functions + delta rule |
-| `model.py` | MythosCore — the assembled machine |
+| `model.py` | MythosCore — the assembled machine (backoff + calibration) |
 | `reasoning.py` | VSA analogy/reasoning demo |
-| `train_demo.py` | online learning demo vs bigram baseline |
+| `system2.py` | one-shot fact learning + compositional multi-hop QA |
+| `train_demo.py` | online learning demo vs backoff-6gram baseline |
+| `scale_test.py` | single-pass generalization on real prose (accuracy + bits/char) |
 | `benchmark.py` | leak check + VRAM budget validation |
