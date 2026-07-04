@@ -36,6 +36,10 @@ python -m mythos_core.reasoning
 #    (grandmother / great-grandfather / 4-hop geography never stated in text)
 python -m mythos_core.system2
 
+# 2b. End-to-end reading comprehension: read prose -> build memory ->
+#     answer multi-hop questions, with noise-robust content-addressable recall
+python -m mythos_core.comprehension
+
 # 3. Online sequence learning: grammar + Alice recall, scored against a
 #    strong stupid-backoff 6-gram baseline (not just a bigram)
 python -m mythos_core.train_demo
@@ -55,6 +59,9 @@ python -m mythos_core.benchmark
   each one elementwise multiply + nearest-neighbor lookup.
 - `system2.py` — **100%** on ~9k multi-hop queries whose compositions never
   appear in the fact stream; capacity scales linearly with sharded memory.
+- `comprehension.py` — reads 128 facts from natural prose, 100% multi-hop
+  QA, and **100% recall with 30% of the query cue corrupted** (graceful
+  decay to 58% at 40%) — content-addressable retrieval n-grams can't do.
 - `train_demo.py` — grammar task **93.2%** vs **91.2%** backoff-6gram (win:
   agreement spans past the n-gram window); Alice ×2 the n-gram wins on pure
   repetition (it memorizes exact substrings) — stated plainly, not hidden.
@@ -84,6 +91,7 @@ that n-grams cannot do at all. The value is that combination running
 | `model.py` | MythosCore — the assembled machine (backoff + calibration) |
 | `reasoning.py` | VSA analogy/reasoning demo |
 | `system2.py` | one-shot fact learning + compositional multi-hop QA |
+| `comprehension.py` | read prose → memory → QA + noise-robust recall |
 | `train_demo.py` | online learning demo vs backoff-6gram baseline |
 | `scale_test.py` | single-pass generalization on real prose (accuracy + bits/char) |
 | `benchmark.py` | leak check + VRAM budget validation |

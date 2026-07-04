@@ -207,6 +207,16 @@ subject breaks the bind symmetry so direction is preserved (mother(ben)=anna
 the memory makes total capacity linear in bytes** (measured: 64 shards ×
 32 KB hold 10k facts at 100% on 9k multi-hop queries).
 
+`comprehension.py` runs the whole loop on natural prose (read → extract →
+store → reason) and demonstrates the substrate's signature advantage:
+**content-addressable, noise-robust recall**. Querying with a *corrupted*
+subject cue — up to 30% of its signs randomly flipped — still resolves the
+correct multi-hop answer at 100%, decaying gracefully to 58% at 40%
+corruption, because cleanup projects the noisy query onto the nearest clean
+symbol. Exact-match retrieval (an n-gram, a hash map, a dict) fails at the
+first flipped bit; graceful degradation under noise is free here and is a
+prerequisite for reasoning over imperfect input.
+
 ### 3.6 Continuous learning within 12 GB
 
 Training **is** inference plus two local updates — there is no separate
