@@ -112,8 +112,10 @@ def projected_bytes(dim: int, n_cells: int, max_nodes: int, vocab: int,
 
     proto_bits=1 is the classical HDC compression: concept prototypes are
     near-bipolar, so they survive sign-binarization -- stored as packed
-    bits, retrieved by Hamming distance (XOR + popcount), which on GPU is
-    *faster* than the fp16 matvec, not just smaller."""
+    bits, retrieved by Hamming distance (XOR + popcount).  The 32x memory
+    shrink and full accuracy retention are measured in binary.py; a speed
+    win over the fp matvec needs bandwidth-bound hardware (GPU) and is not
+    claimed on CPU (there tuned BLAS is ~1.5x faster)."""
     return {
         "codebook (V x D)": vocab * dim * bytes_per,
         "liquid cells + gates (2K x D)": 2 * n_cells * dim * bytes_per,

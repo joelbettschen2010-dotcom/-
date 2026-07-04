@@ -48,7 +48,11 @@ python -m mythos_core.train_demo
 #    top-1 accuracy AND bits/char vs the backoff n-gram
 python -m mythos_core.scale_test 40000
 
-# 5. Validation: 30k-step training loop, flat-memory leak check (exits
+# 5. Efficiency, measured not projected: 1-bit binary memory vs fp32
+#    (32x smaller, accuracy retained, honest speed comparison)
+python -m mythos_core.binary
+
+# 6. Validation: 30k-step training loop, flat-memory leak check (exits
 #    nonzero on failure), measured footprint, 12GB VRAM projection
 python -m mythos_core.benchmark
 ```
@@ -69,6 +73,9 @@ python -m mythos_core.benchmark
   n-gram beats MythosCore** on both top-1 (53.8% vs 50.7%) and bits/char
   (2.60 vs 3.23). On plain char-level language modeling MythosCore is *not*
   the better model — this test marks that boundary honestly.
+- `binary.py` — 1-bit concept memory: **32× smaller than fp32 with recall
+  fully retained** (measured). Speed: fp32 BLAS wins on CPU (~1.5×); the
+  popcount speed win needs a GPU and is *not* claimed here. Honest.
 - `benchmark.py` — `LEAK CHECK: PASS`, 0.0 MB RSS drift over 30,000 steps;
   scaled config (D=16384, 2M nodes, 1-bit) at ~4.9 GB, 40% of a 3060.
 
@@ -92,6 +99,7 @@ that n-grams cannot do at all. The value is that combination running
 | `reasoning.py` | VSA analogy/reasoning demo |
 | `system2.py` | one-shot fact learning + compositional multi-hop QA |
 | `comprehension.py` | read prose → memory → QA + noise-robust recall |
+| `binary.py` | 1-bit binary memory backend — measured memory/speed/accuracy |
 | `train_demo.py` | online learning demo vs backoff-6gram baseline |
 | `scale_test.py` | single-pass generalization on real prose (accuracy + bits/char) |
 | `benchmark.py` | leak check + VRAM budget validation |
