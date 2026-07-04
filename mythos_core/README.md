@@ -52,6 +52,10 @@ python -m mythos_core.scale_test 40000
 #    (32x smaller, accuracy retained, honest speed comparison)
 python -m mythos_core.binary
 
+# 5b. Learning efficiency: one-shot HDC vs SGD on identical features
+#     (tied accuracy; the win is tuning-free single-pass add-only updates)
+python -m mythos_core.sample_efficiency
+
 # 6. Validation: 30k-step training loop, flat-memory leak check (exits
 #    nonzero on failure), measured footprint, 12GB VRAM projection
 python -m mythos_core.benchmark
@@ -76,6 +80,10 @@ python -m mythos_core.benchmark
 - `binary.py` — 1-bit concept memory: **32× smaller than fp32 with recall
   fully retained** (measured). Speed: fp32 BLAS wins on CPU (~1.5×); the
   popcount speed win needs a GPU and is *not* claimed here. Honest.
+- `sample_efficiency.py` — one-shot HDC vs SGD on identical features:
+  accuracy **ties** SGD-1-epoch at every shot count (SGD edges ahead with
+  50 epochs). The win is the *update*: add-only, tuning-free, single-pass,
+  online — reported at its true modest size, not inflated.
 - `benchmark.py` — `LEAK CHECK: PASS`, 0.0 MB RSS drift over 30,000 steps;
   scaled config (D=16384, 2M nodes, 1-bit) at ~4.9 GB, 40% of a 3060.
 
@@ -100,6 +108,7 @@ that n-grams cannot do at all. The value is that combination running
 | `system2.py` | one-shot fact learning + compositional multi-hop QA |
 | `comprehension.py` | read prose → memory → QA + noise-robust recall |
 | `binary.py` | 1-bit binary memory backend — measured memory/speed/accuracy |
+| `sample_efficiency.py` | one-shot HDC vs SGD learning efficiency (measured) |
 | `train_demo.py` | online learning demo vs backoff-6gram baseline |
 | `scale_test.py` | single-pass generalization on real prose (accuracy + bits/char) |
 | `benchmark.py` | leak check + VRAM budget validation |
