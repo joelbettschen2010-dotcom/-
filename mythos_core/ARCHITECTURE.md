@@ -227,37 +227,46 @@ honest bar is not a bigram (trivial) but a **stupid-backoff 6-gram** — a
 genuinely strong count model that memorizes exact contexts. Where
 MythosCore wins and loses is itself the finding:
 
-| Experiment | MythosCore | Backoff-6gram | Bigram |
+| Experiment | MythosCore | Strong n-gram | Bigram |
 |---|---|---|---|
 | **Template grammar**, long-range agreement beyond the n-gram window, 8k chars | **93.2%** | 91.2% | 51.6% |
 | **Alice ×2**, pure repetition (episodic recall) | 54.5% (pass-2 window **67%**) | **65.6%** | 28.5% |
 | **Real Alice**, 40k chars, single pass, top-1 accuracy | 50.7% | **53.8%** | — |
-| **Real Alice**, 40k chars, single pass, **bits/char** (the LM metric) | **3.23** | 4.64 | — (uniform 5.98) |
+| **Real Alice**, 40k chars, single pass, **bits/char** (interpolated n-gram) | 3.23 | **2.60** | — (uniform 5.98) |
 | **System 2** multi-hop QA (grandmother / great-grandfather / 4-hop geo), sharded | **100%** on 9k queries | n/a | n/a |
 | VSA analogy ("dollar of Mexico", role extraction, 2-hop chain) | all correct, ~10× margin | n/a | n/a |
 | 30k-step training loop | RSS drift **+0.0 MB**, 261 MB model | — | — |
 
-How to read this honestly:
+How to read this honestly — including where MythosCore **loses**:
 
-- **On structure (grammar), MythosCore beats the strong n-gram** — the
-  agreement spans ~15 characters, past the 6-gram's window, and the liquid
-  state carries it. The free-run sample generates syntactically perfect
-  sentences with correct subject–object agreement.
-- **On pure repetition, the n-gram wins.** A backoff n-gram is a perfect
-  exact-substring memorizer; on the second pass of identical text it is
-  unbeatable at top-1. MythosCore's recognition is approximate, so it
-  trails here. This is a real limitation, stated plainly.
-- **On real single-pass prose, the split is instructive**: the n-gram has
-  higher top-1 accuracy (it nails frequent exact contexts) but MythosCore
-  has **substantially better bits/char** — its full distribution is far
-  better calibrated. Cross-entropy, not arg-max, is what language models
-  are trained on, so the calibration win is the meaningful one; a
-  Kneser-Ney-smoothed n-gram would narrow the gap, and that comparison is
-  the honest next benchmark.
-- **On compositional reasoning, there is no n-gram baseline** because the
-  task is answering questions never stated in the text. This is the
-  clearest evidence of reasoning beyond the training distribution, and it
-  costs zero trained parameters.
+- **On plain character-level language modeling of real prose, the n-gram
+  wins outright.** A properly *interpolated* backoff n-gram reaches 2.60
+  bits/char and higher top-1 accuracy than MythosCore's 3.23. Count-based
+  smoothing is a ferociously strong baseline at this exact task, and
+  MythosCore does not beat it. (An earlier draft of this table claimed a
+  bits/char *win*; that was measured against a weakly-smoothed n-gram and
+  was wrong. Strengthening the baseline reversed the result, and the table
+  now reports the loss.)
+- **On long-range structure, MythosCore wins.** The grammar task's
+  subject–object agreement spans ~15 characters, past a 6-gram's window;
+  the liquid state carries it and MythosCore beats the n-gram 93.2% vs
+  91.2%. The free-run sample generates syntactically perfect sentences with
+  correct agreement. This is the one sequence task where the architecture's
+  unbounded-context state genuinely pays off over counting.
+- **On pure repetition, the n-gram wins** (perfect exact-substring memory);
+  MythosCore's approximate recognition trails.
+- **On compositional reasoning, there is no n-gram baseline at all** —
+  answering `grandmother`/`great-grandfather`/4-hop-geography queries that
+  were never stated is not something a count model can do in principle.
+  This, not language modeling, is where the architecture is actually
+  differentiated, and it costs zero trained parameters.
+
+Net: **MythosCore is not a better character language model than a
+well-smoothed n-gram.** Its defensible claims are (1) carrying dependencies
+beyond a fixed window, (2) one-shot episodic recall in constant memory, and
+(3) symbolic compositional reasoning. The value proposition is the
+combination running trainably in a fixed VRAM envelope — not raw next-token
+accuracy.
 
 ## 5. VRAM budget at scale (fp16 / 1-bit, exact closed form)
 

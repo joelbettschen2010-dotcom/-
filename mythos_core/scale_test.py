@@ -66,17 +66,30 @@ def bits_per_char(p: np.ndarray, target: int) -> float:
 
 
 def ngram_dist(ng: OnlineBackoffNgram, vocab: int) -> np.ndarray:
-    """Turn the backoff model's longest-context counts into a distribution
-    (add-one smoothed) so it can be scored on bits-per-character too."""
-    for k in range(ng.order - 1, -1, -1):
-        key = ng.ctx[len(ng.ctx) - k:] if k else tuple()
+    """Interpolated backoff distribution (Jelinek-Mercer style).
+
+    This is a much stronger baseline than add-one-on-the-longest-match: it
+    MIXES the predictive distributions from every context order, weighting
+    longer (more specific) contexts more heavily but always falling back on
+    shorter ones for mass on unseen continuations.  That is close to how a
+    production n-gram LM is actually smoothed, so beating it on bits/char is
+    a fair, hard test rather than a strawman."""
+    dist = np.ones(vocab)                       # order-0 add-one prior
+    dist /= dist.sum()
+    for k in range(1, ng.order):
+        key = ng.ctx[len(ng.ctx) - k:]
         table = ng.tables[k].get(key)
-        if table:
-            v = np.ones(vocab)
-            for tok, c in table.items():
-                v[tok] += c
-            return v / v.sum()
-    return np.ones(vocab) / vocab
+        if not table:
+            continue
+        v = np.zeros(vocab)
+        for tok, c in table.items():
+            v[tok] = c
+        total = v.sum()
+        if total > 0:
+            # Confidence in this order grows with how much evidence backs it.
+            lam = total / (total + 2.0) * (0.55 + 0.45 * k / ng.order)
+            dist = (1.0 - lam) * dist + lam * (v / total)
+    return dist / dist.sum()
 
 
 def main() -> None:
@@ -123,9 +136,15 @@ def main() -> None:
     print(f"{'backoff-6gram':16}{n_hit / N:>12.1%}{n_hit2 / H:>14.1%}{n_bits / N:>12.2f}")
     print(f"{'uniform':16}{1 / vocab:>12.1%}{'':>14}{np.log2(vocab):>12.2f}")
     print(f"\nthroughput      : {N / dt:,.0f} tokens/s (single CPU core)")
-    print("bits/char is the real language-model metric (lower = better")
-    print("calibrated).  Single pass, no repeats to memorize -- this is")
-    print("generalization of English structure, not episodic recall.")
+    print("HONEST READING: a properly interpolated backoff n-gram BEATS")
+    print("MythosCore here, on both top-1 accuracy and bits/char.  On plain")
+    print("character-level language modeling of real prose, MythosCore is")
+    print("NOT the better model -- count-based smoothing is extremely strong")
+    print("at this task.  MythosCore's wins are narrow and specific and live")
+    print("elsewhere: long-range structure beyond the n-gram window (see")
+    print("train_demo grammar task, 93% vs 91%) and compositional multi-hop")
+    print("reasoning that n-grams cannot do at all (see system2).  This test")
+    print("exists to mark the boundary honestly, not to be won.")
 
 
 if __name__ == "__main__":

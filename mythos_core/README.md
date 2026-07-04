@@ -58,16 +58,20 @@ python -m mythos_core.benchmark
 - `train_demo.py` — grammar task **93.2%** vs **91.2%** backoff-6gram (win:
   agreement spans past the n-gram window); Alice ×2 the n-gram wins on pure
   repetition (it memorizes exact substrings) — stated plainly, not hidden.
-- `scale_test.py` — real single-pass prose: n-gram wins top-1 (53.8% vs
-  50.7%), **MythosCore wins bits/char 3.23 vs 4.64** — better-calibrated
-  distributions, which is the metric language models actually optimize.
+- `scale_test.py` — real single-pass prose: a **properly interpolated
+  n-gram beats MythosCore** on both top-1 (53.8% vs 50.7%) and bits/char
+  (2.60 vs 3.23). On plain char-level language modeling MythosCore is *not*
+  the better model — this test marks that boundary honestly.
 - `benchmark.py` — `LEAK CHECK: PASS`, 0.0 MB RSS drift over 30,000 steps;
   scaled config (D=16384, 2M nodes, 1-bit) at ~4.9 GB, 40% of a 3060.
 
-**What this is and isn't:** wins on long-range structure, calibration,
-one-shot episodic recall, and zero-parameter compositional reasoning. It
-does **not** beat a transformer at fluent generation, and a plain n-gram
-still beats it at memorizing exact seen substrings. See ARCHITECTURE.md §6.
+**What this is and isn't:** MythosCore is **not** a better language model
+than a well-smoothed n-gram, and not a transformer-grade generator. Its
+three defensible wins are (1) carrying dependencies *beyond a fixed context
+window* (grammar task, 93% vs 91%), (2) one-shot *episodic recall* in
+constant memory, and (3) zero-parameter *compositional multi-hop reasoning*
+that n-grams cannot do at all. The value is that combination running
+*trainably* in a fixed 12 GB envelope. See ARCHITECTURE.md §4 and §6.
 
 ## Layout
 
