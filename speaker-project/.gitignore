@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+node_modules/
+.next/
+webapp/out/
+firmware/.pio/
+firmware/data/www/
+.DS_Store

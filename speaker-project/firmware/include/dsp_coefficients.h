@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #define DSP_FS            48000
-#define DSP_XOVER_HZ      330f
+#define DSP_XOVER_HZ      330.0f
 #define DSP_EQ_NUM_BANDS  10
 #define DSP_EQ_Q          1.41f
 
@@ -194,12 +194,12 @@
 #define DSP_ADDR_LIMITER_SUB_RELEASE          181
 
 // EQ-Mittenfrequenzen [Hz]
-static const float DSP_EQ_FREQS[10] = {31.5f, 63f, 125f, 250f, 500f, 1000f, 2000f, 4000f, 8000f, 16000f};
+static const float DSP_EQ_FREQS[10] = {31.5f, 63.0f, 125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f, 4000.0f, 8000.0f, 16000.0f};
 
 // Preset-Gains [dB] je Band + Sub-Level
-static const float DSP_PRESET_FLAT[11] = {0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f};
-static const float DSP_PRESET_MUSIC[11] = {2f, 3f, 2f, 0f, -1f, 0f, 0f, 1f, 2f, 2f, 1.5f};
-static const float DSP_PRESET_OUTDOOR[11] = {3f, 5f, 4f, 1f, 0f, 1f, 2f, 3f, 3f, 2f, 3f};
+static const float DSP_PRESET_FLAT[11] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+static const float DSP_PRESET_MUSIC[11] = {2.0f, 3.0f, 2.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, 2.0f, 2.0f, 1.5f};
+static const float DSP_PRESET_OUTDOOR[11] = {3.0f, 5.0f, 4.0f, 1.0f, 0.0f, 1.0f, 2.0f, 3.0f, 3.0f, 2.0f, 3.0f};
 
 // Master-Volume-Tabelle: 51 Stufen (0=mute), logarithmisch -60..0 dB
 static const float DSP_VOLUME_TABLE[51] = {

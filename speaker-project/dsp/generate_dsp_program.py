@@ -299,7 +299,7 @@ def write_c_header(params):
         fh.write("// Parameter-RAM-Adressen und 5.23-Startwerte fuer den ADAU1701.\n")
         fh.write("#pragma once\n#include <stdint.h>\n\n")
         fh.write(f"#define DSP_FS            {int(FS)}\n")
-        fh.write(f"#define DSP_XOVER_HZ      {FX:.0f}f\n")
+        fh.write(f"#define DSP_XOVER_HZ      {FX:.1f}f\n")
         fh.write(f"#define DSP_EQ_NUM_BANDS  10\n")
         fh.write(f"#define DSP_EQ_Q          {EQ_Q}f\n\n")
         fh.write("// Parameter-RAM-Adressen (muessen nach SigmaStudio-Compile\n"
@@ -310,12 +310,12 @@ def write_c_header(params):
             fh.write(f"#define DSP_ADDR_{base.upper():<28s} {addr}\n")
         fh.write("\n// EQ-Mittenfrequenzen [Hz]\n")
         fh.write("static const float DSP_EQ_FREQS[10] = {"
-                 + ", ".join(f"{f:g}f" for f in EQ_FREQS) + "};\n\n")
+                 + ", ".join(f"{f:.1f}f" for f in EQ_FREQS) + "};\n\n")
         fh.write("// Preset-Gains [dB] je Band + Sub-Level\n")
         for pname, cfg in PRESETS.items():
             fh.write(f"static const float DSP_PRESET_{pname.upper()}[11] = {{"
-                     + ", ".join(f"{g:g}f" for g in cfg["gains"])
-                     + f", {cfg['sub_level_db']:g}f}};\n")
+                     + ", ".join(f"{g:.1f}f" for g in cfg["gains"])
+                     + ", {:.1f}f}};\n".format(cfg["sub_level_db"]))
         fh.write("\n// Master-Volume-Tabelle: 51 Stufen (0=mute), logarithmisch -60..0 dB\n")
         fh.write("static const float DSP_VOLUME_TABLE[51] = {\n    ")
         fh.write(", ".join(f"{v:.6f}f" for v in volume_table()))

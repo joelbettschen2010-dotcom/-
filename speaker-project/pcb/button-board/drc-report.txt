@@ -1,0 +1,301 @@
+** Drc report for button-board.kicad_pcb **
+** Created on 2026-07-05 18:41:24 **
+
+** Found 40 DRC violations **
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(44.0000 mm, 15.8200 mm): Reference 'C1'
+    @(40.9900 mm, 15.6500 mm): Line on F.Silkscreen
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(46.3500 mm, 13.4000 mm): Footprint Text '1' of LED1
+[solder_mask_bridge]: Front solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; Severity: error
+    @(46.5000 mm, 14.0000 mm): Pad 2 [5V] of D1 on F.Cu
+    @(48.0500 mm, 13.3500 mm): Pad 1 [LED_VDD] of LED1 on F.Cu
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(44.5000 mm, 14.0000 mm): Footprint D1
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(7.8050 mm, 12.0550 mm): Footprint R2
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(32.0000 mm, 6.0000 mm): Footprint SW4
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(27.8050 mm, 12.0550 mm): Footprint R6
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(15.8050 mm, 12.0550 mm): Footprint R4
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(23.0000 mm, 6.0000 mm): Footprint SW3
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(14.0000 mm, 6.0000 mm): Footprint SW2
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(50.5000 mm, 15.0000 mm): Footprint LED1
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(12.0000 mm, 16.5000 mm): Footprint J1
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(44.0000 mm, 17.5000 mm): Footprint C1
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(19.8050 mm, 12.0550 mm): Footprint R5
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(5.0000 mm, 6.0000 mm): Footprint SW1
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(11.8050 mm, 12.0550 mm): Footprint R3
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(57.5000 mm, 17.5000 mm): Footprint H
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(50.0000 mm, 6.0000 mm): Footprint SW6
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(36.0000 mm, 16.5000 mm): Footprint J2
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(41.0000 mm, 6.0000 mm): Footprint SW5
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(3.0000 mm, 17.5000 mm): Footprint H
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(3.8050 mm, 12.0550 mm): Footprint R1
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(23.8050 mm, 12.0550 mm): Footprint C2
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(32.0000 mm, -0.5000 mm): PTH pad 1 [LAD2] of SW4
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(36.5000 mm, -0.5000 mm): PTH pad 2 [LAD2] of SW4
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(23.0000 mm, -0.5000 mm): PTH pad 1 [LAD1] of SW3
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(27.5000 mm, -0.5000 mm): PTH pad 2 [LAD1] of SW3
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(14.0000 mm, -0.5000 mm): PTH pad 1 [LAD0] of SW2
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(18.5000 mm, -0.5000 mm): PTH pad 2 [LAD0] of SW2
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(5.0000 mm, -0.5000 mm): PTH pad 1 [BTN_PWR] of SW1
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(9.5000 mm, -0.5000 mm): PTH pad 2 [BTN_PWR] of SW1
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(50.0000 mm, -0.5000 mm): PTH pad 1 [LAD4] of SW6
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(54.5000 mm, -0.5000 mm): PTH pad 2 [LAD4] of SW6
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.1100 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(60.0000 mm, 20.0000 mm): Line on Edge.Cuts
+    @(36.0000 mm, 19.0400 mm): PTH pad 2 [3V3] of J2
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(60.0000 mm, 20.0000 mm): Line on Edge.Cuts
+    @(34.6700 mm, 17.7700 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(60.0000 mm, 20.0000 mm): Line on Edge.Cuts
+    @(37.3300 mm, 17.7700 mm): Line on F.Silkscreen
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(41.0000 mm, -0.5000 mm): PTH pad 1 [LAD3] of SW5
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(45.5000 mm, -0.5000 mm): PTH pad 2 [LAD3] of SW5
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; Severity: error
+    @(44.5000 mm, 14.0000 mm): Footprint D1
+    @(50.5000 mm, 15.0000 mm): Footprint LED1
+[clearance]: Clearance violation (netclass 'Default' clearance 0.2000 mm; actual 0.0000 mm)
+    Rule: netclass 'Default'; Severity: error
+    @(46.5000 mm, 14.0000 mm): Pad 2 [5V] of D1 on F.Cu
+    @(48.0500 mm, 13.3500 mm): Pad 1 [LED_VDD] of LED1 on F.Cu
+
+** Found 38 unconnected pads **
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(5.0000 mm, 6.0000 mm): PTH pad 1 [BTN_PWR] of SW1
+    @(9.5000 mm, 6.0000 mm): PTH pad 2 [BTN_PWR] of SW1
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(9.5000 mm, -0.5000 mm): PTH pad 2 [BTN_PWR] of SW1
+    @(5.0000 mm, -0.5000 mm): PTH pad 1 [BTN_PWR] of SW1
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(5.0000 mm, -0.5000 mm): PTH pad 1 [BTN_PWR] of SW1
+    @(5.0000 mm, 6.0000 mm): PTH pad 1 [BTN_PWR] of SW1
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(9.5000 mm, 6.0000 mm): PTH pad 2 [BTN_PWR] of SW1
+    @(26.0000 mm, 16.5000 mm): PTH pad 8 [BTN_PWR] of J1
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(14.0000 mm, 6.0000 mm): PTH pad 1 [LAD0] of SW2
+    @(18.5000 mm, 6.0000 mm): PTH pad 2 [LAD0] of SW2
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(18.5000 mm, -0.5000 mm): PTH pad 2 [LAD0] of SW2
+    @(14.0000 mm, -0.5000 mm): PTH pad 1 [LAD0] of SW2
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(14.0000 mm, -0.5000 mm): PTH pad 1 [LAD0] of SW2
+    @(14.0000 mm, 6.0000 mm): PTH pad 1 [LAD0] of SW2
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(14.0000 mm, 6.0000 mm): PTH pad 1 [LAD0] of SW2
+    @(4.6300 mm, 12.0550 mm): Pad 2 [LAD0] of R1 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(23.0000 mm, 6.0000 mm): PTH pad 1 [LAD1] of SW3
+    @(27.5000 mm, 6.0000 mm): PTH pad 2 [LAD1] of SW3
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(27.5000 mm, -0.5000 mm): PTH pad 2 [LAD1] of SW3
+    @(23.0000 mm, -0.5000 mm): PTH pad 1 [LAD1] of SW3
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(23.0000 mm, -0.5000 mm): PTH pad 1 [LAD1] of SW3
+    @(23.0000 mm, 6.0000 mm): PTH pad 1 [LAD1] of SW3
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(23.0000 mm, 6.0000 mm): PTH pad 1 [LAD1] of SW3
+    @(8.6300 mm, 12.0550 mm): Pad 2 [LAD1] of R2 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(32.0000 mm, 6.0000 mm): PTH pad 1 [LAD2] of SW4
+    @(36.5000 mm, 6.0000 mm): PTH pad 2 [LAD2] of SW4
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(36.5000 mm, -0.5000 mm): PTH pad 2 [LAD2] of SW4
+    @(32.0000 mm, -0.5000 mm): PTH pad 1 [LAD2] of SW4
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(32.0000 mm, -0.5000 mm): PTH pad 1 [LAD2] of SW4
+    @(32.0000 mm, 6.0000 mm): PTH pad 1 [LAD2] of SW4
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(32.0000 mm, 6.0000 mm): PTH pad 1 [LAD2] of SW4
+    @(12.6300 mm, 12.0550 mm): Pad 2 [LAD2] of R3 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(41.0000 mm, 6.0000 mm): PTH pad 1 [LAD3] of SW5
+    @(45.5000 mm, 6.0000 mm): PTH pad 2 [LAD3] of SW5
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(45.5000 mm, -0.5000 mm): PTH pad 2 [LAD3] of SW5
+    @(41.0000 mm, -0.5000 mm): PTH pad 1 [LAD3] of SW5
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(41.0000 mm, -0.5000 mm): PTH pad 1 [LAD3] of SW5
+    @(41.0000 mm, 6.0000 mm): PTH pad 1 [LAD3] of SW5
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(41.0000 mm, 6.0000 mm): PTH pad 1 [LAD3] of SW5
+    @(16.6300 mm, 12.0550 mm): Pad 2 [LAD3] of R4 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(50.0000 mm, 6.0000 mm): PTH pad 1 [LAD4] of SW6
+    @(54.5000 mm, 6.0000 mm): PTH pad 2 [LAD4] of SW6
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(54.5000 mm, -0.5000 mm): PTH pad 2 [LAD4] of SW6
+    @(50.0000 mm, -0.5000 mm): PTH pad 1 [LAD4] of SW6
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(50.0000 mm, -0.5000 mm): PTH pad 1 [LAD4] of SW6
+    @(50.0000 mm, 6.0000 mm): PTH pad 1 [LAD4] of SW6
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(50.0000 mm, 6.0000 mm): PTH pad 1 [LAD4] of SW6
+    @(20.6300 mm, 12.0550 mm): Pad 2 [LAD4] of R5 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(42.5000 mm, 14.0000 mm): Pad 1 [LED_VDD] of D1 on F.Cu
+    @(43.0500 mm, 17.5000 mm): Pad 1 [LED_VDD] of C1 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(48.0500 mm, 13.3500 mm): Pad 1 [LED_VDD] of LED1 on F.Cu
+    @(42.5000 mm, 14.0000 mm): Pad 1 [LED_VDD] of D1 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(23.0300 mm, 12.0550 mm): Pad 1 [LED_VDD] of C2 on F.Cu
+    @(42.5000 mm, 14.0000 mm): Pad 1 [LED_VDD] of D1 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(28.6300 mm, 12.0550 mm): Pad 2 [LED_DIN] of R6 on F.Cu
+    @(52.9500 mm, 13.3500 mm): Pad 4 [LED_DIN] of LED1 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(12.0000 mm, 16.5000 mm): PTH pad 1 [5V] of J1
+    @(46.5000 mm, 14.0000 mm): Pad 2 [5V] of D1 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(16.0000 mm, 16.5000 mm): PTH pad 3 [3V3] of J1
+    @(36.0000 mm, 19.0400 mm): PTH pad 2 [3V3] of J2
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(18.0000 mm, 16.5000 mm): PTH pad 4 [SDA] of J1
+    @(36.0000 mm, 24.1200 mm): PTH pad 4 [SDA] of J2
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(20.0000 mm, 16.5000 mm): PTH pad 5 [SCL] of J1
+    @(36.0000 mm, 21.5800 mm): PTH pad 3 [SCL] of J2
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(22.0000 mm, 16.5000 mm): PTH pad 6 [LED_DATA] of J1
+    @(26.9800 mm, 12.0550 mm): Pad 1 [LED_DATA] of R6 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(14.9800 mm, 12.0550 mm): Pad 1 [BTN_ADC] of R4 on F.Cu
+    @(10.9800 mm, 12.0550 mm): Pad 1 [BTN_ADC] of R3 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(10.9800 mm, 12.0550 mm): Pad 1 [BTN_ADC] of R3 on F.Cu
+    @(6.9800 mm, 12.0550 mm): Pad 1 [BTN_ADC] of R2 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(18.9800 mm, 12.0550 mm): Pad 1 [BTN_ADC] of R5 on F.Cu
+    @(14.9800 mm, 12.0550 mm): Pad 1 [BTN_ADC] of R4 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(6.9800 mm, 12.0550 mm): Pad 1 [BTN_ADC] of R2 on F.Cu
+    @(2.9800 mm, 12.0550 mm): Pad 1 [BTN_ADC] of R1 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(24.0000 mm, 16.5000 mm): PTH pad 7 [BTN_ADC] of J1
+    @(18.9800 mm, 12.0550 mm): Pad 1 [BTN_ADC] of R5 on F.Cu
+
+** Found 0 Footprint errors **
+
+** End of Report **
