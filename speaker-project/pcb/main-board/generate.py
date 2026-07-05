@@ -49,7 +49,7 @@ def gen_pcb():
         # Lautsprecher-Klemmen Oberkante links (max. Abstand zum Analog-In)
         "J7": (8, 4, 0), "J8": (22, 4, 0), "J9": (36, 4, 0),
         # Akku-Eingang + Balancer oben rechts (XH-Stecker 15.9mm breit!)
-        "J1": (60, 5, 90), "J2": (70, 6, 0), "J3": (86.5, 6, 0),
+        "J1": (58, 5, 0), "J2": (70, 6, 0), "J3": (86.5, 6, 0),
         # Ausgangsfilter FR (13.7mm-Courtyards -> 14mm-Raster)
         "L2": (7, 17, 0), "L3": (21, 17, 0), "L4": (35, 17, 0), "L5": (49, 17, 0),
         # Sub-Filter zweite Reihe
@@ -58,7 +58,7 @@ def gen_pcb():
         "U6": (33, 33, 0), "U7": (46, 33, 0),
         # Eingangsschutz + Softswitch-Reihe
         "F1": (64, 14, 0), "Q1": (72, 14, 0), "Q2": (80, 14, 0), "D1": (88, 14, 0),
-        "J4": (96, 16, 90),
+        "J4": (97, 14, 0),
         # Bulk-Elkos an PVDD
         "C80": (64, 27, 0), "C81": (78.5, 27, 0), "C82": (64, 38, 0),
         # Buck + LDO rechte Spalte (gestaffelt)
@@ -68,7 +68,8 @@ def gen_pcb():
         "U3": (28, 55, 0), "Y1": (26, 66, 0), "C17": (16, 45, 0),
         "R22": (58.3, 67, 90), "R21": (91, 21, 0),
         "R14": (41, 76, 0), "R62": (45, 76, 0), "R20": (49, 76, 0), "C31": (53, 76, 0),
-        "R63": (57, 76, 0), "C30": (91, 24, 0), "R19": (87, 21, 0), "C40": (58.3, 70.5, 90), "C43": (58.3, 56.5, 90), "U4": (44, 48, 0), "NT1": (46, 64, 0),
+        "R63": (57, 76, 0), "C30": (91, 24, 0), "R19": (87, 21, 0),
+        "R13": (73, 34.5, 0), "C12": (77, 34.5, 0), "C11": (94.5, 22.5, 0), "R12": (91, 27.4, 0), "C10": (69, 34.8, 0), "C28": (87.5, 30.5, 0), "C29": (91, 30.5, 0), "C40": (58.3, 70.5, 90), "C43": (58.3, 56.5, 90), "U4": (44, 48, 0), "NT1": (46, 64, 0),
         # Audio-Eingang + Stecker Unterkante links
         "J6": (9, 72, 270), "J13": (14, 76.5, 90), "J14": (40, 70, 0), "J5": (30, 62, 0),
         # ESP32 Ecke unten rechts, Antenne ragt ueber die Unterkante
@@ -85,7 +86,7 @@ def gen_pcb():
 
     # ---- Rest gruppenweise in Regionen packen ---------------------------
     # ---- Bohrloecher (vor der Packung registrieren!) ----------------------
-    for x, y in [(4, 43), (4, 58), (96.5, 24), (52, 5)]:
+    for x, y in [(4, 43), (4, 58), (96.5, 28), (52, 5)]:
         b.mounting_hole(x, y)
 
     regions = {
@@ -116,6 +117,8 @@ def gen_pcb():
         rest = shelf_pack(b, leftover_all, (2, 2, 98, 78))
         if rest:
             rest = shelf_pack(b, rest, (52, 58, 59.5, 78))
+        if rest:
+            rest = shelf_pack(b, rest, (18.5, 60, 23.8, 73))
         if rest:
             print("NICHT untergebracht:", [c.ref for c in rest])
 
