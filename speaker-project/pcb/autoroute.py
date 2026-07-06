@@ -26,12 +26,12 @@ from scipy.ndimage import binary_dilation
 import pcbnew
 from pcbnew import VECTOR2I
 
-GRID = 0.25          # mm Rasterweite
+GRID = float(os.environ.get("RGRID", "0.25"))   # mm Rasterweite
 # Design-Regel-Clearance; per ENV CLEAR uebersteuerbar (Main-Board: 0.15 —
 # JLCPCB-faehig und noetig, damit die 1.1-mm-Packluecken passierbar sind)
 CLEARANCE = float(os.environ.get("CLEAR", "0.20"))
 VIA_D, VIA_DRILL = 0.7, 0.4
-VIA_COST = 40        # Rasterschritte Strafkosten pro Via
+VIA_COST = int(os.environ.get("VIACOST", "40"))  # Rasterschritte Strafkosten pro Via
 WRONG_DIR_COST = 1.6 # Kostenfaktor gegen die Vorzugsrichtung
 ZONE_NETS = {"GND", "AGND", "PVDD"}
 
@@ -71,12 +71,29 @@ class Router:
         self.core = {0: np.full((self.nx, self.ny), -1, dtype=np.int32),
                      1: np.full((self.nx, self.ny), -1, dtype=np.int32)}
         self._mark_border()
-        for k in extra_keepouts:
+        self.extra_keepouts = tuple(extra_keepouts)
+        for k in self.extra_keepouts:
             self._mark_rect(k, both=True)
         self._mark_pads()
         self.committed = {}   # netcode -> Liste von Board-Objekten (Tracks/Vias)
         self.edges_of = {}    # netcode -> Liste (name, a, b, w) fuer Reroute
         self.via_pos = {}     # netcode -> Liste (gx, gy) gesetzter Vias
+        # Netzbaum-Verwaltung: Union-Find ueber Pad-Indizes + verlegte Zellen
+        # je Cluster (fuer Multi-Goal-Routing an bestehendes eigenes Kupfer)
+        self.net_pads = {}    # netcode -> Liste Pads
+        self.pad_idx = {}     # (netcode, gx, gy) -> Index in net_pads
+        self.uf = {}          # netcode -> Parent-Liste
+        self.cells = {}       # netcode -> dict {(L,gx,gy): pad_rep_idx}
+
+    def _find(self, code, i):
+        p = self.uf[code]
+        while p[i] != i:
+            p[i] = p[p[i]]
+            i = p[i]
+        return i
+
+    def _union(self, code, i, j):
+        self.uf[code][self._find(code, i)] = self._find(code, j)
 
     # ------------------------------------------------------------------
     def g2mm(self, gx, gy):
@@ -146,12 +163,15 @@ class Router:
 
     @staticmethod
     def _disk(r):
-        y, x = np.ogrid[-r:r+1, -r:r+1]
+        rr = int(np.ceil(r))
+        y, x = np.ogrid[-rr:rr+1, -rr:rr+1]
         return (x*x + y*y) <= r*r + 0.1
 
     def _passable(self, netcode, halfw):
-        """Boolsche Karten je Lage: True = Bahnmitte hier erlaubt."""
-        disk = self._disk(halfw)
+        """Boolsche Karten je Lage: True = Bahnmitte hier erlaubt.
+        halfw darf float sein; min. 1.45 damit auch Diagonalnachbarn
+        von Kupferzellen gesperrt sind (sonst 0.35mm-Luecken moeglich)."""
+        disk = self._disk(max(float(halfw), 1.45))
         out = {}
         for L in (0, 1):
             obst = (self.occ[L] != -1) & (self.occ[L] != netcode)
@@ -159,11 +179,15 @@ class Router:
         return out
 
     def route_edge(self, netcode, netname, a, b, width, max_expand=80000,
-                   via_cost=VIA_COST):
-        """A* von Pad a nach Pad b. a/b = (x_mm, y_mm, layerset)."""
-        halfw = mm2g(width / 2 + CLEARANCE)
+                   via_cost=VIA_COST, extra_goals=None, clearance=None):
+        """A* von Pad a nach Pad b. a/b = (x_mm, y_mm, layerset).
+        extra_goals: Menge {(L,gx,gy)} bereits verlegten EIGENEN Kupfers —
+        die Suche darf dort enden (Anschluss an den bestehenden Netzbaum).
+        clearance: Override (Notfallstufe 0.127 = JLCPCB-Minimum 5 mil)."""
+        cl = CLEARANCE if clearance is None else clearance
+        halfw = (width / 2 + cl) / GRID
         pass_trk = self._passable(netcode, halfw)
-        pass_via = self._passable(netcode, mm2g(VIA_D / 2 + CLEARANCE))
+        pass_via = self._passable(netcode, (VIA_D / 2 + cl) / GRID)
         # Eigene Pad-Kerne freischalten: die Bahn darf ueber eigenem Kupfer
         # laufen (Fine-Pitch: einzige Ausfahrt ist die Pad-Laengsachse)
         for L in (0, 1):
@@ -199,7 +223,8 @@ class Router:
                 continue
             parent[st] = par
             L, gx, gy = st
-            if (gx, gy) == (tx, ty) and L in t_layers:
+            if ((gx, gy) == (tx, ty) and L in t_layers) or \
+               (extra_goals and st in extra_goals):
                 goal = st
                 break
             expansions += 1
@@ -249,12 +274,22 @@ class Router:
         return path
 
     # ------------------------------------------------------------------
-    def commit(self, netcode, path, width):
-        """Pfad als Bahnen+Vias aufs Board schreiben und im Raster belegen."""
+    def commit(self, netcode, path, width, rep=None):
+        """Pfad als Bahnen+Vias aufs Board schreiben und im Raster belegen.
+        rep: Pad-Cluster-Index — die Pfadzellen werden als Kupfer dieses
+        Clusters registriert (Multi-Goal-Ziele fuer spaetere Kanten)."""
         net = self.board.FindNet(netcode)
         objs = self.committed.setdefault(netcode, [])
         layers = [pcbnew.F_Cu, pcbnew.B_Cu]
-        halfw = mm2g(width / 2) + 1
+        if rep is not None:
+            cells = self.cells.setdefault(netcode, {})
+            for st in path:
+                cells[st] = rep
+        # Nur echtes Kupfer markieren (Zellzentrum innerhalb der Bahnbreite);
+        # die Clearance kommt beim FREMDEN Netz ueber die Dilatation dazu.
+        # Frueher wurde w/2+1 Zelle markiert -> 0.75mm Bahnabstand erzwungen
+        # statt physikalisch noetiger 0.45mm.
+        halfw = int(width / 2 / GRID + 1e-9)
 
         # in Segmente gleicher Lage und Richtung zusammenfassen
         segs = []
@@ -313,7 +348,7 @@ class Router:
                 v.SetNet(net)
                 self.board.Add(v)
                 objs.append(v)
-                hv = mm2g(VIA_D / 2) + 1
+                hv = int(VIA_D / 2 / GRID + 1e-9)
                 for L in (0, 1):
                     self.occ[L][max(p0[1] - hv, 0):p0[1] + hv + 1,
                                 max(p0[2] - hv, 0):p0[2] + hv + 1] = netcode
@@ -364,6 +399,13 @@ class Router:
         items = []
         for (code, name), pads in nets.items():
             w = track_width(name)
+            # Cluster-Verwaltung initialisieren
+            self.net_pads[code] = pads
+            self.uf[code] = list(range(len(pads)))
+            self.cells[code] = {}
+            for i, p in enumerate(pads):
+                gx, gy = self.mm2grid(p[0], p[1])
+                self.pad_idx[(code, gx, gy)] = i
             for a, b in self.mst_edges(pads):
                 dist = abs(a[0] - b[0]) + abs(a[1] - b[1])
                 items.append((-w, dist, code, name, a, b, w))
@@ -386,7 +428,10 @@ class Router:
             k = (t[3], int(round(t[4][0])), int(round(t[4][1])),
                  int(round(t[5][0])), int(round(t[5][1])))
             first = 0 if k in prio else 1
-            return (first, t[1] + (rng.random() * 8 if seed else 0))
+            # WIDEFIRST=1: breiteste Netze (>=1.0mm) vorziehen; Messung
+            # zeigte aber, dass reine Kurz-vor-lang-Ordnung besser ist.
+            wide = 1 if (t[6] >= 1.0 and os.environ.get("WIDEFIRST")) else 0
+            return (first, -wide, t[1] + (rng.random() * 8 if seed else 0))
         items.sort(key=edge_key)
 
         for it in items:
@@ -437,25 +482,49 @@ class Router:
         return failed
 
     def _try_edge(self, code, name, a, b, w, quiet=False):
-        path = self.route_edge(code, name, a, b, w)
+        # Cluster-Logik: Kante gilt als erledigt, wenn beide Pads schon im
+        # selben Baum haengen; sonst von b zum a-CLUSTER routen (jede Zelle
+        # bereits verlegten Kupfers dieses Clusters ist gueltiges Ziel).
+        ia = self.pad_idx.get((code,) + self.mm2grid(a[0], a[1]))
+        ib = self.pad_idx.get((code,) + self.mm2grid(b[0], b[1]))
+        goals = None
+        if ia is not None and ib is not None:
+            if self._find(code, ia) == self._find(code, ib):
+                return True
+            ra = self._find(code, ia)
+            goals = {st for st, rep in self.cells[code].items()
+                     if self._find(code, rep) == ra} or None
+
+        def attempt(width_, **kw):
+            return self.route_edge(code, name, b, a, width_,
+                                   extra_goals=goals, **kw)
+
+        used_w = w
+        path = attempt(w)
         if path is None and w > 0.3:
-            nw = max(w * 0.6, 0.3)
-            path = self.route_edge(code, name, a, b, nw)
-            if path:
-                w = nw
+            used_w = max(w * 0.6, 0.3)
+            path = attempt(used_w)
         if path is None:
-            path = self.route_edge(code, name, a, b, w, via_cost=15,
-                                   max_expand=300000)
+            used_w = w
+            path = attempt(w, via_cost=15, max_expand=300000)
         if path is None:
-            # letzte Eskalation: voller Suchraum, Vias fast gratis
-            path = self.route_edge(code, name, a, b,
-                                   max(w * 0.6, 0.3) if w > 0.3 else w,
-                                   via_cost=6, max_expand=1200000)
+            # Eskalation 3: voller Suchraum, Vias fast gratis
+            used_w = max(w * 0.6, 0.3) if w > 0.3 else w
+            path = attempt(used_w, via_cost=6, max_expand=1200000)
+        if path is None:
+            # Notfallstufe: JLCPCB-Minimum 5 mil (0.127mm Clearance,
+            # 0.25mm-Bahn) — nur fuer die letzten hartnaeckigen Kanten
+            used_w = min(w, 0.25)
+            path = attempt(used_w, via_cost=6, max_expand=1500000,
+                           clearance=0.127)
         if path is None:
             if not quiet:
                 print(f"  FEHLGESCHLAGEN {name}")
             return False
-        self.commit(code, path, w)
+        rep = self._find(code, ia) if ia is not None else None
+        self.commit(code, path, used_w, rep=rep)
+        if ia is not None and ib is not None:
+            self._union(code, ia, ib)
         return True
 
     def _blocking_nets(self, code, a, b, corridor=3.0):
@@ -478,10 +547,16 @@ class Router:
             self.board.Remove(obj)
         self.committed[netcode] = []
         self.via_pos[netcode] = []
+        # Cluster-Zustand zuruecksetzen (alles wieder einzeln)
+        if netcode in self.uf:
+            self.uf[netcode] = list(range(len(self.net_pads[netcode])))
+        self.cells[netcode] = {}
         # Raster von Grund auf neu (Pads + verbliebene Bahnen)
         for L in (0, 1):
             self.occ[L][:, :] = -1
         self._mark_border()
+        for k in self.extra_keepouts:
+            self._mark_rect(k, both=True)
         self._mark_pads()
         for nc, objs in self.committed.items():
             for obj in objs:

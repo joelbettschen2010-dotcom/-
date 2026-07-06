@@ -54,11 +54,16 @@ class BoardBuilder:
     # ------------------------------------------------------------------
     def _rules(self):
         ds = self.board.GetDesignSettings()
-        # JLCPCB-2-Lagen-Standard erlaubt 0.127/0.127 — wir nutzen 0.15/0.2
-        # (Clearance 0.15 macht die Korridore zwischen den dicht gepackten
-        # Bauteilen fuer den Autorouter passierbar)
+        # JLCPCB-2-Lagen-Standard: min 0.127/0.127 (5 mil). Der Router
+        # arbeitet normal mit 0.15 Clearance; die Notfallstufe fuer die
+        # letzten Engstellen darf bis 0.127 runter — die Design-Regeln
+        # spiegeln das Fertigungslimit.
         ds.m_TrackMinWidth = mm(0.2)
-        ds.m_MinClearance = mm(0.15)
+        ds.m_MinClearance = mm(0.127)
+        try:
+            ds.m_NetSettings.m_DefaultNetClass.SetClearance(mm(0.127))
+        except AttributeError:
+            pass
         ds.m_ViasMinSize = mm(0.5)
         ds.m_MinThroughDrill = mm(0.2)   # Thermal-Vias in TI/Espressif-Footprints
         self.obstacles = []              # (x0,y0,x1,y1) belegter Flaechen

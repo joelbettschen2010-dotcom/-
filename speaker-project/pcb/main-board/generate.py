@@ -112,7 +112,9 @@ def gen_pcb():
         comps = [by[r] for r in groups[gname] if r not in placed]
         if not comps:
             continue
-        leftover = shelf_pack(b, comps, regions[gname])
+        # gap 1.1: bewaehrter Kompromiss — 1.3+ passt nicht mehr aufs Board (getestet): Korridore fuer den Autorouter (Ueberlauf
+        # groessere Gaps lassen 20 Teile ohne Platz
+        leftover = shelf_pack(b, comps, regions[gname], gap=1.1)
         leftover_all += leftover
     # Ueberlauf in Reserve-Region
     if leftover_all:
