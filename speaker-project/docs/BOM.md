@@ -66,10 +66,17 @@ Bestellmenge für **1 Gerät** (JLCPCB rechnet Mindestabnahmen pro Bauteil,
 
 | Posten | ca. CHF |
 |---|---|
-| Main-PCB 100×80, 2-Lagen, 5 Stk. | 4.00 |
-| Button-PCB 60×20, 5 Stk. | 2.00 |
+| Main-PCB 100×80, **4-Lagen**, 5 Stk. (JLCPCB 4-Layer) | 9.00 |
+| Button-PCB 60×20, 2-Lagen, 5 Stk. | 2.00 |
 | SMT-Bestückung Main (Setup + ~100 Joints, Economic) | 12.00 |
 | Versand (Standard) | 6.00 |
+
+> Das Main-Board ist **4-lagig** (F.Cu / GND-Plane / In2 / B.Cu). Die
+> Bauteildichte (LQFP-48-DSP + ESP32-Modul + 2× HTSSOP-Amp + alle Stecker
+> auf 100×80 mm) ist auf 2 Lagen nicht vollständig verdrahtbar — das wurde
+> mit zwei unabhängigen Routing-Verfahren nachgewiesen. 4 Lagen bringen
+> zudem eine durchgehende Masse­fläche (bessere EMV, sauberer Bass). Der
+> Aufpreis bei JLCPCB ist ~5 CHF für 5 Stück.
 
 ## Gesamt
 
@@ -78,14 +85,14 @@ Bestellmenge für **1 Gerät** (JLCPCB rechnet Mindestabnahmen pro Bauteil,
 | Halbleiter/Module LCSC | ~21 |
 | Passiv/Stecker | ~13 |
 | Button-Board | ~2 |
-| PCB + Bestückung + Versand | ~24 |
-| **Total bestückte Boards (ohne Module/Treiber)** | **~48** ✅ Budgetziel |
+| PCB (4-Lagen Main + 2-Lagen Button) + Bestückung + Versand | ~29 |
+| **Total bestückte Boards (ohne Module/Treiber)** | **~53** |
 | + BT-Modul + OLED (AliExpress) | +11.50 |
 | + Treiber Dayton ND91-4 ×2 + TCP115-4 (SoundImports) | +58 |
-| **Total Elektronik + Treiber** | **~118** |
+| **Total Elektronik + Treiber** | **~123** |
 | + USBi-Programmer (einmalige Anschaffung) | +8 |
 | + 8× 18650 (Marke, z. B. nkon.nl) + BMS/Lade-Board, falls nicht vorhanden | +45 |
-| **Total komplett (ohne Filament)** | **~171** ✅ Budget 180 CHF |
+| **Total komplett (ohne Filament)** | **~176** ✅ Budget 180 CHF |
 
 Hinweise:
 * THT-Teile (Stecker, Schraubklemmen, Taster, Elkos) selbst löten spart
