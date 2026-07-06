@@ -9,6 +9,24 @@ alle ohne Stützen druckbar:
 | `rear_lid.stl` | flach | Rückdeckel mit Lüftung + Anschlussnische |
 | `grille.stl` | flach | Front-Grill, Hex-Perforation, Press-Fit-Zapfen |
 
+## Creality-K1-Version (Bett 220×220): 3-geteilte Schale
+
+Für Drucker unter 300 mm liegt die Schale als Dreiteiler bei — getrennt
+**in den Kammerteilerwänden**, d. h. die Sub-Kammer bleibt ungeschnitten
+und luftdicht im Mittelteil:
+
+| Teil | Druckfläche | Inhalt |
+|---|---|---|
+| `k1_center.stl` | 132×188 | Sub-Kammer, Griff, Bedienfeld, PCB-Dome |
+| `k1_cap_left/right.stl` | 84×150 | je eine Mid-Kammer mit Dichtflansch |
+| `k1_lid_*.stl`, `k1_grille_*.stl` | ≤132 breit | Deckel/Grill 3-geteilt |
+
+Montage: je Fuge 6× M3 (Einschmelzmuttern im Mittelteil, Zugang mit dem
+Schraubendreher durch die Treiberöffnung), Flanschring mit dünner Raupe
+Acryl-Dichtmasse bestreichen — die Fuge bildet die Seitenwand der
+Mid-Kammer und muss luftdicht sein. Kabeldurchlass Mid-Treiber sitzt im
+Elektronikfach (24×14 mm, nach Verkabelung mit Heisskleber schliessen).
+
 ## Design (nach Vorbild Anker Soundcore Motion Boom / JBL Xtreme)
 
 * Boombox-Silhouette: Vertikalkanten R22, 45°-Fasen vorn/hinten

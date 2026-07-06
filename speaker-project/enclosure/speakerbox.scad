@@ -25,6 +25,17 @@
 // ============================================================================
 
 part = "preview";   // "shell" | "rear_lid" | "grille" | "preview"
+                    // Split-Teile fuer Drucker < 300mm (z.B. Creality K1):
+                    // "center" | "cap_left" | "cap_right"
+                    // "lid_center" | "lid_left" | "lid_right"
+                    // "grille_center" | "grille_left" | "grille_right"
+
+// Trennebenen liegen IN den Kammerteilern -> Sub-Kammer bleibt ungeschnitten
+xs1 = 84;    // = wall + mid_w
+xs2 = 216;   // = W - wall - mid_w
+swall = 4;   // Seitenwandstaerke des Mittelteils (ersetzt pwall-Teiler)
+// Schraubpositionen (y,z) auf dem Flanschring der Trennflaeche
+bolt_pos = [[9, 20], [141, 20], [9, 146], [141, 146], [75, 9], [75, 157]];
 
 // --- Grundmasse [mm] ---------------------------------------------------------
 wall   = 4;
@@ -49,11 +60,11 @@ sub_cutout   = 94;
 sub_screw_bc = 96;
 
 // --- Griff ----------------------------------------------------------------------
-grip_base = 210;   // Griff-Fussbreite (an der Oberkante)
-grip_top  = 128;   // Breite des flachen Griffruecken
+grip_base = 124;   // Griff-Fussbreite — liegt komplett im Mittelteil (Split!)
+grip_top  = 96;    // Breite des flachen Griffruecken
 grip_h    = 38;    // Hoehe ueber Oberkante
-grip_slot_top = 92;
-grip_slot_bot = 112;
+grip_slot_top = 68;
+grip_slot_bot = 82;
 grip_z0   = 55;    // Tiefenlage (z) Beginn
 grip_z1   = 115;   // Tiefenlage Ende
 
@@ -123,7 +134,7 @@ module handle() {
 // ============================================================================
 // Hauptschale
 // ============================================================================
-module shell() {
+module shell(split = false) {
   difference() {
     union() {
       outer_body();
@@ -140,19 +151,96 @@ module shell() {
     foot_channels();
   }
 
-  partitions();
+  partitions(split);
   braces();
   pcb_mounts();
   lid_bosses();
   driver_inserts();
 }
 
+// ============================================================================
+// SPLIT-MODUS (Creality K1 & Co.): 3 Schalen-Teile mit Dichtflanschen
+// ============================================================================
+module slab(x0, x1) {
+  translate([x0, -60, -10]) cube([x1 - x0, H + grip_h + 120, D + 40]);
+}
+
+// Flanschring auf der Trennflaeche: folgt der Aussenkontur, 10 mm breit
+module joint_ring(xcut, into_left) {
+  t = 4.05;   // Flanschdicke (+0.05 Ueberlapp gegen koplanare Flaechen)
+  x0 = into_left ? xcut - t + 0.05 : xcut - 0.05;
+  intersection() {
+    outer_body();
+    difference() {
+      slab(x0, x0 + t);
+      // Innenfenster: 10 mm Rand stehen lassen
+      translate([x0 - 1, wall + 10, wall + 10])
+        cube([t + 2, ih - 20, D - lid_t - 2*wall - 16]);
+    }
+  }
+}
+
+// Mittelteil: Sub-Kammer + Griff + Bedienfeld, geschlossene Seitenwaende
+module center_piece() {
+  difference() {
+    union() {
+      intersection() { shell(split = true); slab(xs1, xs2); }
+      // Seitenwaende (ersetzen die Teiler, volle Tiefe)
+      for (x = [xs1, xs2 - swall])
+        difference() {
+          intersection() { outer_body(); slab(x, x + swall); }
+          // Kabeldurchlass im Elektronikfach (Mid-Treiber-Litzen)
+          translate([x - 1, wall + 20, wall + front_d + pwall + 8])
+            cube([swall + 2, 24, 14]);
+        }
+      // Einschmelzmutter-Bosse auf den Seitenwand-Innenflaechen
+      for (p = bolt_pos) {
+        translate([xs1 + swall - eps, p[0], p[1]])
+          rotate([0, 90, 0]) boss_insert();
+        translate([xs2 - swall + eps, p[0], p[1]])
+          rotate([0, -90, 0]) boss_insert();
+      }
+    }
+    // Gewindeloecher fuer die Flansch-Schrauben
+    for (p = bolt_pos) {
+      translate([xs1 - 6, p[0], p[1]]) rotate([0, 90, 0]) cylinder(d = 4.2, h = 14);
+      translate([xs2 + 6, p[0], p[1]]) rotate([0, -90, 0]) cylinder(d = 4.2, h = 14);
+    }
+  }
+}
+
+module boss_insert() {
+  difference() {
+    cylinder(d = 9, h = 8);
+    translate([0, 0, -1]) cylinder(d = 4.2, h = 10);
+  }
+}
+
+// Seitenkappe: Mid-Kammer-Schale mit Flanschring + Durchgangsschrauben
+module cap(left = true) {
+  xcut = left ? xs1 : xs2;
+  difference() {
+    union() {
+      intersection() {
+        shell(split = true);
+        if (left) slab(-10, xcut); else slab(xcut, W + 10);
+      }
+      joint_ring(xcut, into_left = left);
+    }
+    // M3-Durchgangsloecher im Flansch (Zugang durch die Treiberoeffnung)
+    for (p = bolt_pos)
+      translate([xcut - 8, p[0], p[1]]) rotate([0, 90, 0]) cylinder(d = 3.4, h = 16);
+  }
+}
+
 // ---------------------------------------------------------------------------
-module partitions() {
-  // Vertikale Teiler der Sub-Spalte
-  for (x = [wall + mid_w, wall + mid_w + pwall + sub_w])
-    translate([x, wall - eps, wall - eps])
-      cube([pwall, ih + 2*eps, front_d + eps]);
+module partitions(split = false) {
+  // Vertikale Teiler der Sub-Spalte (im Split-Modus ersetzen die
+  // Mittelteil-Seitenwaende diese Teiler)
+  if (!split)
+    for (x = [wall + mid_w, wall + mid_w + pwall + sub_w])
+      translate([x, wall - eps, wall - eps])
+        cube([pwall, ih + 2*eps, front_d + eps]);
 
   // Querschott hinter der Sub-Kammer (luftdicht); Seitenspalten offen
   translate([wall + mid_w, wall - eps, wall + front_d])
@@ -259,11 +347,14 @@ module foot_channels() {
 
 // ---------------------------------------------------------------------------
 module pcb_mounts() {
+  // Main-PCB steht AUFRECHT, parallel zum Rueckdeckel, auf 5-mm-Domen am
+  // Querschott (Board-Flaeche 100x80 passt nur so ins 44-mm-Fach).
+  // Mapping: Board-x -> global x, Board-y -> global y.
   px0 = W/2 - pcb_w/2;
-  pz0 = wall + front_d + pwall + 2;
+  py0 = wall + 8;
   for (h = pcb_holes)
-    translate([px0 + h[0], wall - eps, pz0 + h[1]])
-      rotate([-90, 0, 0]) boss5();
+    translate([px0 + h[0], py0 + h[1], wall + front_d + pwall - eps])
+      boss5();
 }
 module boss5() {
   difference() {
@@ -371,6 +462,15 @@ module rear_lid() {
 if (part == "shell") { shell(); grille_socket_bosses(); }
 else if (part == "rear_lid") rear_lid();
 else if (part == "grille") grille();
+else if (part == "center") { intersection() { union() { shell(split=true); grille_socket_bosses(); } slab(xs1, xs2); } center_piece(); }
+else if (part == "cap_left") { intersection() { grille_socket_bosses(); slab(-10, xs1); } cap(left = true); }
+else if (part == "cap_right") { intersection() { grille_socket_bosses(); slab(xs2, W + 10); } cap(left = false); }
+else if (part == "lid_center") intersection() { rear_lid(); slab(xs1, xs2 - 0.3); }
+else if (part == "lid_left") intersection() { rear_lid(); slab(-10, xs1 - 0.3); }
+else if (part == "lid_right") intersection() { rear_lid(); slab(xs2, W + 10); }
+else if (part == "grille_center") intersection() { grille(); slab(xs1, xs2 - 0.3); }
+else if (part == "grille_left") intersection() { grille(); slab(-10, xs1 - 0.3); }
+else if (part == "grille_right") intersection() { grille(); slab(xs2, W + 10); }
 else {
   shell();
   grille_socket_bosses();
