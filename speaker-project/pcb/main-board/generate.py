@@ -75,7 +75,7 @@ def gen_pcb():
         # ESP32 Ecke unten rechts, Antenne ragt ueber die Unterkante
         "U8": (84, 72, 180),
         # USB-C rechte Kante
-        "J11": (97, 52, 270),
+        "J11": (97, 52, 90),
         # Debug/Service
         "J12": (76.5, 42, 0), "J10": (60, 48, 0), "SW1": (52, 46, 0), "SW2": (52, 53, 0),
     }

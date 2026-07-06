@@ -1,8 +1,35 @@
-# Gehäuse — SpeakerBox Pro (3D-Druck)
+# Gehäuse — SpeakerBox Pro v2 "Boombox" (3D-Druck)
 
-Parametrisches OpenSCAD-Modell (`speakerbox.scad`), zwei Druckteile:
-`shell.stl` (Hauptschale, Front nach unten drucken) und `rear_lid.stl`
-(Rückdeckel, flach drucken). Beide ohne Stützen druckbar.
+Parametrisches OpenSCAD-Modell (`speakerbox.scad`), **drei** Druckteile,
+alle ohne Stützen druckbar:
+
+| Teil | Druckorientierung | Inhalt |
+|---|---|---|
+| `shell.stl` | Front nach unten | Körper mit Kammern, Trapez-Tragegriff, Bedienmulde |
+| `rear_lid.stl` | flach | Rückdeckel mit Lüftung + Anschlussnische |
+| `grille.stl` | flach | Front-Grill, Hex-Perforation, Press-Fit-Zapfen |
+
+## Design (nach Vorbild Anker Soundcore Motion Boom / JBL Xtreme)
+
+* Boombox-Silhouette: Vertikalkanten R22, 45°-Fasen vorn/hinten
+  (45° = stützenfrei druckbar, im Gegensatz zu Radien an der Bettkante)
+* **Integrierter Trapez-Bügelgriff** oben (konstantes Profil längs der
+  Tiefe extrudiert → druckt sich in Front-Lage komplett sauber);
+  Griffloch 112×20 mm, gerundet
+* **Versenkte Bedienmulde** oben: 6 Taster, RGB-Lichtleiter, OLED-Fenster
+  (OLED-Modul liegt links neben dem Button-Board, 4-adrig an J2)
+* **Vollflächiger Hex-Grill** vorn, 6 Press-Fit-Zapfen (Ø8.0 in Ø8.4)
+* Silikonfuss-Kanäle unten (2× 220×10×1.5 für Klebe-Gummistreifen)
+* Interne Verstrebungsrippen (Sub-Kammer 2× vertikal + 1 Steg,
+  Rückfach 2× horizontal) gegen Wandresonanzen
+
+## Umgesetzte Regeln (Recherche diyAudio / Parts-Express / Prusa-Forum)
+
+1. Wand ≥ 3–4 mm und hohe Perimeterzahl/Infill gegen "Buzz" → 4 mm + 4 Perimeter + ≥40 % Infill
+2. Verstrebungen zwischen gegenüberliegenden Wänden → Rippen s. o.
+3. Druckteile sind selten luftdicht → Kammern innen versiegeln (Epoxid/Acryl), Dichtheitstest in `docs/montage-anleitung.md`
+4. Schraubdome mit Einschmelzmuttern statt selbstschneidender Schrauben; nicht überdrehen
+5. Treiber mit Dichtband hinterlegen, Kanten gerundet (Beugungskanten)
 
 ## Kammern (passend zur Simulation in `acoustics/`)
 

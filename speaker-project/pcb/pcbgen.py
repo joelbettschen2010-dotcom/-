@@ -130,6 +130,7 @@ class BoardBuilder:
         z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
         z.SetThermalReliefGap(mm(0.4))
         z.SetThermalReliefSpokeWidth(mm(0.5))
+        z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
         self.board.Add(z)
         return z
 
