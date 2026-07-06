@@ -27,6 +27,19 @@ def pt(x, y):
 
 
 FP_BASE = "/usr/share/kicad/footprints"
+_DIM_CACHE = {}
+
+
+def footprint_dims(footprint_id, rot=0):
+    """(w, h) der Footprint-Bounding-Box, gecacht — ohne Board-Beruehrung."""
+    key = (footprint_id, rot % 180)
+    if key not in _DIM_CACHE:
+        lib, name = footprint_id.split(":")
+        fp = pcbnew.FootprintLoad(f"{FP_BASE}/{lib}.pretty", name)
+        fp.SetOrientationDegrees(rot)
+        bb = fp.GetBoundingBox(False, False)
+        _DIM_CACHE[key] = (bb.GetWidth() / 1e6, bb.GetHeight() / 1e6)
+    return _DIM_CACHE[key]
 
 
 class BoardBuilder:
@@ -155,30 +168,26 @@ class BoardBuilder:
         pcbnew.SaveBoard(path, board2)
 
 
-def shelf_pack(builder, comps, region, gap=0.6):
-    """Kollisionsbewusste Greedy-Packung: zeilenweise, ueberspringt belegte
-    Flaechen (fest platzierte Bauteile, Bohrloecher). Nicht unterbringbare
-    Bauteile werden entfernt und zurueckgegeben."""
+def shelf_pack(builder, comps, region, gap=0.8):
+    """Kollisionsbewusste Greedy-Packung. Masse kommen aus dem Footprint-
+    Cache; das Footprint wird erst am gefundenen Platz eingefuegt (kein
+    Add/Remove-Zyklus -> keine SWIG-Objektleichen)."""
     x0, y0, x1, y1 = region
     left = []
     for comp in comps:
-        fp = builder.add_footprint(comp, 0, 0, register=False)
-        bb = fp.GetBoundingBox(False, False)
-        w = bb.GetWidth() / 1e6 + gap
-        h = bb.GetHeight() / 1e6 + gap
+        bw, bh = footprint_dims(comp.footprint)
+        w, h = bw + gap, bh + gap
         placed = False
         cy = y0
         while cy + h <= y1 and not placed:
             cx = x0
             while cx + w <= x1:
                 if not builder.collides(cx, cy, cx + w, cy + h):
-                    fp.SetPosition(pt(cx + w / 2, cy + h / 2))
-                    builder._register(fp)
+                    builder.add_footprint(comp, cx + w / 2, cy + h / 2)
                     placed = True
                     break
                 cx += 0.5
             cy += 0.5
         if not placed:
-            builder.board.Remove(fp)
             left.append(comp)
     return left

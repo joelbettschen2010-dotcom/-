@@ -141,7 +141,7 @@ class Router:
             out[L] = ~binary_dilation(obst, structure=disk)
         return out
 
-    def route_edge(self, netcode, netname, a, b, width, max_expand=400000,
+    def route_edge(self, netcode, netname, a, b, width, max_expand=80000,
                    via_cost=VIA_COST):
         """A* von Pad a nach Pad b. a/b = (x_mm, y_mm, layerset)."""
         halfw = mm2g(width / 2 + CLEARANCE)
@@ -383,7 +383,7 @@ class Router:
                 w = nw
         if path is None:
             path = self.route_edge(code, name, a, b, w, via_cost=15,
-                                   max_expand=900000)
+                                   max_expand=300000)
         if path is None:
             if not quiet:
                 print(f"  FEHLGESCHLAGEN {name}")
