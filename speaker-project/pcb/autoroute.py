@@ -66,6 +66,10 @@ class Router:
         # Belegung je Lage: Netz-Code des Kupfers, -1 = frei, -2 = verboten
         self.occ = {0: np.full((self.nx, self.ny), -1, dtype=np.int32),
                     1: np.full((self.nx, self.ny), -1, dtype=np.int32)}
+        # Pad-KERNE ohne Clearance-Inflation: eigene Kernzellen sind fuer das
+        # eigene Netz immer passierbar (Fine-Pitch-Ausfahrt entlang des Pads)
+        self.core = {0: np.full((self.nx, self.ny), -1, dtype=np.int32),
+                     1: np.full((self.nx, self.ny), -1, dtype=np.int32)}
         self._mark_border()
         for k in extra_keepouts:
             self._mark_rect(k, both=True)
@@ -119,6 +123,17 @@ class Router:
                     self._mark_rect((x0, y0, x1, y1), layer=0, net=code)
                 elif on_b:
                     self._mark_rect((x0, y0, x1, y1), layer=1, net=code)
+                # Kern (ohne Inflation) fuer die Eigen-Netz-Freischaltung
+                if code > 0:
+                    cx0, cy0 = bb.GetLeft() / 1e6, bb.GetTop() / 1e6
+                    cx1, cy1 = bb.GetRight() / 1e6, bb.GetBottom() / 1e6
+                    gx0, gy0 = self.mm2grid(cx0, cy0)
+                    gx1, gy1 = self.mm2grid(cx1, cy1)
+                    gx0, gy0 = max(gx0, 0), max(gy0, 0)
+                    gx1 = min(gx1, self.nx - 1); gy1 = min(gy1, self.ny - 1)
+                    for L in ((0, 1) if (on_f and on_b) else
+                              ((0,) if on_f else ((1,) if on_b else ()))):
+                        self.core[L][gx0:gx1 + 1, gy0:gy1 + 1] = code
 
     # ------------------------------------------------------------------
     def _blocked(self, L, gx, gy, netcode, halfw_cells):
@@ -149,15 +164,25 @@ class Router:
         halfw = mm2g(width / 2 + CLEARANCE)
         pass_trk = self._passable(netcode, halfw)
         pass_via = self._passable(netcode, mm2g(VIA_D / 2 + CLEARANCE))
+        # Eigene Pad-Kerne freischalten: die Bahn darf ueber eigenem Kupfer
+        # laufen (Fine-Pitch: einzige Ausfahrt ist die Pad-Laengsachse)
+        for L in (0, 1):
+            pass_trk[L] = pass_trk[L] | (self.core[L] == netcode)
         sx, sy = self.mm2grid(a[0], a[1])
         tx, ty = self.mm2grid(b[0], b[1])
         sx = max(1, min(sx, self.nx - 2)); sy = max(1, min(sy, self.ny - 2))
         tx = max(1, min(tx, self.nx - 2)); ty = max(1, min(ty, self.ny - 2))
+        for L in a[2]:
+            pass_trk[L][sx, sy] = True
+        for L in b[2]:
+            pass_trk[L][tx, ty] = True
         s_layers = a[2]
         t_layers = b[2]
 
         def h(gx, gy):
-            return abs(gx - tx) + abs(gy - ty)
+            # 0.92: Diagonalschritt kostet 1.84 pro 2 Manhattan-Einheiten —
+            # Heuristik muss zulaessig bleiben
+            return 0.92 * (abs(gx - tx) + abs(gy - ty))
 
         start_states = [(L, sx, sy) for L in s_layers]
         best = {}
@@ -180,17 +205,26 @@ class Router:
             expansions += 1
             if expansions > max_expand:
                 return None
-            # 4 Richtungen
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            # 4 orthogonale + 4 diagonale Richtungen (45-Grad-Bahnen)
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1),
+                           (1, 1), (1, -1), (-1, 1), (-1, -1)):
                 nxg, nyg = gx + dx, gy + dy
                 if not (0 <= nxg < self.nx and 0 <= nyg < self.ny):
                     continue
                 nst = (L, nxg, nyg)
-                # Vorzugsrichtung: F.Cu horizontal (dx), B.Cu vertikal (dy)
-                cost = 1.0 if ((L == 0 and dx) or (L == 1 and dy)) else WRONG_DIR_COST
+                if dx and dy:
+                    # Diagonale: kein Eckenschneiden — beide Nachbarzellen
+                    # muessen ebenfalls frei sein
+                    cost = 1.414 * (1.0 + WRONG_DIR_COST) / 2.0
+                else:
+                    # Vorzugsrichtung: F.Cu horizontal (dx), B.Cu vertikal (dy)
+                    cost = 1.0 if ((L == 0 and dx) or (L == 1 and dy)) else WRONG_DIR_COST
                 ng = g + cost
                 if ng < best.get(nst, 1e18) - 1e-9:
                     if not pass_trk[L][nxg, nyg]:
+                        continue
+                    if dx and dy and not (pass_trk[L][gx + dx, gy] and
+                                          pass_trk[L][gx, gy + dy]):
                         continue
                     best[nst] = ng
                     heapq.heappush(pq, (ng + h(nxg, nyg), ng, nst, st))
@@ -254,11 +288,15 @@ class Router:
                 t.SetNet(net)
                 self.board.Add(t)
                 objs.append(t)
-                # Raster belegen
-                gx0, gx1 = sorted((p0[1], p1[1]))
-                gy0, gy1 = sorted((p0[2], p1[2]))
-                self.occ[L][max(gx0 - halfw, 0):gx1 + halfw + 1,
-                            max(gy0 - halfw, 0):gy1 + halfw + 1] = netcode
+                # Raster belegen — zellenweise entlang des Segments (bei
+                # Diagonalen wuerde das Bounding-Rect viel zu viel sperren)
+                n = max(abs(p1[1] - p0[1]), abs(p1[2] - p0[2]))
+                ddx = (p1[1] > p0[1]) - (p1[1] < p0[1])
+                ddy = (p1[2] > p0[2]) - (p1[2] < p0[2])
+                for k in range(n + 1):
+                    cx, cy = p0[1] + ddx * k, p0[2] + ddy * k
+                    self.occ[L][max(cx - halfw, 0):cx + halfw + 1,
+                                max(cy - halfw, 0):cy + halfw + 1] = netcode
             else:
                 _, p0, p1 = s
                 # Dedupe: kein zweites Via desselben Netzes im Umkreis 0.5mm
@@ -334,7 +372,22 @@ class Router:
         # ein Wiederholungslauf Verklemmungen aufloesen kann
         seed = int(os.environ.get("SEED", "0"))
         rng = random.Random(seed)
-        items.sort(key=lambda t: t[1] + (rng.random() * 8 if seed else 0))
+        # FAILFIRST: Datei mit Kanten, die im Vorlauf scheiterten — die
+        # bekommen im Restart Prioritaet (freie Flaeche, bevor der Rest kommt)
+        prio = set()
+        ff = os.environ.get("FAILFIRST")
+        if ff and os.path.exists(ff):
+            for line in open(ff):
+                parts = line.split()
+                if len(parts) == 5:
+                    prio.add((parts[0], int(parts[1]), int(parts[2]),
+                              int(parts[3]), int(parts[4])))
+        def edge_key(t):
+            k = (t[3], int(round(t[4][0])), int(round(t[4][1])),
+                 int(round(t[5][0])), int(round(t[5][1])))
+            first = 0 if k in prio else 1
+            return (first, t[1] + (rng.random() * 8 if seed else 0))
+        items.sort(key=edge_key)
 
         for it in items:
             self.edges_of.setdefault(it[2], []).append((it[3], it[4], it[5], it[6]))
@@ -375,6 +428,12 @@ class Router:
         print(f"Routing fertig in {time.time()-t0:.0f}s, {len(failed)} Kanten offen")
         for f in failed:
             print("  OFFEN:", f[1], f"({f[2][0]:.0f},{f[2][1]:.0f})->({f[3][0]:.0f},{f[3][1]:.0f})")
+        fo = os.environ.get("FAILOUT")
+        if fo:
+            with open(fo, "w") as fh:
+                for c, n, a, b, w in failed:
+                    fh.write(f"{n} {round(a[0])} {round(a[1])} "
+                             f"{round(b[0])} {round(b[1])}\n")
         return failed
 
     def _try_edge(self, code, name, a, b, w, quiet=False):
