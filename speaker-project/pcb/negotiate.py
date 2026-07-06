@@ -33,17 +33,18 @@ class Negotiator:
         # es wird nichts committet, occ enthaelt nur Pads/Rand/Keepouts.
         self.r = ar.Router(path, extra_keepouts=keepouts)
         self.nx, self.ny = self.r.nx, self.r.ny
+        self.nL = self.r.nL
         self.hist = {L: np.zeros((self.nx, self.ny), dtype=np.float32)
-                     for L in (0, 1)}
+                     for L in range(self.nL)}
         # Runden-Belegung: STAMP = physisches Kupfer, CLAIM = Kupfer +
         # 1-Zellen-Clearance-Ring. Konflikt = mein Stamp auf fremdem Claim
         # (entspricht Mittenabstand < 0.5mm bei 0.3er-Bahnen — Regel 0.45).
         self.stamp_owner = {L: np.zeros((self.nx, self.ny), dtype=np.int32)
-                            for L in (0, 1)}
+                            for L in range(self.nL)}
         self.claim = {L: np.zeros((self.nx, self.ny), dtype=np.int32)
-                      for L in (0, 1)}
+                      for L in range(self.nL)}
         self.multi = {L: np.zeros((self.nx, self.ny), dtype=bool)
-                      for L in (0, 1)}
+                      for L in range(self.nL)}
         self._pass_cache = {}
 
     # -- statische Passierbarkeit (nur Pads/Rand als harte Hindernisse) ----
@@ -51,7 +52,7 @@ class Negotiator:
         key = (netcode, round(halfw, 2))
         if key not in self._pass_cache:
             self._pass_cache[key] = self.r._passable(netcode, halfw)
-            for L in (0, 1):
+            for L in range(self.nL):
                 self._pass_cache[key][L] |= (self.r.core[L] == netcode)
         return self._pass_cache[key]
 
@@ -61,8 +62,8 @@ class Negotiator:
         hv = int(ar.VIA_D / 2 / ar.GRID + 1e-9)
         cells = set()
         for i, (L, x, y) in enumerate(path):
-            if i and path[i - 1][0] != L:      # Via: beide Lagen
-                for LL in (0, 1):
+            if i and path[i - 1][0] != L:      # Via: alle Lagen
+                for LL in range(self.nL):
                     for dx in range(-hv, hv + 1):
                         for dy in range(-hv, hv + 1):
                             cells.add((LL, x + dx, y + dy))
@@ -153,22 +154,27 @@ class Negotiator:
                 if dx and dy and not (p_trk[L][gx + dx, gy] and
                                       p_trk[L][gx, gy + dy]):
                     continue
-                base = (1.414 * (1.0 + ar.WRONG_DIR_COST) / 2.0
-                        if (dx and dy) else
-                        (1.0 if ((L == 0 and dx) or (L == 1 and dy))
-                         else ar.WRONG_DIR_COST))
+                if dx and dy:
+                    base = 1.414 * (1.0 + ar.WRONG_DIR_COST) / 2.0
+                else:
+                    good = (self.r.pref_h[L] and dx) or \
+                           (not self.r.pref_h[L] and dy)
+                    base = 1.0 if good else ar.WRONG_DIR_COST
                 ng = g + base + congestion(L, nxg, nyg)
                 nst = (L, nxg, nyg)
                 if ng < best.get(nst, 1e18) - 1e-9:
                     best[nst] = ng
                     heapq.heappush(pq, (ng + h(nxg, nyg), ng, nst, st))
-            oL = 1 - L
-            if p_via[0][gx, gy] and p_via[1][gx, gy]:
-                ng = g + via_cost + congestion(oL, gx, gy)
-                nst = (oL, gx, gy)
-                if ng < best.get(nst, 1e18) - 1e-9:
-                    best[nst] = ng
-                    heapq.heappush(pq, (ng + h(gx, gy), ng, nst, st))
+            # Durchgangs-Via: alle Lagen frei -> Wechsel auf jede andere Lage
+            if all(p_via[LL][gx, gy] for LL in range(self.nL)):
+                for oL in range(self.nL):
+                    if oL == L:
+                        continue
+                    ng = g + via_cost * abs(oL - L) + congestion(oL, gx, gy)
+                    nst = (oL, gx, gy)
+                    if ng < best.get(nst, 1e18) - 1e-9:
+                        best[nst] = ng
+                        heapq.heappush(pq, (ng + h(gx, gy), ng, nst, st))
         if goal is None:
             return None
         path = []
@@ -199,7 +205,7 @@ class Negotiator:
         for rnd in range(rounds):
             t0 = time.time()
             # Runde beginnt leer
-            for L in (0, 1):
+            for L in range(self.nL):
                 self.stamp_owner[L][:, :] = 0
                 self.claim[L][:, :] = 0
                 self.multi[L][:, :] = False
@@ -242,14 +248,14 @@ class Negotiator:
                     if ib is not None:
                         uf[code][find(code, ib)] = rep
 
-            over = int(sum(self.multi[L].sum() for L in (0, 1)))
+            over = int(sum(self.multi[L].sum() for L in range(self.nL)))
             print(f"Runde {rnd+1}: {failed} ungeroutete Kanten, "
                   f"{over} ueberlastete Zellen, {time.time()-t0:.0f}s")
             if failed == 0 and over == 0:
                 print("KONVERGIERT!")
                 return edges, routes, True
             # Historie erhoehen, wo mehrere Netze dieselbe Zelle wollen
-            for L in (0, 1):
+            for L in range(self.nL):
                 self.hist[L][self.multi[L]] += P_HIST
         return edges, routes, False
 
@@ -263,8 +269,7 @@ class Negotiator:
                 continue
             R.commit(code, pr[0], w)
         R.add_gnd_stitching(float(os.environ.get("STITCH", "10")))
-        import pcbnew
-        pcbnew.SaveBoard(R.path, R.board)
+        R.save()   # fuellt Zonen nach dem Routen neu (Pours umfliessen Bahnen)
         print("gespeichert:", R.path)
 
 

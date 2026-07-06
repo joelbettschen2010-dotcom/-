@@ -44,7 +44,22 @@ CLEARANCE = float(os.environ.get("CLEAR", "0.20"))
 VIA_D, VIA_DRILL = 0.7, 0.4
 VIA_COST = int(os.environ.get("VIACOST", "40"))  # Rasterschritte Strafkosten pro Via
 WRONG_DIR_COST = 1.6 # Kostenfaktor gegen die Vorzugsrichtung
+# Netze, die von Zonen/Planes getragen werden (nicht als Bahnen geroutet).
+# PVDD (30 Pads) liegt als Zone auf B.Cu. Optional kann 3V3 ueber
+# NLAYERS-Stackup + POWER_PLANE_NETS ebenfalls auf eine Plane; Messungen
+# zeigen aber: eine 3. SIGNAL-Lage (F/In2/B) schlaegt eine 3V3-Plane.
 ZONE_NETS = {"GND", "AGND", "PVDD"}
+# Kompensation (in Zellen) fuer Bahnen, deren Kupfer beim Committen nur nahe
+# der Mittellinie im Raster landet: jede Bahn mit Halbbreite < ~1 Zelle
+# (Breite < 2*GRID = 0.5mm) markiert nur die Mittelzelle. THIN_COMP deckt die
+# groesste so unter-markierte Halbbreite (knapp unter GRID) ab, damit der
+# Kantenabstand auch gegen 0.3/0.4mm-Fremdbahnen >= Clearance bleibt.
+THIN_COMP = GRID / GRID   # = 1.0 Zelle (0.25mm)
+# Bewegungsrichtungen: orthogonal immer, Diagonalen nur bei DIAG=1
+_ORTHO = ((1, 0), (-1, 0), (0, 1), (0, -1))
+_DIAG = ((1, 1), (1, -1), (-1, 1), (-1, -1))
+DIRECTIONS = _ORTHO + _DIAG if os.environ.get("DIAG", "1") == "1" else _ORTHO
+POWER_PLANE_NETS = {}   # Netzname -> Plane-Lage (leer = keine Power-Plane)
 
 # Netzklassen -> Bahnbreite [mm]
 def track_width(net):
@@ -145,7 +160,10 @@ class Router:
             for pad in fp.Pads():
                 net = pad.GetNetCode()
                 bb = pad.GetBoundingBox()
-                infl = CLEARANCE
+                # Pad auf wahre Kupferausdehnung markieren (keine Clearance-
+                # Inflation mehr — die kommt einheitlich ueber die Dilatation
+                # beim Routen, sonst wuerde die Clearance doppelt gezaehlt).
+                infl = 0.0
                 x0 = bb.GetLeft() / 1e6 - infl
                 y0 = bb.GetTop() / 1e6 - infl
                 x1 = bb.GetRight() / 1e6 + infl
@@ -185,9 +203,12 @@ class Router:
 
     def _passable(self, netcode, halfw):
         """Boolsche Karten je Lage: True = Bahnmitte hier erlaubt.
-        halfw darf float sein; min. 1.45 damit auch Diagonalnachbarn
-        von Kupferzellen gesperrt sind (sonst 0.35mm-Luecken moeglich)."""
-        disk = self._disk(max(float(halfw), 1.45))
+        halfw = (Bahnbreite/2 + Clearance)/GRID in Zellen (float). Fremdes
+        Kupfer ist auf seine wahre Breite markiert; die Dilatation haelt die
+        eigene Bahnmitte um genau halfw Zellen fern -> Kantenabstand >=
+        Clearance. Kein kuenstlicher 1.45-Boden mehr (der erzeugte 0.06mm-
+        Verstoesse); die reale Disk-Groesse deckt auch Diagonalnachbarn ab."""
+        disk = self._disk(float(halfw))
         out = {}
         for L in range(self.nL):
             obst = (self.occ[L] != -1) & (self.occ[L] != netcode)
@@ -201,9 +222,13 @@ class Router:
         die Suche darf dort enden (Anschluss an den bestehenden Netzbaum).
         clearance: Override (Notfallstufe 0.127 = JLCPCB-Minimum 5 mil)."""
         cl = CLEARANCE if clearance is None else clearance
-        halfw = (width / 2 + cl) / GRID
+        # Dilatationsradius = eigene Halbbreite + Clearance + Kompensation fuer
+        # duenne Fremdbahnen, die nur auf der Mittellinie markiert sind
+        # (THIN_COMP). Garantiert Kantenabstand >= Clearance ohne den alten
+        # 1.45-Boden, der 0.06mm-Verstoesse erzeugte.
+        halfw = (width / 2 + cl) / GRID + THIN_COMP
         pass_trk = self._passable(netcode, halfw)
-        pass_via = self._passable(netcode, (VIA_D / 2 + cl) / GRID)
+        pass_via = self._passable(netcode, (VIA_D / 2 + cl) / GRID + THIN_COMP)
         # Eigene Pad-Kerne freischalten: die Bahn darf ueber eigenem Kupfer
         # laufen (Fine-Pitch: einzige Ausfahrt ist die Pad-Laengsachse)
         for L in range(self.nL):
@@ -246,9 +271,10 @@ class Router:
             expansions += 1
             if expansions > max_expand:
                 return None
-            # 4 orthogonale + 4 diagonale Richtungen (45-Grad-Bahnen)
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1),
-                           (1, 1), (1, -1), (-1, 1), (-1, -1)):
+            # 4 orthogonale (+ optional 4 diagonale 45-Grad-Bahnen). Diagonalen
+            # packen dichter, ihre Rasterabdeckung ist aber unpraeziser ->
+            # DIAG=0 fuer DRC-sauberes (orthogonales) Routing.
+            for dx, dy in DIRECTIONS:
                 nxg, nyg = gx + dx, gy + dy
                 if not (0 <= nxg < self.nx and 0 <= nyg < self.ny):
                     continue
@@ -307,11 +333,13 @@ class Router:
             cells = self.cells.setdefault(netcode, {})
             for st in path:
                 cells[st] = rep
-        # Nur echtes Kupfer markieren (Zellzentrum innerhalb der Bahnbreite);
-        # die Clearance kommt beim FREMDEN Netz ueber die Dilatation dazu.
-        # Frueher wurde w/2+1 Zelle markiert -> 0.75mm Bahnabstand erzwungen
-        # statt physikalisch noetiger 0.45mm.
-        halfw = int(width / 2 / GRID + 1e-9)
+        # Echtes Kupfer als Disk der wahren Halbbreite markieren; die
+        # Clearance kommt beim FREMDEN Netz ueber die Dilatation (+THIN_COMP)
+        # dazu. Fuer breite Bahnen (>=1 Zelle Halbbreite) deckt die Disk das
+        # Kupfer korrekt; duenne Bahnen landen ~auf der Mittellinie und werden
+        # ueber THIN_COMP in der Dilatation kompensiert.
+        mark = self._disk(width / 2 / GRID)
+        mr = mark.shape[0] // 2
 
         # in Segmente gleicher Lage und Richtung zusammenfassen
         segs = []
@@ -352,8 +380,11 @@ class Router:
                 ddy = (p1[2] > p0[2]) - (p1[2] < p0[2])
                 for k in range(n + 1):
                     cx, cy = p0[1] + ddx * k, p0[2] + ddy * k
-                    self.occ[L][max(cx - halfw, 0):cx + halfw + 1,
-                                max(cy - halfw, 0):cy + halfw + 1] = netcode
+                    x0i, x1i = max(cx - mr, 0), min(cx + mr + 1, self.nx)
+                    y0i, y1i = max(cy - mr, 0), min(cy + mr + 1, self.ny)
+                    sub = mark[mr - (cx - x0i):mr + (x1i - cx),
+                               mr - (cy - y0i):mr + (y1i - cy)]
+                    self.occ[L][x0i:x1i, y0i:y1i][sub] = netcode
             else:
                 _, p0, p1 = s
                 # Dedupe: kein zweites Via desselben Netzes im Umkreis 0.5mm
@@ -593,6 +624,63 @@ class Router:
                     if L is not None:
                         self._mark_rect(rect, layer=L, net=nc)
 
+    def add_power_plane_vias(self):
+        """Fuer jedes Pad eines Plane-Netzes (3V3 ...) eine Durchkontaktierung
+        zur Plane setzen. Via sitzt am Pad (gleiches Netz -> kein Clearance-
+        Problem); die Plane-Zone bindet es thermisch an."""
+        for netname, plane_layer in POWER_PLANE_NETS.items():
+            net = None
+            for i in range(self.board.GetNetCount()):
+                n = self.board.FindNet(i)
+                if n and n.GetNetname() == netname:
+                    net = n
+                    break
+            if net is None:
+                continue
+            code = net.GetNetCode()
+            count = 0
+            for fp in self.board.GetFootprints():
+                for p in fp.Pads():
+                    if p.GetNetCode() != code:
+                        continue
+                    px, py = p.GetPosition().x / 1e6, p.GetPosition().y / 1e6
+                    # SMD-Pad: Via leicht versetzt (nicht mitten aufs Pad, um
+                    # Lotperlen-Absaugen zu vermeiden); THT-Pad ist selbst
+                    # schon durchkontaktiert -> nur wenn keine Plane-Lage.
+                    placed = False
+                    for r in (0.0, 0.9, 1.2, 1.6):
+                        for ang in (0, 90, 180, 270, 45, 135):
+                            import math as _m
+                            vx = px + (r * _m.cos(_m.radians(ang)) if r else 0)
+                            vy = py + (r * _m.sin(_m.radians(ang)) if r else 0)
+                            gx, gy = self.mm2grid(vx, vy)
+                            if not (0 < gx < self.nx and 0 < gy < self.ny):
+                                continue
+                            # Via-Spalte darf auf den SIGNAL-Lagen nur eigenes
+                            # Netz/frei sein (Plane-Lage nicht im occ-Grid).
+                            h = mm2g(VIA_D / 2 + CLEARANCE)
+                            if any(self._blocked(L, gx, gy, code, h)
+                                   for L in range(self.nL)):
+                                continue
+                            v = pcbnew.PCB_VIA(self.board)
+                            v.SetPosition(VECTOR2I(int(vx * 1e6), int(vy * 1e6)))
+                            v.SetViaType(pcbnew.VIATYPE_THROUGH)
+                            v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+                            v.SetDrill(int(VIA_DRILL * 1e6))
+                            v.SetWidth(int(VIA_D * 1e6))
+                            v.SetNet(net)
+                            self.board.Add(v)
+                            hv = int(VIA_D / 2 / GRID + 1e-9)
+                            for L in range(self.nL):
+                                self.occ[L][max(gx-hv,0):gx+hv+1,
+                                            max(gy-hv,0):gy+hv+1] = code
+                            count += 1
+                            placed = True
+                            break
+                        if placed:
+                            break
+            print(f"Power-Plane {netname}: {count} Vias")
+
     def add_gnd_stitching(self, pitch=12.0):
         """GND-Vias auf freie Stellen setzen (verbindet F/B-Zoneninseln)."""
         gnd = None
@@ -659,7 +747,11 @@ class Router:
                         break
         print(f"GND-Stitching: {count} Vias")
         # SMD-GND-Pads zusaetzlich per Bahn an den naechsten THT-GND-Anker
-        # anbinden (macht die Masse unabhaengig von Zonen-Fragmenten)
+        # anbinden. NUR sinnvoll ohne durchgehende GND-Plane (2-Lagen-Boards);
+        # bei 4-Lagen traegt die In1-Plane die Masse -> GNDANCHOR=0 vermeidet
+        # die Zonenfragmentierung/Same-Net-Ueberlappungen dieser Extra-Bahnen.
+        if os.environ.get("GNDANCHOR", "1") != "1":
+            return
         anchors = []
         for fp in self.board.GetFootprints():
             for p in fp.Pads():
@@ -696,6 +788,7 @@ if __name__ == "__main__":
         keepouts.append(tuple(float(v) for v in vals.split(",")))
     r = Router(board_path, keepouts)
     r.run()
+    r.add_power_plane_vias()
     r.add_gnd_stitching(float(os.environ.get("STITCH", "12")))
     r.save()
     print("gespeichert:", board_path)

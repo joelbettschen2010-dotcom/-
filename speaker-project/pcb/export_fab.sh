@@ -10,9 +10,16 @@ for BOARD in main-board button-board; do
     mkdir -p "$FAB/gerber"
     echo "=== $BOARD ==="
 
+    # Kupferlagen je nach Lagenzahl (Main = 4-Lagen inkl. In1/In2)
+    if [ "$BOARD" = "main-board" ]; then
+        CU="F.Cu,In1.Cu,In2.Cu,B.Cu"
+    else
+        CU="F.Cu,B.Cu"
+    fi
+
     # Gerber (JLCPCB-Empfehlung: Protel-Endungen, keine X2-Attribute)
     kicad-cli pcb export gerbers \
-        --layers F.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts \
+        --layers "$CU,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts" \
         --use-drill-file-origin --no-x2 \
         -o "$FAB/gerber/" "$PCB"
 

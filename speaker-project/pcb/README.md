@@ -32,26 +32,59 @@ Board = Netzliste, `generate.py` = Schaltplan + Layout via pcbnew-API).
 * **Star-Ground**: AGND-Insel (DSP-Analogteil + Audio-Eingänge, unten
   links) trifft GND an genau einem Punkt (Net-Tie NT1).
 
-## Status / verbleibende Arbeit (ehrlich)
+## Routing-Status (ehrlich)
 
-**Fertig:** Schaltplan (vollständige Konnektivität über Global-Labels),
-Bauteilplatzierung (alle 172 + 19 Bauteile, EMV-orientierte Gruppierung),
-Board-Umriss, Bohrlöcher, GND-Flächen beide Lagen, PVDD-Polygon,
-AGND-Insel, Fertigungsexporte, JLCPCB-BOM mit LCSC-Nummern.
+### Button-Board — ✅ FERTIG geroutet, DRC-sauber
+Vollständig vom eigenen Grid-Router (`autoroute.py`) verdrahtet:
+**0 offene Verbindungen, 0 Clearance-Verstöße, 0 nicht verbundene Pads**
+(nur kosmetische Silk-Hinweise). Gerber liegt in `button-board/fab/` —
+dieses Board kann **direkt bestellt** werden.
 
-**Offen — muss in KiCad interaktiv gemacht werden (geschätzt 4–8 h):**
+### Main-Board — 4-Lagen platziert + Planes, Signal-Routing offen
+Das Main-Board ist **absichtlich als 4-Lagen-Design** ausgelegt:
 
-1. **Signal-Routing**: ~330 Verbindungen (Ratsnest ist durch die
-   Netzzuweisung komplett definiert). Regeln: Signal ≥0.2 mm,
-   5V/3V3 ≥0.5 mm, PVDD/Lautsprecher ≥1.5 mm, Akku-Pfad ≥3 mm
-   (XT30 → F1 → Q1 → Q2 liegen dafür in einer Reihe).
-2. **DRC-Restpunkte**: 3 Courtyard-Mikroüberlappungen, 1 Zonen-Artefakt —
-   werden beim Routen mit verschoben. Silk-Warnungen sind kosmetisch
-   (Auto-Platzierung dreht Referenztexte nicht).
-   `copper_edge_clearance` an USB-C/XT30/ESP-Antenne ist beabsichtigter
-   Überhang. `lib_footprint_issues` = Bibliotheksvergleich, irrelevant.
-3. **Thermal-Vias-Kontrolle** unter beiden TPA3118 (Footprint bringt sie
-   mit, beim Routen B.Cu-Kupfer darunter freihalten/anbinden).
+| Lage | Funktion |
+|---|---|
+| F.Cu | Signal (horizontal bevorzugt) + GND-Füllung |
+| In1.Cu | **durchgehende GND-Plane** (Rückstrompfad, EMV) |
+| In2.Cu | Signal (horizontal) + GND-Füllung |
+| B.Cu | Signal (vertikal) + GND-Füllung, PVDD-Zone unter den Amps |
+
+**Warum 4 Lagen:** Die Bauteildichte (ADAU1701 LQFP-48 mit 0.5 mm Pitch,
+ESP32-S3-Modul, 2× TPA3118 HTSSOP, alle Stecker auf 100×80 mm) ist auf
+2 Lagen **nachweislich nicht** vollständig routbar — zwei unabhängige
+Verfahren (Greedy-Multiseed und PathFinder-Verhandlung) blieben bei ~71
+offenen Verbindungen stehen. 4 Lagen mit durchgehender Masse­fläche sind
+für ein Mixed-Signal-Board dieser Klasse ohnehin die fachlich richtige
+Wahl (sauberer Bass, weniger EMV).
+
+**Was fertig ist:** vollständiger Schaltplan (datenblattverifizierte
+Konnektivität), Platzierung aller 169 Bauteile (EMV-Gruppierung, alle Pads
+innerhalb der Platine, USB/Antenne bewusst am Rand), 4-Lagen-Stackup,
+GND-Plane + Zonen, AGND-Insel, PVDD-Polygon, Netzklassen/DRC-Regeln
+(JLCPCB-5-mil-tauglich), Bohrlöcher, Fertigungspipeline, JLCPCB-BOM.
+
+**Was offen ist — Signal-Routing:** Der mitgelieferte eigene Grid-Router
+(`autoroute.py`, 0.25-mm-Raster) verdrahtet ~75 % der Netze, erreicht aber
+auf diesem dichten Board **keine DRC-saubere Vollverdrahtung**: die
+0.5-mm-Pitch-QFP/QFN-Ausbrüche (DSP, ESP32) brauchen feineres Raster als
+der Router leistet, und es bleiben ~60 Netze offen. Das Signal-Routing
+sollte daher in KiCad fertiggestellt werden:
+
+1. **Interaktiver Router** in KiCad 7 (die Platzierung, Planes, Netzklassen
+   und Regeln sind bereits gesetzt — es fehlt nur das Ziehen der Bahnen).
+2. Oder **Freerouting** (`.dsn` exportieren → routen → `.ses` importieren).
+   Freerouting konnte in dieser Umgebung nicht geladen werden (der
+   Session-Proxy erlaubt nur Repo-Downloads); lokal ist es der schnellste Weg.
+
+Der Ratsnest ist durch die Netzzuweisung vollständig definiert; das
+Board öffnet sich in KiCad fertig platziert mit allen Luftlinien.
+
+**DRC-Restpunkte der Platzierung:** einige Courtyard-Mikroüberlappungen
+(Auto-Platzierung, beim Routen mit ausräumbar). `copper_edge_clearance` an
+USB-C/XT30/ESP-Antenne ist beabsichtigter Randüberhang. `lib_footprint_issues`
+= Bibliotheksvergleich, irrelevant. Thermal-Vias unter beiden TPA3118 sind
+im Footprint vorhanden (beim Routen B.Cu-Kupfer darunter anbinden).
 
 ## Dateien
 

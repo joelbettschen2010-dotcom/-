@@ -11,8 +11,8 @@ geschlossenen Kammern.
 |---|---|---|
 | `acoustics/` | T/S-Simulation, Volumen-Sweep, Crossover-Optimierung + Plots | ✅ läuft, Plots generiert |
 | `dsp/` | ADAU1701-Programmgenerator, Parameter-XML, 3 Presets, Doku | ✅ generiert |
-| `pcb/main-board/` | Haupt-PCB 100×80 (Amps, DSP, ESP32, Power) | ✅ Schaltplan+Platzierung, Routing per eigenem Grid-Router (Status s. `pcb/README.md`) |
-| `pcb/button-board/` | Bedien-PCB 60×20 (Taster, RGB-LED, OLED) | ✅ vollständig geroutet, DRC sauber |
+| `pcb/main-board/` | Haupt-PCB 100×80, **4-Lagen** (Amps, DSP, ESP32, Power) | ✅ Schaltplan+Platzierung+GND-Plane+Zonen+Fab, ⚠️ Signal-Routing in KiCad fertigstellen (s. `pcb/README.md`) |
+| `pcb/button-board/` | Bedien-PCB 60×20 (Taster, RGB-LED, OLED) | ✅ **vollständig geroutet, DRC-sauber, bestellbar** |
 | `firmware/` | ESP32-S3 PlatformIO | ✅ kompiliert (`pio run` SUCCESS) |
 | `webapp/` | Next.js-14-PWA (Dashboard, EQ, Settings, Info) | ✅ baut (`npm run build`), läuft vom ESP32 |
 | `docs/` | BOM/Kosten, Montage-Anleitung, Debugging-Guide | ✅ |
@@ -55,10 +55,13 @@ cd webapp && npm install && npm run build && cp -r out/* ../firmware/data/www/
 
 ## Was noch von Hand zu tun ist
 
-1. **PCB-Routing** in KiCad fertigstellen (Ratsnest komplett, Regeln in
-   `pcb/README.md`; geschätzt 4–8 h) und Gerber neu exportieren.
-2. Reale T/S-Parameter der gelieferten Treiber messen und die Simulation
-   damit erneut laufen lassen (Crossover-Werte prüfen).
+1. **Main-Board-Signal-Routing** in KiCad fertigstellen (4-Lagen-Board ist
+   platziert, GND-Plane + Zonen + Netzklassen gesetzt, Ratsnest komplett —
+   es fehlt nur das Ziehen der Signalbahnen; interaktiv oder via Freerouting,
+   s. `pcb/README.md`), dann Gerber neu exportieren. Das **Button-Board ist
+   fertig geroutet und kann sofort bestellt werden.**
+2. Reale T/S-Parameter der gelieferten Dayton-Treiber messen und die
+   Simulation damit erneut laufen lassen (Crossover-Werte prüfen).
 3. SigmaStudio-Projekt nach `dsp/README.md` aufbauen und EEPROM flashen.
-4. Bestellen (JLCPCB + LCSC + AliExpress-Module), löten, Montage nach
+4. Bestellen (JLCPCB + LCSC + Module), löten, Montage nach
    `docs/montage-anleitung.md`, REW-Abstimmung.

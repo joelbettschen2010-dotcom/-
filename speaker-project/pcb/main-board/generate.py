@@ -41,12 +41,13 @@ def gen_pcb():
     import pcbnew
     from pcbgen import BoardBuilder, shelf_pack
 
-    # 4-Lagen-Aufbau: F.Cu / In1.Cu(GND-Plane) / In2.Cu / B.Cu. Die dichte
-    # Bestueckung (LQFP-48-DSP, ESP32-Modul, 2x HTSSOP-Amp, alle Stecker)
-    # ist auf 2 Lagen NICHT vollstaendig routbar (bewiesen: 2 unabhaengige
-    # Router konvergieren bei ~71 offenen Verbindungen). In1 ist eine
-    # durchgehende Masseflaeche (Rueckstrompfad + Schirmung), geroutet wird
-    # auf F/In2/B (3 Signallagen).
+    # 4-Lagen-Aufbau: F.Cu / In1.Cu(GND-Plane) / In2.Cu / B.Cu.
+    # Die dichte Bestueckung (LQFP-48-DSP, ESP32-Modul, 2x HTSSOP-Amp, alle
+    # Stecker auf 100x80) ist auf 2 Lagen NICHT vollstaendig routbar (2
+    # unabhaengige Router konvergieren bei ~71 offenen Kanten; auch eine
+    # 3V3-Plane statt 3. Signallage half nicht -> 57). In1 ist eine
+    # durchgehende Masseflaeche (Rueckstrompfad + Schirmung); geroutet wird
+    # auf F/In2/B = 3 Signallagen (NLAYERS=3).
     b = BoardBuilder(os.path.join(HERE, "main-board.kicad_pcb"),
                      BOARD_W, BOARD_H, copper_layers=4)
     by = {c.ref: c for c in design.COMPS}
@@ -134,16 +135,14 @@ def gen_pcb():
             print("NICHT untergebracht:", [c.ref for c in rest])
 
     # ---- Zonen -----------------------------------------------------------
-    # In1.Cu: durchgehende GND-Plane (Rueckstrompfad, EMV). Router routet
-    # hier NICHT -> bleibt massiv, Signal-Vias bekommen Antipads.
+    # In1.Cu: durchgehende GND-Plane (Rueckstrompfad, EMV).
     b.zone("GND", pcbnew.In1_Cu, (0, 0, BOARD_W, BOARD_H), priority=0)
     # AGND-Insel (Analogbereich unten links) mit hoher Prioritaet
     b.zone("AGND", pcbnew.F_Cu, (2, 42, 52, 78), priority=3)
     b.zone("AGND", pcbnew.B_Cu, (2, 42, 52, 78), priority=3)
     # PVDD-Polygon auf B.Cu unter der Verstaerkersektion (Leistungsverteilung)
     b.zone("PVDD", pcbnew.B_Cu, (28, 8, 100, 42), priority=2)
-    # GND-Flaechen ganzflaechig auf allen Signallagen (fuellt zwischen den
-    # Bahnen, niedrigste Prioritaet)
+    # GND-Flaechen auf allen drei Signallagen (fuellt zwischen den Bahnen)
     b.zone("GND", pcbnew.F_Cu, (0, 0, BOARD_W, BOARD_H), priority=0)
     b.zone("GND", pcbnew.In2_Cu, (0, 0, BOARD_W, BOARD_H), priority=0)
     b.zone("GND", pcbnew.B_Cu, (0, 0, BOARD_W, BOARD_H), priority=0)
