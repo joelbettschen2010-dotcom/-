@@ -66,7 +66,7 @@ openscad -o rear_lid.stl -D 'part="rear_lid"' speakerbox.scad
 
 ## Druckeinstellungen (PETG)
 
-* 4 Perimeter, 5 Boden-/Deckschichten, 25–40 % Gyroid-Infill
+* 4 Perimeter, 5 Boden-/Deckschichten, 40 % Gyroid-Infill (Regel: hohes Infill gegen Wandresonanz)
 * 0.2 mm Schichthöhe, Düse 245 °C, Bett 80 °C, Lüfter ≤ 40 %
 * Materialbedarf: Schale ~920 cm³ Solid-Volumen → real ca. **600–750 g**,
   Deckel ~170 cm³ → ca. **150 g** (je nach Infill)
