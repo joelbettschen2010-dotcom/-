@@ -2,8 +2,8 @@
 <!--
   SpeakerBox Pro ADAU1701 Parameterdatei
   Generiert von generate_dsp_program.py — NICHT von Hand editieren.
-  Crossover LR2 @ 330 Hz | Sub-Delay 0.9 ms | Sub invertiert
-  Limiter: FR -1.3 dBFS, Sub -0.5 dBFS
+  Crossover LR2 @ 310 Hz | Sub-Delay 1.1 ms | Sub invertiert
+  Limiter: FR -0.5 dBFS, Sub -0.5 dBFS
 -->
 <SigmaStudioParameters>
   <IC Name="ADAU1701" Address="0x68" SampleRate="48000">
@@ -12,22 +12,22 @@
     <Parameter Name="MixerInR_AuxGain" Address="2" Value="0x00800000" Float="1.000000000" Format="5.23"/>
     <Parameter Name="MixerInR_BtGain" Address="3" Value="0x00800000" Float="1.000000000" Format="5.23"/>
     <Parameter Name="MasterVolume" Address="4" Value="0x00800000" Float="1.000000000" Format="5.23"/>
-    <Parameter Name="XoverHP_L_0" Address="5" Value="0x007AA4E4" Float="0.958157037" Format="5.23"/>
-    <Parameter Name="XoverHP_L_1" Address="6" Value="0x0F0AB638" Float="-1.916314075" Format="5.23"/>
-    <Parameter Name="XoverHP_L_2" Address="7" Value="0x007AA4E4" Float="0.958157037" Format="5.23"/>
-    <Parameter Name="XoverHP_L_3" Address="8" Value="0x00F52C7A" Float="1.915419850" Format="5.23"/>
-    <Parameter Name="XoverHP_L_4" Address="9" Value="0x0F8A98EB" Float="-0.917208300" Format="5.23"/>
-    <Parameter Name="XoverHP_R_0" Address="10" Value="0x007AA4E4" Float="0.958157037" Format="5.23"/>
-    <Parameter Name="XoverHP_R_1" Address="11" Value="0x0F0AB638" Float="-1.916314075" Format="5.23"/>
-    <Parameter Name="XoverHP_R_2" Address="12" Value="0x007AA4E4" Float="0.958157037" Format="5.23"/>
-    <Parameter Name="XoverHP_R_3" Address="13" Value="0x00F52C7A" Float="1.915419850" Format="5.23"/>
-    <Parameter Name="XoverHP_R_4" Address="14" Value="0x0F8A98EB" Float="-0.917208300" Format="5.23"/>
-    <Parameter Name="XoverLP_Sub_0" Address="15" Value="0x00000EA7" Float="0.000447113" Format="5.23"/>
-    <Parameter Name="XoverLP_Sub_1" Address="16" Value="0x00001D4D" Float="0.000894225" Format="5.23"/>
-    <Parameter Name="XoverLP_Sub_2" Address="17" Value="0x00000EA7" Float="0.000447113" Format="5.23"/>
-    <Parameter Name="XoverLP_Sub_3" Address="18" Value="0x00F52C7A" Float="1.915419850" Format="5.23"/>
-    <Parameter Name="XoverLP_Sub_4" Address="19" Value="0x0F8A98EB" Float="-0.917208300" Format="5.23"/>
-    <Parameter Name="SubDelay_Samples" Address="20" Value="43" Format="int28"/>
+    <Parameter Name="XoverHP_L_0" Address="5" Value="0x007AF58A" Float="0.960618255" Format="5.23"/>
+    <Parameter Name="XoverHP_L_1" Address="6" Value="0x0F0A14EC" Float="-1.921236509" Format="5.23"/>
+    <Parameter Name="XoverHP_L_2" Address="7" Value="0x007AF58A" Float="0.960618255" Format="5.23"/>
+    <Parameter Name="XoverHP_L_3" Address="8" Value="0x00F5D128" Float="1.920445392" Format="5.23"/>
+    <Parameter Name="XoverHP_L_4" Address="9" Value="0x0F89FB00" Float="-0.922027626" Format="5.23"/>
+    <Parameter Name="XoverHP_R_0" Address="10" Value="0x007AF58A" Float="0.960618255" Format="5.23"/>
+    <Parameter Name="XoverHP_R_1" Address="11" Value="0x0F0A14EC" Float="-1.921236509" Format="5.23"/>
+    <Parameter Name="XoverHP_R_2" Address="12" Value="0x007AF58A" Float="0.960618255" Format="5.23"/>
+    <Parameter Name="XoverHP_R_3" Address="13" Value="0x00F5D128" Float="1.920445392" Format="5.23"/>
+    <Parameter Name="XoverHP_R_4" Address="14" Value="0x0F89FB00" Float="-0.922027626" Format="5.23"/>
+    <Parameter Name="XoverLP_Sub_0" Address="15" Value="0x00000CF6" Float="0.000395558" Format="5.23"/>
+    <Parameter Name="XoverLP_Sub_1" Address="16" Value="0x000019EC" Float="0.000791117" Format="5.23"/>
+    <Parameter Name="XoverLP_Sub_2" Address="17" Value="0x00000CF6" Float="0.000395558" Format="5.23"/>
+    <Parameter Name="XoverLP_Sub_3" Address="18" Value="0x00F5D128" Float="1.920445392" Format="5.23"/>
+    <Parameter Name="XoverLP_Sub_4" Address="19" Value="0x0F89FB00" Float="-0.922027626" Format="5.23"/>
+    <Parameter Name="SubDelay_Samples" Address="20" Value="53" Format="int28"/>
     <Parameter Name="SubPolarity" Address="21" Value="0x0F800000" Float="-1.000000000" Format="5.23"/>
     <Parameter Name="PEQ_L_B0_0" Address="22" Value="0x00800000" Float="1.000000000" Format="5.23"/>
     <Parameter Name="PEQ_L_B0_1" Address="23" Value="0x00000000" Float="0.000000000" Format="5.23"/>
@@ -180,10 +180,10 @@
     <Parameter Name="PEQ_Sub_B9_3" Address="170" Value="0x00000000" Float="0.000000000" Format="5.23"/>
     <Parameter Name="PEQ_Sub_B9_4" Address="171" Value="0x00000000" Float="0.000000000" Format="5.23"/>
     <Parameter Name="SubLevel" Address="172" Value="0x00800000" Float="1.000000000" Format="5.23"/>
-    <Parameter Name="Limiter_L_Threshold" Address="173" Value="0x006E350B" Float="0.860993752" Format="5.23"/>
+    <Parameter Name="Limiter_L_Threshold" Address="173" Value="0x0078D6FD" Float="0.944060876" Format="5.23"/>
     <Parameter Name="Limiter_L_Attack" Address="174" Value="0x0002A39B" Float="0.020617819" Format="5.23"/>
     <Parameter Name="Limiter_L_Release" Address="175" Value="0x0000036A" Float="0.000104161" Format="5.23"/>
-    <Parameter Name="Limiter_R_Threshold" Address="176" Value="0x006E350B" Float="0.860993752" Format="5.23"/>
+    <Parameter Name="Limiter_R_Threshold" Address="176" Value="0x0078D6FD" Float="0.944060876" Format="5.23"/>
     <Parameter Name="Limiter_R_Attack" Address="177" Value="0x0002A39B" Float="0.020617819" Format="5.23"/>
     <Parameter Name="Limiter_R_Release" Address="178" Value="0x0000036A" Float="0.000104161" Format="5.23"/>
     <Parameter Name="Limiter_Sub_Threshold" Address="179" Value="0x0078D6FD" Float="0.944060876" Format="5.23"/>

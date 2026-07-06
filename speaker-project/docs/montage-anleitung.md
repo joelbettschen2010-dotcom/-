@@ -93,7 +93,7 @@ Kanalzuordnung prüfen (L/R/Sub), dann Web-App verbinden.
 2. Messmikrofon auf Achse, 1 m, Gerät auf Stativ/Tisch frei aufstellen.
    REW: Sweep 20 Hz–20 kHz, 90 dB Zielpegel, je Messung 3 Mittelungen.
 3. Einzelmessungen: nur Sub (FR-Klemmen abziehen), nur FR, dann Summe.
-   Am Übergang (~330 Hz) prüfen: Auslöschung? → Sub-Delay in 0.1-ms-Schritten
+   Am Übergang (~310 Hz) prüfen: Auslöschung? → Sub-Delay in 0.1-ms-Schritten
    variieren (DSP), ggf. Polarität zurückdrehen. Ziel: Summe = Einzelpegel +6 dB.
 4. Korrektur-EQ: Raumeinfluss ignorieren (nur > 500 Hz glätten, Fenster
    ~5 ms), Bass anhand des Nahfelds (Mikro 5 cm vor Membran) entzerren.

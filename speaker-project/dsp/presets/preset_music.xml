@@ -2,8 +2,8 @@
 <!--
   SpeakerBox Pro ADAU1701 Parameterdatei
   Generiert von generate_dsp_program.py — NICHT von Hand editieren.
-  Crossover LR2 @ 330 Hz | Sub-Delay 0.9 ms | Sub invertiert
-  Limiter: FR -1.3 dBFS, Sub -0.5 dBFS
+  Crossover LR2 @ 310 Hz | Sub-Delay 1.1 ms | Sub invertiert
+  Limiter: FR -0.5 dBFS, Sub -0.5 dBFS
   Preset: music
 -->
 <SigmaStudioParameters>

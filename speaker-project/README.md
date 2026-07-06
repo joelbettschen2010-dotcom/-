@@ -1,8 +1,9 @@
 # SpeakerBox Pro
 
-Custom 2.1-Bluetooth-Lautsprecher: 2× 3"-Fullrange + 4"-Sub, ADAU1701-DSP,
-2× TPA3118, ESP32-S3 mit PWA-Steuerung, 4S2P-18650-Akku, 3D-gedrucktes
-Gehäuse mit drei geschlossenen Kammern.
+Custom 2.1-Bluetooth-Lautsprecher: 2× Dayton ND91-4 (3.5"-Fullrange) +
+Dayton TCP115-4 (4"-Sub), ADAU1701-DSP, 2× TPA3118, ESP32-S3 mit
+PWA-Steuerung, 4S2P-18650-Akku, 3D-gedrucktes Gehäuse mit drei
+geschlossenen Kammern.
 
 ## Projektstruktur
 
@@ -18,13 +19,16 @@ Gehäuse mit drei geschlossenen Kammern.
 
 ## Kernergebnisse der Simulation
 
-* Fullrange-Kammern 0.35 L netto → Fc 200 Hz, Qtc 1.30 (klein, aber vom
-  DSP-Hochpass entschärft); Sub-Kammer 2.2 L netto + Dämmwolle → Fc 96 Hz,
-  Qtc 0.88, f3 ≈ 81 Hz.
-* **Crossover: Linkwitz-Riley 12 dB/Okt @ 330 Hz**, Sub invertiert,
-  0.9 ms Delay (Optimum aus komplexem Summen-Sweep; der Vorgabebereich
-  150–180 Hz ist wegen der 200-Hz-Einbauresonanz der kleinen Kammern
-  physikalisch ungünstig).
+* Treiber: **Dayton ND91-4** (Fs 74 Hz, Qts 0.41, Xmax 4.6 mm) und
+  **Dayton TCP115-4** (Fs 53.8 Hz, Qts 0.35, Xmax 4+ mm) — Datenblattwerte,
+  vor der finalen Abstimmung am realen Chassis nachmessen.
+* Fullrange-Kammern 0.38 L netto (+Dämmwolle) → Fc 152 Hz, Qtc 0.84,
+  f3 ≈ 132 Hz; Sub-Kammer 1.9 L netto (+Dämmwolle) → Fc 84 Hz, Qtc 0.54,
+  f3 ≈ 115 Hz (mit DSP-Bass-Shelf tiefer spielbar, grosser Hub-Headroom).
+* **Crossover: Linkwitz-Riley 12 dB/Okt @ 310 Hz**, Sub invertiert,
+  1.10 ms Delay (Optimum aus komplexem Summen-Sweep, Rest-Welligkeit
+  1.4 dB; der Vorgabebereich 150–180 Hz ist wegen der Einbauresonanz der
+  kleinen Kammern physikalisch ungünstig).
 * Max-SPL-Abschätzung System ~103–106 dB @ 1 m.
 
 ## Wichtige Design-Abweichungen (begründet)

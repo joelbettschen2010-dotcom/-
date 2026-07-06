@@ -17,9 +17,9 @@ und luftdicht im Mittelteil:
 
 | Teil | Druckfläche | Inhalt |
 |---|---|---|
-| `k1_center.stl` | 132×188 | Sub-Kammer, Griff, Bedienfeld, PCB-Dome |
-| `k1_cap_left/right.stl` | 84×150 | je eine Mid-Kammer mit Dichtflansch |
-| `k1_lid_*.stl`, `k1_grille_*.stl` | ≤132 breit | Deckel/Grill 3-geteilt |
+| `k1_center.stl` | 128×188 | Sub-Kammer, Griff, Bedienfeld, PCB-Dome |
+| `k1_cap_left/right.stl` | 100×150 | je eine Mid-Kammer mit Dichtflansch |
+| `k1_lid_*.stl`, `k1_grille_*.stl` | ≤128 breit | Deckel/Grill 3-geteilt |
 
 Montage: je Fuge 6× M3 (Einschmelzmuttern im Mittelteil, Zugang mit dem
 Schraubendreher durch die Treiberöffnung), Flanschring mit dünner Raupe
@@ -29,11 +29,11 @@ Elektronikfach (24×14 mm, nach Verkabelung mit Heisskleber schliessen).
 
 ## Design (nach Vorbild Anker Soundcore Motion Boom / JBL Xtreme)
 
-* Boombox-Silhouette: Vertikalkanten R22, 45°-Fasen vorn/hinten
+* Boombox-Silhouette: Vertikalkanten R14, 45°-Fasen vorn/hinten
   (45° = stützenfrei druckbar, im Gegensatz zu Radien an der Bettkante)
 * **Integrierter Trapez-Bügelgriff** oben (konstantes Profil längs der
   Tiefe extrudiert → druckt sich in Front-Lage komplett sauber);
-  Griffloch 112×20 mm, gerundet
+  Griffloch ~82×22 mm, gerundet
 * **Versenkte Bedienmulde** oben: 6 Taster, RGB-Lichtleiter, OLED-Fenster
   (OLED-Modul liegt links neben dem Button-Board, 4-adrig an J2)
 * **Vollflächiger Hex-Grill** vorn, 6 Press-Fit-Zapfen (Ø8.0 in Ø8.4)
@@ -49,16 +49,16 @@ Elektronikfach (24×14 mm, nach Verkabelung mit Heisskleber schliessen).
 4. Schraubdome mit Einschmelzmuttern statt selbstschneidender Schrauben; nicht überdrehen
 5. Treiber mit Dichtband hinterlegen, Kanten gerundet (Beugungskanten)
 
-## Kammern (passend zur Simulation in `acoustics/`)
+## Kammern (v2.1, passend zur Dayton-Simulation in `acoustics/`)
 
 | Kammer | brutto | netto (mit Treiber) | mit Dämmwolle eff. |
 |---|---|---|---|
-| Sub (Mitte) | 2.06 L | ~1.95 L | ~2.2 L ✅ |
-| Mid L/R (oben seitlich) | 0.40 L | ~0.35 L ✅ | ~0.40 L |
-| Rückfach Elektronik+Akku | 1.82 L | — | — |
+| Sub TCP115-4 (Mitte, 122×142×122) | 2.11 L | ~1.9 L ✅ | ~2.2 L |
+| Mid ND91-4 L/R (oben seitlich, 96×96×56) | 0.52 L | ~0.38 L ✅ | ~0.44 L |
+| Rückfach Elektronik+Akku | 2.0 L | — | — |
 
-Aussenmasse: **300 × 150 × 170 mm** (passt auf 300er-Druckbett, z. B.
-Prusa MK4/Ender 3 V3 SE knapp diagonal, sonst K1 Max/X1C mit 300+).
+Aussenmasse: **328 × 150 × 177 mm** (Monolith-Schale braucht ein
+330er-Bett, z. B. K1 Max/X1E; für den normalen K1 den Dreiteiler drucken).
 
 ## Eingebaute Features
 
@@ -73,9 +73,12 @@ Prusa MK4/Ender 3 V3 SE knapp diagonal, sonst K1 Max/X1C mit 300+).
 
 ## ⚠️ Vor dem Druck anpassen (Messschieber!)
 
-Die Treibermasse sind **Typwerte**: `fr_cutout=73`, `fr_screw_bc=68`,
-`sub_cutout=94`, `sub_screw_bc=96`. An die realen Chassis anpassen und
-neu rendern:
+Die Treibermasse sind **Datenblattwerte für Dayton ND91-4 / TCP115-4**:
+`fr_cutout=76`, `fr_screw_bc=83`, `sub_cutout=96`, `sub_screw_bc=106`.
+Die Quellen widersprechen sich teils (ND91: Flansch 93 vs. 103.5 mm,
+Tiefe 46 vs. 63 mm) — **am gelieferten Chassis nachmessen**, Werte oben
+in `speakerbox.scad` anpassen und neu rendern. Falls die ND91-Tiefe
+über 52 mm liegt: `mid_d = 70`, `mid_h = 78` setzen (Volumen bleibt gleich):
 
 ```bash
 openscad -o shell.stl    -D 'part="shell"'    speakerbox.scad

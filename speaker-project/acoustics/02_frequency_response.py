@@ -21,14 +21,14 @@ from boxsim import (box_alignment, hp2, spl_response, group_delay, impedance,
                     spl_max, spl_excursion_limited, spl_power_limited)
 
 # Finale effektive Volumina
-VB_FR = 0.35e-3 * STUFFING_FACTOR
-VB_SUB = 2.2e-3 * STUFFING_FACTOR
+VB_FR = 0.38e-3 * STUFFING_FACTOR
+VB_SUB = 1.9e-3 * STUFFING_FACTOR
 
 F = np.logspace(np.log10(20), np.log10(20000), 1200)
 
 SYSTEMS = [
-    (FULLRANGE_3IN, VB_FR, P_AMP_FULLRANGE, "3\" Fullrange (0.40 L eff.)", "tab:blue"),
-    (SUBWOOFER_4IN, VB_SUB, P_AMP_SUB, "4\" Sub (2.53 L eff.)", "tab:red"),
+    (FULLRANGE_3IN, VB_FR, P_AMP_FULLRANGE, "3\" Fullrange (0.44 L eff.)", "tab:blue"),
+    (SUBWOOFER_4IN, VB_SUB, P_AMP_SUB, "4\" Sub (2.19 L eff.)", "tab:red"),
 ]
 
 if __name__ == "__main__":

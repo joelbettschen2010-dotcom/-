@@ -15,8 +15,10 @@
 //   - Kammern luftdicht (innen versiegeln), Schraubdome statt Selbstschneider
 //   - Treiber hinterschraubt mit M3-Einschmelzmuttern, nicht ueberdrehen
 //
-// Kammern wie Simulation: Sub ~2.0 L brutto (mit Wolle eff. ~2.2 L),
-// Mids 0.40 L brutto. Druck: Schale Front nach unten, Deckel+Grill flach.
+// Kammern wie Simulation (Dayton ND91-4 + TCP115-4, v2.1):
+//   Sub ~2.1 L brutto (- Treiberverdraengung ~1.9 L netto, mit Wolle eff. 2.2 L)
+//   Mids 0.52 L brutto (- ND91-Verdraengung ~0.38 L netto, eff. 0.44 L)
+// Druck: Schale Front nach unten, Deckel+Grill flach.
 //
 // Rendern:
 //   openscad -o shell.stl    -D 'part="shell"'    speakerbox.scad
@@ -31,8 +33,8 @@ part = "preview";   // "shell" | "rear_lid" | "grille" | "preview"
                     // "grille_center" | "grille_left" | "grille_right"
 
 // Trennebenen liegen IN den Kammerteilern -> Sub-Kammer bleibt ungeschnitten
-xs1 = 84;    // = wall + mid_w
-xs2 = 216;   // = W - wall - mid_w
+xs1 = 100;   // = wall + mid_w
+xs2 = 228;   // = W - wall - mid_w
 swall = 4;   // Seitenwandstaerke des Mittelteils (ersetzt pwall-Teiler)
 // Schraubpositionen (y,z) auf dem Flanschring der Trennflaeche
 bolt_pos = [[9, 20], [141, 20], [9, 146], [141, 146], [75, 9], [75, 157]];
@@ -40,24 +42,29 @@ bolt_pos = [[9, 20], [141, 20], [9, 146], [141, 146], [75, 9], [75, 157]];
 // --- Grundmasse [mm] ---------------------------------------------------------
 wall   = 4;
 pwall  = 3;
-W      = 300;
+W      = 328;
 H      = 150;
-D      = 170;      // inkl. Rueckdeckel
+D      = 177;      // inkl. Rueckdeckel
 lid_t  = 4;
-R      = 22;       // Radius der Vertikalkanten (Boombox-Look)
+R      = 14;       // Radius der Vertikalkanten (kleiner: 93er-ND91-Flansch
+                   // braucht plane Front bis nahe an die Ecken)
 CH     = 6;        // 45-Grad-Fasen vorne/hinten (druckbar)
 
 // --- Kammern -------------------------------------------------------------------
-mid_w   = 80;
-mid_h   = 80;
-mid_d   = 62;
-front_d = 115;
+mid_w   = 96;      // 96x96x56 = 0.52 L brutto -> ~0.38 L netto (ND91-4)
+mid_h   = 96;
+mid_d   = 56;
+front_d = 122;     // Sub: 122x142x122 = 2.11 L brutto -> ~1.9 L netto (TCP115-4)
 
-// --- Treiber (TYPWERTE — vor dem Druck an reale Chassis anpassen!) -------------
-fr_cutout    = 73;
-fr_screw_bc  = 68;
-sub_cutout   = 94;
-sub_screw_bc = 96;
+// --- Treiber: Dayton ND91-4 (Mid) + TCP115-4 (Sub) -----------------------------
+// !!! MASSE VOR DEM DRUCK MIT MESSSCHIEBER AM ECHTEN CHASSIS PRUEFEN !!!
+// Quellen widersprechen sich teils (ND91: Flansch 93 vs 103.5 mm, Tiefe 46 vs
+// 63 mm). Hier: Parts-Express-Datenblattwerte. Falls die Tiefe >52 mm ist,
+// mid_d auf 70 erhoehen und mid_h auf 78 senken (Volumen bleibt ~gleich).
+fr_cutout    = 76;   // ND91-4 Einbauoeffnung (PE: 2.95" = 75 -> +1 Spiel)
+fr_screw_bc  = 83;   // ND91-4 Schraubenkreis, 4 Loecher (Flansch-OD 93)
+sub_cutout   = 96;   // TCP115-4 Einbauoeffnung (PE: 3.7" = 94 -> +2 Spiel)
+sub_screw_bc = 106;  // TCP115-4 Schraubenkreis, 4 Loecher (Flansch-OD ~117)
 
 // --- Griff ----------------------------------------------------------------------
 grip_base = 124;   // Griff-Fussbreite — liegt komplett im Mittelteil (Split!)
@@ -286,10 +293,11 @@ module driver_inserts() {
       translate([0, 0, -1]) cylinder(d = 4.2, h = 10);
     }
   }
+  // ND91-4: 4 Schrauben auf 83er-KREIS (45-Grad-Lagen, nicht Quadrat-Diagonale)
   for (cx = [wall + mid_w/2, W - wall - mid_w/2])
-    for (dx = [-1, 1], dy = [-1, 1])
-      translate([cx + dx*fr_screw_bc/2,
-                 wall + ih - mid_h/2 - pwall/2 + dy*fr_screw_bc/2, wall - eps])
+    for (a = [45, 135, 225, 315])
+      translate([cx + fr_screw_bc/2*cos(a),
+                 wall + ih - mid_h/2 - pwall/2 + fr_screw_bc/2*sin(a), wall - eps])
         boss();
   for (a = [45, 135, 225, 315])
     translate([W/2 + sub_screw_bc/2*cos(a), H/2 + sub_screw_bc/2*sin(a), wall - eps])

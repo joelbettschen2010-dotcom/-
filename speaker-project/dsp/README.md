@@ -4,9 +4,9 @@
 
 ```
 ADC0/1 (Aux-In) ──┐
-                  ├─ Input-Mixer ── Master-Volume ─┬─ HP LR2 330 Hz ── PEQ×10 ── Limiter ── DAC0 → FR L
-I2S-In (BT)     ──┘                                ├─ HP LR2 330 Hz ── PEQ×10 ── Limiter ── DAC1 → FR R
-                                                   └─ Mono-Summe ── LP LR2 330 Hz ── Delay 0.9 ms
+                  ├─ Input-Mixer ── Master-Volume ─┬─ HP LR2 310 Hz ── PEQ×10 ── Limiter ── DAC0 → FR L
+I2S-In (BT)     ──┘                                ├─ HP LR2 310 Hz ── PEQ×10 ── Limiter ── DAC1 → FR R
+                                                   └─ Mono-Summe ── LP LR2 310 Hz ── Delay 1.1 ms
                                                         ── Invert ── PEQ×10 ── Sub-Level ── Limiter ── DAC2 → Sub
 ```
 
@@ -30,24 +30,26 @@ Als *Slew-Volume* ausgeführt (rampt im DSP über ~20 ms), damit Volume-Steps
 der Web-App/Tasten **klickfrei** sind. 51 Stufen, logarithmisch −60…0 dB
 (Tabelle in `dsp_coefficients.h`), Stufe 0 = Mute.
 
-### 3. Crossover: Linkwitz-Riley 12 dB/Okt @ 330 Hz
+### 3. Crossover: Linkwitz-Riley 12 dB/Okt @ 310 Hz
 * Frequenz aus `acoustics/03_crossover_optimization.py`: Sweep 100–400 Hz
-  ergab **333 Hz** als Welligkeits-Minimum (1.35 dB Std-Abw. 60–500 Hz).
+  ergab **310 Hz** als Welligkeits-Minimum (1.43 dB Std-Abw. 60–500 Hz)
+  für die Dayton-Treiber (ND91-4 in 0.38 L: Fc 152 Hz Qtc 0.84;
+  TCP115-4 in 1.9 L: Fc 84 Hz Qtc 0.54).
   Der geforderte Startbereich 150–180 Hz ist physikalisch ungünstig, weil die
-  0.35-L-Kammern die Fullrange-Einbauresonanz auf ~200 Hz (Qtc 1.3) schieben —
-  ein Hochpass **oberhalb** dieser Resonanz unterdrückt gleichzeitig deren
-  +2.9-dB-Buckel und schützt die kleinen Treiber vor Hub.
+  kleinen Kammern die Fullrange-Einbauresonanz auf ~152 Hz schieben —
+  ein Hochpass **oberhalb** dieser Resonanz hält die Phasendrehung aus dem
+  Übernahmebereich und schützt die kleinen Treiber vor Hub.
 * LR2 = **ein** Biquad mit Q = 0.5 pro Weg (kein Kaskadieren nötig) — spart
   Instruktionen und Param-RAM.
 * Der Sub bekommt die **Mono-Summe** (L+R)×0.5 vor dem Tiefpass: Bass unter
-  330 Hz ist auf Musikmaterial praktisch mono; die Summierung bringt +6 dB
+  310 Hz ist auf Musikmaterial praktisch mono; die Summierung bringt +6 dB
   kohärenten Gewinn am Sub-Eingang.
 
-### 4. Phasenkorrektur: Delay 0.9 ms + Invertierung
+### 4. Phasenkorrektur: Delay 1.1 ms + Invertierung
 LR2-Wege stehen konstruktionsbedingt 180° zueinander → ein Weg muss
 invertiert werden. Die Optimierung (inkl. der *natürlichen* Phasendrehungen
-beider Box-Hochpässe, die sich bei Fc 96 Hz vs. 200 Hz stark unterscheiden)
-ergab: **Sub invertiert + 0.9 ms Delay** (43 Samples @ 48 kHz) liefert die
+beider Box-Hochpässe, die sich bei Fc 84 Hz vs. 152 Hz unterscheiden)
+ergab: **Sub invertiert + 1.10 ms Delay** (53 Samples @ 48 kHz) liefert die
 flachste Summe im Übernahmebereich. Das Delay kompensiert den
 Phasenvorlauf des Fullrange-Box-Hochpasses. **Nach der REW-Messung am realen
 Gerät nachjustieren** — Membranversätze im Gehäuse kommen noch dazu.
@@ -73,13 +75,13 @@ Auslegung der Schwellen (Kette: DAC 0.9 V RMS Vollpegel → TPA3118 Gain 20 dB
 
 | Weg | Grenze | Rechnung | Schwelle |
 |---|---|---|---|
-| FR L/R | 15 W therm. an 4 Ω | √(15·4) = 7.75 V RMS → 7.75/9.0 | **−1.3 dBFS** |
-| Sub | Amp-Clipping vor Treiberlimit | PBTL @14.8 V/4 Ω clippt ~23 W < 30 W Treiberlimit → knapp unter 0 dBFS | **−0.5 dBFS** |
+| FR L/R | Amp-Clipping vor Treiberlimit | ND91-4 verträgt 30 W > BTL-Clipping ~19 W an 4.3 Ω → knapp unter 0 dBFS | **−0.5 dBFS** |
+| Sub | Amp-Clipping vor Treiberlimit | PBTL @14.8 V/4 Ω clippt ~23 W < 40 W Treiberlimit → knapp unter 0 dBFS | **−0.5 dBFS** |
 
-Attack 1 ms (schnell genug ab 330 Hz), Release 200 ms (unauffällig bei Musik).
-Der Sub-Limiter schützt primär vor **Amp-Clipping** (klingt hässlich und
-erzeugt HF-Anteile), nicht vor thermischer Überlastung — der 30-W-Treiber
-kann die ~23 W des PBTL-Amps dauerhaft ab. Bei vollem Akku (16.8 V) steigt
+Attack 1 ms (schnell genug ab 310 Hz), Release 200 ms (unauffällig bei Musik).
+Beide Limiter schützen primär vor **Amp-Clipping** (klingt hässlich und
+erzeugt HF-Anteile), nicht vor thermischer Überlastung — die Dayton-Treiber
+(30 W / 40 W) können mehr ab, als der Amp liefert. Bei vollem Akku (16.8 V) steigt
 die Clipping-Grenze; die Schwelle ist konservativ auf Nominalspannung
 gerechnet, damit der Klang über den ganzen Akkuhub konsistent bleibt.
 

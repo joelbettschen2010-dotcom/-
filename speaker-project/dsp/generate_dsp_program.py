@@ -23,9 +23,9 @@ werden. Danach kann die Firmware alle Parameter live ändern.
 Signalfluss (siehe README.md für Begründungen):
 
   ADC0/1 (Aux-In)  ─┐
-                    ├─ Input-Mixer ── MasterVol ─┬─ HP-LR2 330Hz ── PEQ10 L ── Limiter ── DAC0 (FR L)
-  I2S-In (BT-Modul)─┘                            ├─ HP-LR2 330Hz ── PEQ10 R ── Limiter ── DAC1 (FR R)
-                                                 └─ Mono-Sum ── LP-LR2 330Hz ── Delay 0.9ms ── Invert
+                    ├─ Input-Mixer ── MasterVol ─┬─ HP-LR2 310Hz ── PEQ10 L ── Limiter ── DAC0 (FR L)
+  I2S-In (BT-Modul)─┘                            ├─ HP-LR2 310Hz ── PEQ10 R ── Limiter ── DAC1 (FR R)
+                                                 └─ Mono-Sum ── LP-LR2 310Hz ── Delay 1.1ms ── Invert
                                                         ── PEQ10 Sub ── SubLevel ── Limiter ── DAC2 (Sub)
 
 Abtastrate: 48 kHz. Filterformat: 5.23 Fixed-Point (Bereich -16.0 … +15.9999).
@@ -39,8 +39,8 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
 FS = 48000.0          # DSP-Abtastrate [Hz]
-FX = 330.0            # Crossover-Frequenz aus 03_crossover_optimization.py [Hz]
-SUB_DELAY_MS = 0.90   # Sub-Delay aus Optimierung [ms]
+FX = 310.0            # Crossover-Frequenz aus 03_crossover_optimization.py [Hz]
+SUB_DELAY_MS = 1.10   # Sub-Delay aus Optimierung [ms]
 SUB_INVERT = True     # Sub-Polarität aus Optimierung
 
 # --- Limiter-Auslegung -------------------------------------------------------
@@ -49,16 +49,19 @@ SUB_INVERT = True     # Sub-Polarität aus Optimierung
 # Versorgung 14.8 V nominal: BTL-Clipping bei ca. 14.8/sqrt(2)=10.5 V RMS (ideal),
 # real ~9.8 V RMS (Ron-Verluste) -> 0 dBFS liegt knapp UNTER dem Amp-Clipping. Gut.
 #
-# Fullrange 15 W an 4 Ohm  -> U = sqrt(15*4)  = 7.75 V RMS -> 7.75/9.0 = -1.3 dBFS
-# Subwoofer 30 W an 4 Ohm  -> U = sqrt(30*4) = 10.95 V RMS -> über Amp-Clipping!
-#   PBTL an 14.8 V/4R clippt bei ~23-25 W. Limiter daher auf Amp-Grenze:
-#   9.0 V RMS erreichbar bei 0 dBFS -> Schwelle -0.5 dBFS (knapp unter Clipping),
-#   entspricht ~20 W Dauer am Sub — thermisch für den 30-W-Treiber unkritisch.
+# Fullrange Dayton ND91-4: 30 W RMS thermisch -> sqrt(30*4.3) = 11.4 V RMS,
+#   liegt ÜBER dem Amp-Clipping (~9.8 V RMS an 14.8 V). Der Treiber verträgt
+#   mehr als der Verstärker liefert -> Limiter auf Amp-Grenze: -0.5 dBFS
+#   (knapp unter Clipping, ~19 W an 4.3 Ohm — thermisch unkritisch).
+# Subwoofer Dayton TCP115-4: 40 W RMS -> ebenfalls über Amp-Clipping.
+#   PBTL an 14.8 V/4R clippt bei ~23-25 W. Limiter auf Amp-Grenze -0.5 dBFS,
+#   entspricht ~20 W Dauer am Sub — für den 40-W-Treiber völlig unkritisch.
 #   (Bei vollem Akku 16.8 V wären ~27 W drin; die Schwelle ist konservativ auf
-#   die NOMINALE Versorgung gerechnet, damit es nie clippt.)
-LIM_THRESHOLD_FR_DB = -1.3
+#   die NOMINALE Versorgung gerechnet, damit es nie clippt. Der Membranhub
+#   wird zusätzlich durch den Box-Hochpass + PEQ geschützt, s. Teil 1.)
+LIM_THRESHOLD_FR_DB = -0.5
 LIM_THRESHOLD_SUB_DB = -0.5
-LIM_ATTACK_MS = 1.0    # schnell genug für Transienten bei 330 Hz aufwärts
+LIM_ATTACK_MS = 1.0    # schnell genug für Transienten bei 310 Hz aufwärts
 LIM_RELEASE_MS = 200.0
 
 OUT = os.path.dirname(os.path.abspath(__file__))
@@ -217,7 +220,7 @@ def build_param_map():
     add("XoverLP_Sub", biquad_lowpass(FX, 0.5))
 
     # 4) Sub-Zeit-/Phasenkorrektur: Delay in Samples + Polarität als Gain
-    add("SubDelay_Samples", round(SUB_DELAY_MS * 1e-3 * FS))   # 43 Samples
+    add("SubDelay_Samples", round(SUB_DELAY_MS * 1e-3 * FS))   # 53 Samples @ 1.10 ms
     add("SubPolarity", -1.0 if SUB_INVERT else 1.0)
 
     # 5) 10-Band-PEQ je Kanal (flat als Startzustand)

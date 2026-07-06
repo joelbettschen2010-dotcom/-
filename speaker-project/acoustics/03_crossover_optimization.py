@@ -27,8 +27,8 @@ import matplotlib.pyplot as plt
 from drivers import FULLRANGE_3IN, SUBWOOFER_4IN, STUFFING_FACTOR
 from boxsim import box_alignment, hp2, lr2_lowpass, lr2_highpass
 
-VB_FR = 0.35e-3 * STUFFING_FACTOR
-VB_SUB = 2.2e-3 * STUFFING_FACTOR
+VB_FR = 0.38e-3 * STUFFING_FACTOR
+VB_SUB = 1.9e-3 * STUFFING_FACTOR
 
 F = np.logspace(np.log10(30), np.log10(2000), 1500)
 

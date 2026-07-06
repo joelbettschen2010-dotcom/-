@@ -44,6 +44,16 @@ Bestellmenge für **1 Gerät** (JLCPCB rechnet Mindestabnahmen pro Bauteil,
 |---|---|---|
 | 6× Taster THT 6×6/13 mm, WS2812B, JST-PH8, Kleinteile | | 1.80 |
 
+## Treiber (Qualitäts-Empfehlung, kein AliExpress)
+
+| Teil | Typ | Bezug (EU) | Stk. | ca. CHF |
+|---|---|---|---|---|
+| Fullrange | **Dayton Audio ND91-4** (3.5", Neodym, 30 W, Xmax 4.6 mm) | SoundImports ~17 €/Stk. | 2 | 33 |
+| Subwoofer | **Dayton Audio TCP115-4** (4", 40 W, Alu-Korb) | SoundImports ~26 € | 1 | 25 |
+
+→ Treiber-Total **~58 CHF** (inkl. Anteil Versand). Die Simulation in
+`acoustics/` und das Gehäuse v2.1 sind auf genau diese Chassis gerechnet.
+
 ## Nicht-LCSC-Teile (AliExpress)
 
 | Teil | Suchbegriff | ca. CHF |
@@ -69,14 +79,18 @@ Bestellmenge für **1 Gerät** (JLCPCB rechnet Mindestabnahmen pro Bauteil,
 | Passiv/Stecker | ~13 |
 | Button-Board | ~2 |
 | PCB + Bestückung + Versand | ~24 |
-| **Total bestückte Boards (ohne AliExpress-Module)** | **~48** ✅ Budgetziel |
+| **Total bestückte Boards (ohne Module/Treiber)** | **~48** ✅ Budgetziel |
 | + BT-Modul + OLED (AliExpress) | +11.50 |
+| + Treiber Dayton ND91-4 ×2 + TCP115-4 (SoundImports) | +58 |
+| **Total Elektronik + Treiber** | **~118** |
 | + USBi-Programmer (einmalige Anschaffung) | +8 |
+| + 8× 18650 (Marke, z. B. nkon.nl) + BMS/Lade-Board, falls nicht vorhanden | +45 |
+| **Total komplett (ohne Filament)** | **~171** ✅ Budget 180 CHF |
 
 Hinweise:
 * THT-Teile (Stecker, Schraubklemmen, Taster, Elkos) selbst löten spart
   ~8 CHF Bestückungskosten — eingeplant (JLCPCB Economic bestückt nur Top-SMD).
-* Bereits vorhanden laut Projektbeschrieb: Treiber, 18650-Zellen, Lade-Board,
-  Gehäuse — nicht eingerechnet.
+* Laut Projektbeschrieb sind Treiber/Zellen/Lade-Board bereits vorhanden —
+  dann gilt weiterhin nur die Board-Zeile (~48 CHF + Module).
 * Mindestbestellmengen: JLCPCB liefert min. 5 PCBs; LCSC-Passivteile haben
   Mindestabnahmen (10-100 Stk.) — im Preis oben enthalten, Rest ist Vorrat.

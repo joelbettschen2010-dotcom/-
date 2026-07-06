@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #define DSP_FS            48000
-#define DSP_XOVER_HZ      330.0f
+#define DSP_XOVER_HZ      310.0f
 #define DSP_EQ_NUM_BANDS  10
 #define DSP_EQ_Q          1.41f
 

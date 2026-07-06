@@ -1,31 +1,16 @@
 """
-Thiele-Small-Parameter für die SpeakerBox Pro Treiber.
+Thiele-Small-Parameter für die SpeakerBox Pro Treiber (v2: Dayton Audio).
 
-WICHTIG: Das sind RECHERCHIERTE TYPWERTE für generische AliExpress-Treiber
-dieser Klasse — KEINE gemessenen Werte der konkreten Exemplare!
-Vor der finalen Abstimmung müssen die echten Parameter gemessen werden
-(REW + Impedanzmessung mit Referenzwiderstand, oder DATS).
+Gewählte Chassis (Budget-Empfehlung, kein AliExpress — dokumentierte
+Parameter, enge Fertigungstoleranzen, in der EU z. B. via SoundImports):
 
-Quellenlage / Begründung der Werte:
+  - 2x Dayton Audio ND91-4   (3.5" Fullrange, Neodym, 4 Ohm, 30 W RMS)
+  - 1x Dayton Audio TCP115-4 (4" Subwoofer, Poly-Konus, 4 Ohm, 40 W RMS)
 
-3" Fullrange, 4 Ohm, 15 W RMS (typisch: "3 inch full range 4ohm 15w"
-auf AliExpress, baugleich mit Sounderlink/Aiyima/Denon-Klon-Chassis):
-  - Vergleichbare Marken-Chassis: Dayton Audio ND91-4 (Fs 79 Hz, Qts 0.54,
-    Vas 2.4 L, Xmax 4.4 mm), Tang Band W3-881SJF (Fs 110 Hz, Qts 0.74,
-    Vas 1.1 L), Peerless TC9FD (Fs 125 Hz, Qts 0.9, Vas 0.9 L).
-  - Generische AliExpress-3"-Chassis liegen laut Messungen in DIY-Foren
-    (diyaudio.com "cheap full range roundup", ASR-Forum) meist bei:
-    Fs 95-115 Hz, Qts 0.6-0.8, Vas 0.8-1.5 L, Xmax 2-3 mm, SPL 84-86 dB.
-  - Gewählt: Mittelwerte dieser Spanne (eher konservativ).
-
-4" Subwoofer, 4 Ohm, 30 W RMS (typisch: "4 inch subwoofer 4ohm 30w",
-lange Schwingspule, Gummisicke):
-  - Vergleichbare Marken-Chassis: Peerless SDS-P830945 (Fs 58 Hz, Qts 0.55,
-    Vas 5.5 L), Dayton SD-115A (Fs 60 Hz, Qts 0.52), Tang Band W4-1320SIF
-    (Fs 45 Hz, Qts 0.4, teurer).
-  - Generische 4"-Subwoofer aus Fernost: Fs 55-70 Hz, Qts 0.45-0.65,
-    Vas 3-5 L, Xmax 3-4.5 mm (linear), SPL 82-85 dB.
-  - Gewählt: Mittelwerte, Xmax konservativ 3.5 mm.
+Die Werte unten sind DATENBLATTWERTE (Parts Express / SoundImports).
+Vor der finalen DSP-Abstimmung trotzdem die realen Parameter messen
+(REW + Impedanzmessung mit Referenzwiderstand, oder DATS) — Serienstreuung
+von +-10-15 % bei Fs/Vas ist normal.
 
 Alle Einheiten SI, ausser wo kommentiert.
 """
@@ -58,45 +43,49 @@ class Driver:
         return 112.02 + 10 * np.log10(eta0)  # 112 dB = 100% Wirkungsgrad Halbraum
 
 
-# --- 3" Fullrange (Mitten/Höhen, je einer L und R) --------------------------
+# --- 3.5" Fullrange: DAYTON AUDIO ND91-4 (Datenblatt SoundImports) ---------
+# Gewaehlt statt AliExpress-Generik: 4.6mm Xmax (fast 2x), enge Fertigungs-
+# toleranzen, dokumentierte Parameter. VOR finaler Abstimmung trotzdem messen.
 FULLRANGE_3IN = Driver(
-    name='3" Fullrange 4R 15W (AliExpress-Typwerte)',
-    fs=100.0,          # Hz
-    qts=0.65,
-    qes=0.75,
-    qms=4.9,           # aus 1/Qts = 1/Qes + 1/Qms
-    vas=1.2e-3,        # 1.2 Liter
-    re=3.5,            # Ohm
-    le=0.12e-3,        # 0.12 mH
-    sd=32e-4,          # 32 cm^2 (eff. Durchmesser ~6.4 cm)
-    xmax=2.5e-3,       # 2.5 mm
-    pmax=15.0,
+    name='Dayton ND91-4 (Datenblatt)',
+    fs=74.0,
+    qts=0.41,
+    qes=0.45,
+    qms=4.24,
+    vas=1.4e-3,        # 1.4 Liter
+    re=4.3,
+    le=0.83e-3,
+    sd=30.4e-4,        # 30.4 cm^2
+    xmax=4.6e-3,       # 4.6 mm (!)
+    pmax=30.0,
     znom=4.0,
 )
 
-# --- 4" Subwoofer (dedizierter Bass) ----------------------------------------
+# --- 4" Subwoofer: DAYTON AUDIO TCP115-4 (Datenblatt SoundImports) -----------
+# Qts 0.35 = stark bedaempft: in 2.5L eff. ergibt das Qtc ~0.52 — sehr
+# praezise, gutmuetiger Abfall, grosser Headroom fuer DSP-Bass-Shelf.
 SUBWOOFER_4IN = Driver(
-    name='4" Subwoofer 4R 30W (AliExpress-Typwerte)',
-    fs=60.0,           # Hz
-    qts=0.55,
-    qes=0.62,
-    qms=4.9,
-    vas=4.0e-3,        # 4.0 Liter
-    re=3.4,            # Ohm
-    le=0.35e-3,        # 0.35 mH (lange Schwingspule)
-    sd=52e-4,          # 52 cm^2 (eff. Durchmesser ~8.1 cm)
-    xmax=3.5e-3,       # 3.5 mm
-    pmax=30.0,
+    name='Dayton TCP115-4 (Datenblatt)',
+    fs=53.8,
+    qts=0.35,
+    qes=0.40,
+    qms=3.14,
+    vas=3.11e-3,       # 0.11 ft^3 = 3.11 Liter
+    re=3.2,
+    le=0.97e-3,
+    sd=50.3e-4,
+    xmax=4.0e-3,       # konservativ (Quellen: 4.0-5.25 mm)
+    pmax=40.0,
     znom=4.0,
 )
 
 # --- Verfügbare Kammervolumina im 3D-gedruckten Gehäuse [m^3] ---------------
 # Netto = Innenvolumen minus Treiber-Verdrängung. Dämmwolle (locker gestopft)
 # vergrössert das effektive Volumen um ~15 %.
-V_CHAMBER_MID_MIN = 0.30e-3
-V_CHAMBER_MID_MAX = 0.35e-3
-V_CHAMBER_SUB_MIN = 1.8e-3
-V_CHAMBER_SUB_MAX = 2.2e-3
+V_CHAMBER_MID_MIN = 0.33e-3
+V_CHAMBER_MID_MAX = 0.38e-3   # Gehaeuse v2.1: 96x80x56-Kammer, ND91-4-Verdraengung
+V_CHAMBER_SUB_MIN = 1.7e-3
+V_CHAMBER_SUB_MAX = 1.9e-3    # Gehaeuse v2.1: 122x142x122, TCP115-4-Verdraengung
 STUFFING_FACTOR = 1.15   # effektive Volumenvergrösserung durch Dämmwolle
 
 # --- Verstärker-Randbedingungen ----------------------------------------------
