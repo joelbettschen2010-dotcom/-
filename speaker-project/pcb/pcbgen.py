@@ -43,10 +43,13 @@ def footprint_dims(footprint_id, rot=0):
 
 
 class BoardBuilder:
-    def __init__(self, path, w, h):
+    def __init__(self, path, w, h, copper_layers=2):
         self.board = pcbnew.CreateEmptyBoard()
         self.board.SetFileName(os.path.abspath(path))
         self.w, self.h = w, h
+        self.copper_layers = copper_layers
+        if copper_layers > 2:
+            self.board.SetCopperLayerCount(copper_layers)
         self.nets = {}
         self._outline()
         self._rules()

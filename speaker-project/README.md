@@ -11,8 +11,8 @@ geschlossenen Kammern.
 |---|---|---|
 | `acoustics/` | T/S-Simulation, Volumen-Sweep, Crossover-Optimierung + Plots | ✅ läuft, Plots generiert |
 | `dsp/` | ADAU1701-Programmgenerator, Parameter-XML, 3 Presets, Doku | ✅ generiert |
-| `pcb/main-board/` | Haupt-PCB 100×80 (Amps, DSP, ESP32, Power) | ✅ Schaltplan+Platzierung+Fab-Export, ⚠️ Routing manuell offen |
-| `pcb/button-board/` | Bedien-PCB 60×20 (Taster, RGB-LED, OLED) | ✅ dito |
+| `pcb/main-board/` | Haupt-PCB 100×80 (Amps, DSP, ESP32, Power) | ✅ Schaltplan+Platzierung, Routing per eigenem Grid-Router (Status s. `pcb/README.md`) |
+| `pcb/button-board/` | Bedien-PCB 60×20 (Taster, RGB-LED, OLED) | ✅ vollständig geroutet, DRC sauber |
 | `firmware/` | ESP32-S3 PlatformIO | ✅ kompiliert (`pio run` SUCCESS) |
 | `webapp/` | Next.js-14-PWA (Dashboard, EQ, Settings, Info) | ✅ baut (`npm run build`), läuft vom ESP32 |
 | `docs/` | BOM/Kosten, Montage-Anleitung, Debugging-Guide | ✅ |

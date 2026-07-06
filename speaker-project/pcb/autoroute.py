@@ -27,6 +27,17 @@ import pcbnew
 from pcbnew import VECTOR2I
 
 GRID = float(os.environ.get("RGRID", "0.25"))   # mm Rasterweite
+
+# Routing-Lagen. NLAYERS=2 -> F.Cu/B.Cu (Button-Board). NLAYERS=3 ->
+# F.Cu/In2.Cu/B.Cu als Signallagen, In1.Cu bleibt eine durchgehende
+# GND-Plane (nicht geroutet, Antipads beim Zonenfuellen). NLAYERS=4 ->
+# alle vier als Signallagen.
+def _layer_ids(n):
+    if n <= 2:
+        return [pcbnew.F_Cu, pcbnew.B_Cu]
+    if n == 3:
+        return [pcbnew.F_Cu, pcbnew.In2_Cu, pcbnew.B_Cu]
+    return [pcbnew.F_Cu, pcbnew.In1_Cu, pcbnew.In2_Cu, pcbnew.B_Cu]
 # Design-Regel-Clearance; per ENV CLEAR uebersteuerbar (Main-Board: 0.15 —
 # JLCPCB-faehig und noetig, damit die 1.1-mm-Packluecken passierbar sind)
 CLEARANCE = float(os.environ.get("CLEAR", "0.20"))
@@ -56,6 +67,13 @@ class Router:
     def __init__(self, path, extra_keepouts=()):
         self.board = pcbnew.LoadBoard(path)
         self.path = path
+        self.nL = int(os.environ.get("NLAYERS", "2"))
+        self.layer_ids = _layer_ids(self.nL)
+        self.nL = len(self.layer_ids)
+        self.lid2idx = {lid: i for i, lid in enumerate(self.layer_ids)}
+        self.all_layers = tuple(range(self.nL))
+        # Vorzugsrichtung je interner Lage: H, V, H, V ... (0 = horizontal)
+        self.pref_h = [(i % 2 == 0) for i in range(self.nL)]
         bb = self.board.GetBoardEdgesBoundingBox()
         self.x0 = bb.GetLeft() / 1e6
         self.y0 = bb.GetTop() / 1e6
@@ -64,12 +82,12 @@ class Router:
         self.nx = mm2g(self.W) + 1
         self.ny = mm2g(self.H) + 1
         # Belegung je Lage: Netz-Code des Kupfers, -1 = frei, -2 = verboten
-        self.occ = {0: np.full((self.nx, self.ny), -1, dtype=np.int32),
-                    1: np.full((self.nx, self.ny), -1, dtype=np.int32)}
+        self.occ = {L: np.full((self.nx, self.ny), -1, dtype=np.int32)
+                    for L in range(self.nL)}
         # Pad-KERNE ohne Clearance-Inflation: eigene Kernzellen sind fuer das
         # eigene Netz immer passierbar (Fine-Pitch-Ausfahrt entlang des Pads)
-        self.core = {0: np.full((self.nx, self.ny), -1, dtype=np.int32),
-                     1: np.full((self.nx, self.ny), -1, dtype=np.int32)}
+        self.core = {L: np.full((self.nx, self.ny), -1, dtype=np.int32)
+                     for L in range(self.nL)}
         self._mark_border()
         self.extra_keepouts = tuple(extra_keepouts)
         for k in self.extra_keepouts:
@@ -104,19 +122,20 @@ class Router:
 
     def _mark_border(self, margin=0.8):
         m = mm2g(margin)
-        for L in (0, 1):
+        for L in range(self.nL):
             self.occ[L][:m, :] = -2
             self.occ[L][-m:, :] = -2
             self.occ[L][:, :m] = -2
             self.occ[L][:, -m:] = -2
 
-    def _mark_rect(self, rect, both=False, net=-2, layer=0):
+    def _mark_rect(self, rect, both=False, net=-2, layer=0, layers=None):
         x0, y0, x1, y1 = rect
         gx0, gy0 = self.mm2grid(x0, y0)
         gx1, gy1 = self.mm2grid(x1, y1)
         gx0, gy0 = max(gx0, 0), max(gy0, 0)
         gx1, gy1 = min(gx1, self.nx - 1), min(gy1, self.ny - 1)
-        layers = (0, 1) if both else (layer,)
+        if layers is None:
+            layers = tuple(range(self.nL)) if both else (layer,)
         for L in layers:
             self.occ[L][gx0:gx1 + 1, gy0:gy1 + 1] = net
 
@@ -131,25 +150,22 @@ class Router:
                 y0 = bb.GetTop() / 1e6 - infl
                 x1 = bb.GetRight() / 1e6 + infl
                 y1 = bb.GetBottom() / 1e6 + infl
-                on_f = pad.IsOnLayer(pcbnew.F_Cu)
-                on_b = pad.IsOnLayer(pcbnew.B_Cu)
                 code = net if net > 0 else -2
-                if on_f and on_b:
-                    self._mark_rect((x0, y0, x1, y1), both=True, net=code)
-                elif on_f:
-                    self._mark_rect((x0, y0, x1, y1), layer=0, net=code)
-                elif on_b:
-                    self._mark_rect((x0, y0, x1, y1), layer=1, net=code)
+                # Auf welchen ROUTING-Lagen liegt das Pad? (THT-Pads liegen
+                # auf allen; SMD nur auf F oder B.)
+                on = tuple(L for L, lid in enumerate(self.layer_ids)
+                           if pad.IsOnLayer(lid))
+                if on:
+                    self._mark_rect((x0, y0, x1, y1), net=code, layers=on)
                 # Kern (ohne Inflation) fuer die Eigen-Netz-Freischaltung
-                if code > 0:
+                if code > 0 and on:
                     cx0, cy0 = bb.GetLeft() / 1e6, bb.GetTop() / 1e6
                     cx1, cy1 = bb.GetRight() / 1e6, bb.GetBottom() / 1e6
                     gx0, gy0 = self.mm2grid(cx0, cy0)
                     gx1, gy1 = self.mm2grid(cx1, cy1)
                     gx0, gy0 = max(gx0, 0), max(gy0, 0)
                     gx1 = min(gx1, self.nx - 1); gy1 = min(gy1, self.ny - 1)
-                    for L in ((0, 1) if (on_f and on_b) else
-                              ((0,) if on_f else ((1,) if on_b else ()))):
+                    for L in on:
                         self.core[L][gx0:gx1 + 1, gy0:gy1 + 1] = code
 
     # ------------------------------------------------------------------
@@ -173,7 +189,7 @@ class Router:
         von Kupferzellen gesperrt sind (sonst 0.35mm-Luecken moeglich)."""
         disk = self._disk(max(float(halfw), 1.45))
         out = {}
-        for L in (0, 1):
+        for L in range(self.nL):
             obst = (self.occ[L] != -1) & (self.occ[L] != netcode)
             out[L] = ~binary_dilation(obst, structure=disk)
         return out
@@ -190,7 +206,7 @@ class Router:
         pass_via = self._passable(netcode, (VIA_D / 2 + cl) / GRID)
         # Eigene Pad-Kerne freischalten: die Bahn darf ueber eigenem Kupfer
         # laufen (Fine-Pitch: einzige Ausfahrt ist die Pad-Laengsachse)
-        for L in (0, 1):
+        for L in range(self.nL):
             pass_trk[L] = pass_trk[L] | (self.core[L] == netcode)
         sx, sy = self.mm2grid(a[0], a[1])
         tx, ty = self.mm2grid(b[0], b[1])
@@ -242,8 +258,9 @@ class Router:
                     # muessen ebenfalls frei sein
                     cost = 1.414 * (1.0 + WRONG_DIR_COST) / 2.0
                 else:
-                    # Vorzugsrichtung: F.Cu horizontal (dx), B.Cu vertikal (dy)
-                    cost = 1.0 if ((L == 0 and dx) or (L == 1 and dy)) else WRONG_DIR_COST
+                    # Vorzugsrichtung je Lage (H,V,H,V...)
+                    good = (self.pref_h[L] and dx) or (not self.pref_h[L] and dy)
+                    cost = 1.0 if good else WRONG_DIR_COST
                 ng = g + cost
                 if ng < best.get(nst, 1e18) - 1e-9:
                     if not pass_trk[L][nxg, nyg]:
@@ -253,14 +270,19 @@ class Router:
                         continue
                     best[nst] = ng
                     heapq.heappush(pq, (ng + h(nxg, nyg), ng, nst, st))
-            # Via
-            oL = 1 - L
-            nst = (oL, gx, gy)
-            ng = g + via_cost
-            if ng < best.get(nst, 1e18) - 1e-9:
-                if pass_via[0][gx, gy] and pass_via[1][gx, gy]:
-                    best[nst] = ng
-                    heapq.heappush(pq, (ng + h(gx, gy), ng, nst, st))
+            # Via: Durchkontaktierung verbindet ALLE Lagen; erlaubt Wechsel
+            # auf jede andere Routing-Lage, sofern die Via-Flaeche auf jeder
+            # Lage frei ist (die GND-Plane In1 wird durch Antipad beim
+            # Zonenfuellen automatisch freigehalten -> nicht im occ-Grid).
+            if all(pass_via[LL][gx, gy] for LL in range(self.nL)):
+                for oL in range(self.nL):
+                    if oL == L:
+                        continue
+                    nst = (oL, gx, gy)
+                    ng = g + via_cost * abs(oL - L)
+                    if ng < best.get(nst, 1e18) - 1e-9:
+                        best[nst] = ng
+                        heapq.heappush(pq, (ng + h(gx, gy), ng, nst, st))
         if goal is None:
             return None
 
@@ -280,7 +302,7 @@ class Router:
         Clusters registriert (Multi-Goal-Ziele fuer spaetere Kanten)."""
         net = self.board.FindNet(netcode)
         objs = self.committed.setdefault(netcode, [])
-        layers = [pcbnew.F_Cu, pcbnew.B_Cu]
+        layers = self.layer_ids
         if rep is not None:
             cells = self.cells.setdefault(netcode, {})
             for st in path:
@@ -343,13 +365,16 @@ class Router:
                 x, y = self.g2mm(p0[1], p0[2])
                 v = pcbnew.PCB_VIA(self.board)
                 v.SetPosition(VECTOR2I(int(x * 1e6), int(y * 1e6)))
+                v.SetViaType(pcbnew.VIATYPE_THROUGH)
+                v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
                 v.SetDrill(int(VIA_DRILL * 1e6))
                 v.SetWidth(int(VIA_D * 1e6))
                 v.SetNet(net)
                 self.board.Add(v)
                 objs.append(v)
+                # Durchgangs-Via belegt ALLE Routing-Lagen an dieser Stelle
                 hv = int(VIA_D / 2 / GRID + 1e-9)
-                for L in (0, 1):
+                for L in range(self.nL):
                     self.occ[L][max(p0[1] - hv, 0):p0[1] + hv + 1,
                                 max(p0[2] - hv, 0):p0[2] + hv + 1] = netcode
 
@@ -364,12 +389,9 @@ class Router:
                     continue
                 x = pad.GetPosition().x / 1e6
                 y = pad.GetPosition().y / 1e6
-                lay = []
-                if pad.IsOnLayer(pcbnew.F_Cu):
-                    lay.append(0)
-                if pad.IsOnLayer(pcbnew.B_Cu):
-                    lay.append(1)
-                nets.setdefault((code, name), []).append((x, y, tuple(lay)))
+                lay = tuple(L for L, lid in enumerate(self.layer_ids)
+                            if pad.IsOnLayer(lid))
+                nets.setdefault((code, name), []).append((x, y, lay))
         return nets
 
     @staticmethod
@@ -534,7 +556,7 @@ class Router:
         gx0, gy0 = max(gx0, 0), max(gy0, 0)
         gx1, gy1 = min(gx1, self.nx - 1), min(gy1, self.ny - 1)
         found = set()
-        for L in (0, 1):
+        for L in range(self.nL):
             vals = np.unique(self.occ[L][gx0:gx1 + 1, gy0:gy1 + 1])
             for v in vals:
                 if v > 0 and v != code and v in self.committed and self.committed[v]:
@@ -552,7 +574,7 @@ class Router:
             self.uf[netcode] = list(range(len(self.net_pads[netcode])))
         self.cells[netcode] = {}
         # Raster von Grund auf neu (Pads + verbliebene Bahnen)
-        for L in (0, 1):
+        for L in range(self.nL):
             self.occ[L][:, :] = -1
         self._mark_border()
         for k in self.extra_keepouts:
@@ -567,8 +589,9 @@ class Router:
                 if isinstance(obj, pcbnew.PCB_VIA):
                     self._mark_rect(rect, both=True, net=nc)
                 else:
-                    L = 0 if obj.GetLayer() == pcbnew.F_Cu else 1
-                    self._mark_rect(rect, layer=L, net=nc)
+                    L = self.lid2idx.get(obj.GetLayer())
+                    if L is not None:
+                        self._mark_rect(rect, layer=L, net=nc)
 
     def add_gnd_stitching(self, pitch=12.0):
         """GND-Vias auf freie Stellen setzen (verbindet F/B-Zoneninseln)."""
@@ -587,8 +610,8 @@ class Router:
             while x < self.W - 1:
                 gx, gy = mm2g(x), mm2g(y)
                 if 0 < gx < self.nx and 0 < gy < self.ny and \
-                   not self._blocked(0, gx, gy, -99, h) and \
-                   not self._blocked(1, gx, gy, -99, h):
+                   all(not self._blocked(L, gx, gy, -99, h)
+                       for L in range(self.nL)):
                     v = pcbnew.PCB_VIA(self.board)
                     v.SetPosition(VECTOR2I(int((self.x0 + x) * 1e6),
                                            int((self.y0 + y) * 1e6)))
@@ -596,7 +619,7 @@ class Router:
                     v.SetWidth(int(VIA_D * 1e6))
                     v.SetNet(gnd)
                     self.board.Add(v)
-                    for L in (0, 1):
+                    for L in range(self.nL):
                         self.occ[L][gx-2:gx+3, gy-2:gy+3] = gnd.GetNetCode()
                     count += 1
                 x += pitch
@@ -619,8 +642,8 @@ class Router:
                         gx, gy = mm2g(x), mm2g(y)
                         if not (0 < gx < self.nx and 0 < gy < self.ny):
                             continue
-                        if self._blocked(0, gx, gy, gnd.GetNetCode(), h) or \
-                           self._blocked(1, gx, gy, gnd.GetNetCode(), h):
+                        if any(self._blocked(L, gx, gy, gnd.GetNetCode(), h)
+                               for L in range(self.nL)):
                             continue
                         v = pcbnew.PCB_VIA(self.board)
                         v.SetPosition(VECTOR2I(int((self.x0 + x) * 1e6),
@@ -629,7 +652,7 @@ class Router:
                         v.SetWidth(int(VIA_D * 1e6))
                         v.SetNet(gnd)
                         self.board.Add(v)
-                        for L in (0, 1):
+                        for L in range(self.nL):
                             self.occ[L][gx-2:gx+3, gy-2:gy+3] = gnd.GetNetCode()
                         count += 1
                         placed = True
@@ -652,7 +675,7 @@ class Router:
                 anchors.sort(key=lambda a: abs(a[0]-px) + abs(a[1]-py))
                 for a in anchors[:3]:
                     path = self.route_edge(code, "GND", (px, py, (0,)),
-                                           (a[0], a[1], (0, 1)), 0.4)
+                                           (a[0], a[1], self.all_layers), 0.4)
                     if path:
                         self.commit(code, path, 0.4)
                         break
