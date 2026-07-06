@@ -27,7 +27,9 @@ import pcbnew
 from pcbnew import VECTOR2I
 
 GRID = 0.25          # mm Rasterweite
-CLEARANCE = 0.20     # mm = Design-Regel (JST-PH-Breakout braucht es exakt)
+# Design-Regel-Clearance; per ENV CLEAR uebersteuerbar (Main-Board: 0.15 —
+# JLCPCB-faehig und noetig, damit die 1.1-mm-Packluecken passierbar sind)
+CLEARANCE = float(os.environ.get("CLEAR", "0.20"))
 VIA_D, VIA_DRILL = 0.7, 0.4
 VIA_COST = 40        # Rasterschritte Strafkosten pro Via
 WRONG_DIR_COST = 1.6 # Kostenfaktor gegen die Vorzugsrichtung
@@ -346,7 +348,8 @@ class Router:
                 print(f"  [{k+1}/{len(items)}] ... {time.time()-t0:.0f}s")
 
         # Rip-up-Runden: blockierende Netze entfernen, Problemkante zuerst
-        for rnd in range(5):
+        # (RIPUP=0 deaktiviert — Erfahrung: Kaskaden koennen verschlechtern)
+        for rnd in range(int(os.environ.get("RIPUP", "5"))):
             if not failed:
                 break
             print(f"Rip-up-Runde {rnd+1}: {len(failed)} offene Kanten")
@@ -384,6 +387,11 @@ class Router:
         if path is None:
             path = self.route_edge(code, name, a, b, w, via_cost=15,
                                    max_expand=300000)
+        if path is None:
+            # letzte Eskalation: voller Suchraum, Vias fast gratis
+            path = self.route_edge(code, name, a, b,
+                                   max(w * 0.6, 0.3) if w > 0.3 else w,
+                                   via_cost=6, max_expand=1200000)
         if path is None:
             if not quiet:
                 print(f"  FEHLGESCHLAGEN {name}")

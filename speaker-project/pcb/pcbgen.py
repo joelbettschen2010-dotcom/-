@@ -54,8 +54,11 @@ class BoardBuilder:
     # ------------------------------------------------------------------
     def _rules(self):
         ds = self.board.GetDesignSettings()
+        # JLCPCB-2-Lagen-Standard erlaubt 0.127/0.127 — wir nutzen 0.15/0.2
+        # (Clearance 0.15 macht die Korridore zwischen den dicht gepackten
+        # Bauteilen fuer den Autorouter passierbar)
         ds.m_TrackMinWidth = mm(0.2)
-        ds.m_MinClearance = mm(0.2)
+        ds.m_MinClearance = mm(0.15)
         ds.m_ViasMinSize = mm(0.5)
         ds.m_MinThroughDrill = mm(0.2)   # Thermal-Vias in TI/Espressif-Footprints
         self.obstacles = []              # (x0,y0,x1,y1) belegter Flaechen
