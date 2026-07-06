@@ -168,7 +168,7 @@ class BoardBuilder:
         pcbnew.SaveBoard(path, board2)
 
 
-def shelf_pack(builder, comps, region, gap=0.8):
+def shelf_pack(builder, comps, region, gap=1.1):
     """Kollisionsbewusste Greedy-Packung. Masse kommen aus dem Footprint-
     Cache; das Footprint wird erst am gefundenen Platz eingefuegt (kein
     Add/Remove-Zyklus -> keine SWIG-Objektleichen)."""
