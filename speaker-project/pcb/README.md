@@ -40,7 +40,7 @@ Vollständig vom eigenen Grid-Router (`autoroute.py`) verdrahtet:
 (nur kosmetische Silk-Hinweise). Gerber liegt in `button-board/fab/` —
 dieses Board kann **direkt bestellt** werden.
 
-### Main-Board — 4-Lagen platziert + Planes, Signal-Routing offen
+### Main-Board — 4-Lagen, ~91% verdrahtet (Rest fine-pitch, s. u.)
 Das Main-Board ist **absichtlich als 4-Lagen-Design** ausgelegt:
 
 | Lage | Funktion |
@@ -58,33 +58,44 @@ offenen Verbindungen stehen. 4 Lagen mit durchgehender Masse­fläche sind
 für ein Mixed-Signal-Board dieser Klasse ohnehin die fachlich richtige
 Wahl (sauberer Bass, weniger EMV).
 
-**Was fertig ist:** vollständiger Schaltplan (datenblattverifizierte
-Konnektivität), Platzierung aller 169 Bauteile (EMV-Gruppierung, alle Pads
-innerhalb der Platine, USB/Antenne bewusst am Rand), 4-Lagen-Stackup,
-GND-Plane + Zonen, AGND-Insel, PVDD-Polygon, Netzklassen/DRC-Regeln
-(JLCPCB-5-mil-tauglich), Bohrlöcher, Fertigungspipeline, JLCPCB-BOM.
+**Fertig verdrahtet (~91 %):** Der mitgelieferte eigene Grid-Router
+(`autoroute.py`, 0.125-mm-Raster, 0.15-mm-Bahnen, 0.45-mm-Vias) hat das
+Board mit **~3080 Bahnsegmenten/Vias** verdrahtet:
 
-**Was offen ist — Signal-Routing:** Der mitgelieferte eigene Grid-Router
-(`autoroute.py`, 0.25-mm-Raster) verdrahtet ~75 % der Netze, erreicht aber
-auf diesem dichten Board **keine DRC-saubere Vollverdrahtung**: die
-0.5-mm-Pitch-QFP/QFN-Ausbrüche (DSP, ESP32) brauchen feineres Raster als
-der Router leistet, und es bleiben ~60 Netze offen. Das Signal-Routing
-sollte daher in KiCad fertiggestellt werden:
+* GND als durchgehende In1-Plane, jeder GND-Pad per Via-in-Pad angebunden
+* PVDD, 5V, 3V3, AGND und alle Signalnetze als Bahnen geroutet
+* SOLID-Zonenanbindung → **0 starved-thermal, 0 isolierte Kupferinseln**
+* Netzklasse 0.127 mm (JLCPCB-4-Lagen-5-mil)
 
-1. **Interaktiver Router** in KiCad 7 (die Platzierung, Planes, Netzklassen
-   und Regeln sind bereits gesetzt — es fehlt nur das Ziehen der Bahnen).
-2. Oder **Freerouting** (`.dsn` exportieren → routen → `.ses` importieren).
-   Freerouting konnte in dieser Umgebung nicht geladen werden (der
-   Session-Proxy erlaubt nur Repo-Downloads); lokal ist es der schnellste Weg.
+**Was offen ist (~38 Verbindungen + 16 enge Stellen):** Es bleiben die
+**Fine-Pitch-Ausbrüche** am ADAU1701 (LQFP-48, 0.5 mm Pitch) und an den
+TPA3118 (HTSSOP) offen — konkret v. a. `U6_OUT*` (Amp-Ausgänge),
+`USB_D±`, `MCLKI/OSCO`, `ADC0/1_IN`, `DAC_L/R/SUB`, `SDA/SCL`, `PLL_LF`,
+`DSP_NRST`, `EE_WP`, sowie ~3 GND / 5×3V3-Reste. Diese Push-and-Shove-
+Ausbrüche zwischen 0.5-mm-Pins kann ein Raster-Router nicht sauber ziehen;
+dazu kommen 16 reale Clearance-Engstellen (<0.127 mm, meist an breiten
+VBAT-Bahnen und ESP-Boot-Pads).
 
-Der Ratsnest ist durch die Netzzuweisung vollständig definiert; das
-Board öffnet sich in KiCad fertig platziert mit allen Luftlinien.
+**So wird es fertig (1–3 h in KiCad 7):** Das Board öffnet fertig platziert
+mit ~91 % gezogener Verdrahtung; nur die genannten ~38 Luftlinien mit dem
+**interaktiven Router** (Push-and-Shove, `R`-Modus) nachziehen und die 16
+Engstellen per Drag entzerren. Platzierung, GND-Plane, Zonen, Netzklassen
+und Regeln stehen bereits. Danach `./export_fab.sh` neu laufen lassen.
 
-**DRC-Restpunkte der Platzierung:** einige Courtyard-Mikroüberlappungen
-(Auto-Platzierung, beim Routen mit ausräumbar). `copper_edge_clearance` an
-USB-C/XT30/ESP-Antenne ist beabsichtigter Randüberhang. `lib_footprint_issues`
-= Bibliotheksvergleich, irrelevant. Thermal-Vias unter beiden TPA3118 sind
-im Footprint vorhanden (beim Routen B.Cu-Kupfer darunter anbinden).
+> ⚠️ In diesem Zustand ist das Main-Board **noch nicht bestellbar** (DRC
+> meldet die offenen Netze + 16 Clearance-Punkte). Das **Button-Board ist
+> fertig und kann sofort bestellt werden.** Nach dem Nachziehen der ~38
+> Netze ist auch das Main-Board fertigungsreif.
+
+**Reproduzieren des Routing-Laufs:**
+```bash
+cd pcb && (cd main-board && python3 generate.py)
+RGRID=0.125 TIGHT=1 VIA=small NLAYERS=3 CLEAR=0.15 SEED=3 STITCH=10 \
+  GNDANCHOR=0 python3 autoroute.py main-board/main-board.kicad_pcb --keepout 64,76,100,80
+# danach Flaechen-Anbindung nachziehen:
+CONNECT_ONLY=1 RGRID=0.125 TIGHT=1 VIA=small NLAYERS=3 STITCH=7 \
+  python3 autoroute.py main-board/main-board.kicad_pcb --keepout 64,76,100,80
+```
 
 ## Dateien
 

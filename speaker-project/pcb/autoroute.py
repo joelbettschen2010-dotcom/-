@@ -86,7 +86,7 @@ def track_width(net):
     if n.startswith(("VBAT",)):
         return 1.2 if _TIGHT else 2.0
     if n.startswith(("FR_", "SUB_", "U6_OUT", "U7_OUT", "SUB_OUT")):
-        return 0.6 if _TIGHT else 1.0
+        return 0.4 if _TIGHT else 1.0
     if n in ("5V", "3V3", "3V3A", "3V3_BT", "SW5V", "PWR_CTL", "DVDD_1V8",
              "GVDD1", "GVDD2", "VBUS", "LED_VDD"):
         return 0.3 if _TIGHT else 0.5
