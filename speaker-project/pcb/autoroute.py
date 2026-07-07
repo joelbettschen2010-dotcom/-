@@ -800,6 +800,14 @@ class Router:
     def save(self):
         pcbnew.SaveBoard(self.path, self.board)
         board2 = pcbnew.LoadBoard(self.path)
+        # Netzklassen-Clearance geht beim projektlosen LoadBoard auf 0.2mm
+        # zurueck -> hier robust wieder auf 0.127 (JLCPCB-5mil) setzen, sonst
+        # meldet die DRC alle 0.15mm-Abstaende als Verstoss.
+        try:
+            board2.GetDesignSettings().m_NetSettings.m_DefaultNetClass \
+                .SetClearance(pcbnew.FromMM(0.127))
+        except Exception:
+            pass
         filler = pcbnew.ZONE_FILLER(board2)
         filler.Fill(board2.Zones())
         pcbnew.SaveBoard(self.path, board2)
