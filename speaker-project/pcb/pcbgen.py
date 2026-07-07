@@ -61,13 +61,13 @@ class BoardBuilder:
         # arbeitet normal mit 0.15 Clearance; die Notfallstufe fuer die
         # letzten Engstellen darf bis 0.127 runter — die Design-Regeln
         # spiegeln das Fertigungslimit.
-        ds.m_TrackMinWidth = mm(0.2)
+        ds.m_TrackMinWidth = mm(0.13)    # erlaubt 0.15mm-Fine-Pitch-Bahnen
         ds.m_MinClearance = mm(0.127)
         try:
             ds.m_NetSettings.m_DefaultNetClass.SetClearance(mm(0.127))
         except AttributeError:
             pass
-        ds.m_ViasMinSize = mm(0.5)
+        ds.m_ViasMinSize = mm(0.45)      # JLCPCB-4-Lagen-Minimum-Via
         ds.m_MinThroughDrill = mm(0.2)   # Thermal-Vias in TI/Espressif-Footprints
         self.obstacles = []              # (x0,y0,x1,y1) belegter Flaechen
 
@@ -174,6 +174,14 @@ class BoardBuilder:
         path = self.board.GetFileName()
         pcbnew.SaveBoard(path, self.board)
         board2 = pcbnew.LoadBoard(path)
+        # Default-Netzklassen-Clearance robust auf 0.127 mm setzen (auf dem
+        # frischen CreateEmptyBoard persistiert SetClearance nicht zuverlaessig
+        # -> hier auf dem neu geladenen Board, das wirklich gespeichert wird).
+        try:
+            board2.GetDesignSettings().m_NetSettings.m_DefaultNetClass \
+                .SetClearance(mm(0.127))
+        except Exception:
+            pass
         filler = pcbnew.ZONE_FILLER(board2)
         filler.Fill(board2.Zones())
         pcbnew.SaveBoard(path, board2)
