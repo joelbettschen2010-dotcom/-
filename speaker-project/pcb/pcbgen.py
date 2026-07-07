@@ -149,11 +149,13 @@ class BoardBuilder:
             chain.Append(p.x, p.y)
         chain.SetClosed(True)
         z.Outline().AddOutline(chain)
-        z.SetLocalClearance(mm(0.3))
-        z.SetMinThickness(mm(0.25))
-        z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
-        z.SetThermalReliefGap(mm(0.4))
-        z.SetThermalReliefSpokeWidth(mm(0.5))
+        z.SetLocalClearance(mm(0.2))
+        z.SetMinThickness(mm(0.2))
+        # SOLID-Anbindung fuer Massen-/Versorgungsflaechen: bei reflow-
+        # bestueckten Boards ist Thermal-Relief unnoetig und erzeugt bei
+        # dichter Verdrahtung "starved thermal"-Fehler. Voll angebunden ->
+        # jeder GND/PVDD-Pad haengt sauber an der Flaeche.
+        z.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
         z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
         self.board.Add(z)
         return z
