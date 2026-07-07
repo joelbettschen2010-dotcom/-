@@ -66,7 +66,11 @@ THIN_COMP = GRID / GRID   # = 1.0 Zelle (0.25mm)
 _ORTHO = ((1, 0), (-1, 0), (0, 1), (0, -1))
 _DIAG = ((1, 1), (1, -1), (-1, 1), (-1, -1))
 DIRECTIONS = _ORTHO + _DIAG if os.environ.get("DIAG", "1") == "1" else _ORTHO
-POWER_PLANE_NETS = {}   # Netzname -> Plane-Lage (leer = keine Power-Plane)
+# Netzname -> Plane-Lage: jedes Pad dieses Netzes bekommt eine clearance-
+# gepruefte Durchkontaktierung zur Zone/Plane. MAINPLANES=1 -> PVDD auf B.Cu
+# (verbindet die 30 PVDD-SMD-Pads mit dem B.Cu-PVDD-Polygon).
+POWER_PLANE_NETS = ({"PVDD": pcbnew.B_Cu}
+                    if os.environ.get("MAINPLANES") == "1" else {})
 
 # Netzklassen -> Bahnbreite [mm]. TIGHT=1 (feines Raster + kleine Vias):
 # schmalere Signalbahnen fuer die Fine-Pitch-Ausbrueche (QFP/QFN); JLCPCB
