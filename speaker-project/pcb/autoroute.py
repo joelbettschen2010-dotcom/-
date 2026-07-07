@@ -41,8 +41,15 @@ def _layer_ids(n):
 # Design-Regel-Clearance; per ENV CLEAR uebersteuerbar (Main-Board: 0.15 —
 # JLCPCB-faehig und noetig, damit die 1.1-mm-Packluecken passierbar sind)
 CLEARANCE = float(os.environ.get("CLEAR", "0.20"))
-VIA_D, VIA_DRILL = 0.7, 0.4
+# Via-Groesse per ENV: VIA=small -> 0.45/0.2mm (JLCPCB-4-Lagen-Minimum,
+# passt in 0.5mm-Pitch-Fanout von QFP/QFN); Default 0.7/0.4 fuer 2-Lagen.
+if os.environ.get("VIA", "std") == "small":
+    VIA_D, VIA_DRILL = 0.45, 0.2
+else:
+    VIA_D, VIA_DRILL = 0.7, 0.4
 VIA_COST = int(os.environ.get("VIACOST", "40"))  # Rasterschritte Strafkosten pro Via
+# A*-Suchbudget skaliert mit der Rasterfeinheit (feiner = mehr Zellen pro Weg)
+EXPAND_SCALE = (0.25 / GRID) ** 2
 WRONG_DIR_COST = 1.6 # Kostenfaktor gegen die Vorzugsrichtung
 # Netze, die von Zonen/Planes getragen werden (nicht als Bahnen geroutet).
 # PVDD (30 Pads) liegt als Zone auf B.Cu. Optional kann 3V3 ueber
@@ -61,17 +68,20 @@ _DIAG = ((1, 1), (1, -1), (-1, 1), (-1, -1))
 DIRECTIONS = _ORTHO + _DIAG if os.environ.get("DIAG", "1") == "1" else _ORTHO
 POWER_PLANE_NETS = {}   # Netzname -> Plane-Lage (leer = keine Power-Plane)
 
-# Netzklassen -> Bahnbreite [mm]
+# Netzklassen -> Bahnbreite [mm]. TIGHT=1 (feines Raster + kleine Vias):
+# schmalere Signalbahnen fuer die Fine-Pitch-Ausbrueche (QFP/QFN); JLCPCB
+# 4-Lagen koennen 0.09mm, 0.15mm ist sicher. Strom-Netze bleiben breit genug.
+_TIGHT = os.environ.get("TIGHT", "0") == "1"
 def track_width(net):
     n = net.upper()
     if n.startswith(("VBAT",)):
-        return 2.0
+        return 1.2 if _TIGHT else 2.0
     if n.startswith(("FR_", "SUB_", "U6_OUT", "U7_OUT", "SUB_OUT")):
-        return 1.0
+        return 0.6 if _TIGHT else 1.0
     if n in ("5V", "3V3", "3V3A", "3V3_BT", "SW5V", "PWR_CTL", "DVDD_1V8",
              "GVDD1", "GVDD2", "VBUS", "LED_VDD"):
-        return 0.5
-    return 0.3
+        return 0.3 if _TIGHT else 0.5
+    return 0.15 if _TIGHT else 0.3
 
 
 def mm2g(v):
@@ -215,13 +225,15 @@ class Router:
             out[L] = ~binary_dilation(obst, structure=disk)
         return out
 
-    def route_edge(self, netcode, netname, a, b, width, max_expand=80000,
+    def route_edge(self, netcode, netname, a, b, width, max_expand=None,
                    via_cost=VIA_COST, extra_goals=None, clearance=None):
         """A* von Pad a nach Pad b. a/b = (x_mm, y_mm, layerset).
         extra_goals: Menge {(L,gx,gy)} bereits verlegten EIGENEN Kupfers —
         die Suche darf dort enden (Anschluss an den bestehenden Netzbaum).
         clearance: Override (Notfallstufe 0.127 = JLCPCB-Minimum 5 mil)."""
         cl = CLEARANCE if clearance is None else clearance
+        if max_expand is None:
+            max_expand = int(80000 * EXPAND_SCALE)
         # Dilatationsradius = eigene Halbbreite + Clearance + Kompensation fuer
         # duenne Fremdbahnen, die nur auf der Mittellinie markiert sind
         # (THIN_COMP). Garantiert Kantenabstand >= Clearance ohne den alten
@@ -559,16 +571,16 @@ class Router:
             path = attempt(used_w)
         if path is None:
             used_w = w
-            path = attempt(w, via_cost=15, max_expand=300000)
+            path = attempt(w, via_cost=15, max_expand=int(300000*EXPAND_SCALE))
         if path is None:
             # Eskalation 3: voller Suchraum, Vias fast gratis
             used_w = max(w * 0.6, 0.3) if w > 0.3 else w
-            path = attempt(used_w, via_cost=6, max_expand=1200000)
+            path = attempt(used_w, via_cost=6, max_expand=int(1200000*EXPAND_SCALE))
         if path is None:
             # Notfallstufe: JLCPCB-Minimum 5 mil (0.127mm Clearance,
             # 0.25mm-Bahn) — nur fuer die letzten hartnaeckigen Kanten
             used_w = min(w, 0.25)
-            path = attempt(used_w, via_cost=6, max_expand=1500000,
+            path = attempt(used_w, via_cost=6, max_expand=int(1500000*EXPAND_SCALE),
                            clearance=0.127)
         if path is None:
             if not quiet:
