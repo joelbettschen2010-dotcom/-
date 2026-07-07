@@ -797,6 +797,36 @@ class Router:
                         self.commit(code, path, 0.4)
                         break
 
+    def mark_existing(self):
+        """Bereits verlegte Bahnen/Vias (aus einem frueheren Lauf) ins
+        Belegungsraster eintragen, damit CONNECT_ONLY clearance-korrekt
+        weitere Vias setzen kann."""
+        for t in self.board.GetTracks():
+            code = t.GetNetCode()
+            if code <= 0:
+                continue
+            if isinstance(t, pcbnew.PCB_VIA):
+                x, y = t.GetPosition().x/1e6, t.GetPosition().y/1e6
+                gx, gy = self.mm2grid(x, y)
+                hv = int(t.GetWidth()/2/1e6/GRID + 1e-9) + 1
+                for L in range(self.nL):
+                    self.occ[L][max(gx-hv,0):gx+hv+1,
+                                max(gy-hv,0):gy+hv+1] = code
+            else:
+                L = self.lid2idx.get(t.GetLayer())
+                if L is None:
+                    continue
+                x0, y0 = t.GetStart().x/1e6, t.GetStart().y/1e6
+                x1, y1 = t.GetEnd().x/1e6, t.GetEnd().y/1e6
+                g0 = self.mm2grid(x0, y0); g1 = self.mm2grid(x1, y1)
+                n = max(abs(g1[0]-g0[0]), abs(g1[1]-g0[1]), 1)
+                hw = int(t.GetWidth()/2/1e6/GRID + 1e-9)
+                for k in range(n+1):
+                    cx = g0[0] + (g1[0]-g0[0])*k//n
+                    cy = g0[1] + (g1[1]-g0[1])*k//n
+                    self.occ[L][max(cx-hw,0):cx+hw+1,
+                                max(cy-hw,0):cy+hw+1] = code
+
     def save(self):
         pcbnew.SaveBoard(self.path, self.board)
         board2 = pcbnew.LoadBoard(self.path)
@@ -820,7 +850,12 @@ if __name__ == "__main__":
         vals = sys.argv[sys.argv.index("--keepout") + 1]
         keepouts.append(tuple(float(v) for v in vals.split(",")))
     r = Router(board_path, keepouts)
-    r.run()
+    if os.environ.get("CONNECT_ONLY") == "1":
+        # Vorhandene Verdrahtung ins Raster uebernehmen und NUR die
+        # Flaechen-Anbindung (GND-Via-in-Pad, PVDD-Plane-Vias) verbessern.
+        r.mark_existing()
+    else:
+        r.run()
     r.add_power_plane_vias()
     r.add_gnd_stitching(float(os.environ.get("STITCH", "12")))
     r.save()
