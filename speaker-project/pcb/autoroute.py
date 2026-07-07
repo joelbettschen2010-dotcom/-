@@ -55,11 +55,11 @@ WRONG_DIR_COST = 1.6 # Kostenfaktor gegen die Vorzugsrichtung
 # PVDD (30 Pads) liegt als Zone auf B.Cu. Optional kann 3V3 ueber
 # NLAYERS-Stackup + POWER_PLANE_NETS ebenfalls auf eine Plane; Messungen
 # zeigen aber: eine 3. SIGNAL-Lage (F/In2/B) schlaegt eine 3V3-Plane.
-# Nur GND (In1-Plane, via-in-pad) und AGND (Analog-Insel) werden rein von
-# Flaechen getragen. PVDD wird als Bahn GEROUTET (ROUTEPVDD, Default an) —
-# so werden auch die Entkoppel-Kondensatoren erreicht, die der Packer weit
-# weg von den Amps abgelegt hat; die B.Cu-PVDD-Zone bleibt als Zusatzkupfer.
-ZONE_NETS = ({"GND", "AGND"} if os.environ.get("ROUTEPVDD", "1") == "1"
+# Nur GND wird rein von der Flaeche getragen (In1-Plane + Via-in-Pad an jedem
+# GND-Pad). PVDD und AGND werden als Bahnen GEROUTET (ROUTEPLANES, Default an)
+# — so werden auch die vom Packer verstreuten Entkoppel-Cs sicher erreicht;
+# die PVDD-B.Cu-Zone und die AGND-Insel bleiben als Zusatzkupfer.
+ZONE_NETS = ({"GND"} if os.environ.get("ROUTEPLANES", "1") == "1"
              else {"GND", "AGND", "PVDD"})
 # Kompensation (in Zellen) fuer Bahnen, deren Kupfer beim Committen nur nahe
 # der Mittellinie im Raster landet: jede Bahn mit Halbbreite < ~1 Zelle
@@ -741,6 +741,10 @@ class Router:
                     continue
                 px, py = p.GetPosition().x / 1e6, p.GetPosition().y / 1e6
                 placed = False
+                # engeres Clearance-Fenster als das Grid-Stitching (nur die
+                # echte Via-Clearance), damit Vias auch zwischen Fine-Pitch-
+                # Pins Platz finden:
+                hp = mm2g(VIA_D / 2 + CLEARANCE + 0.03)
                 # r=0 = Via-in-Pad: verbindet den GND-SMD-Pad DIREKT mit der
                 # durchgehenden In1-GND-Plane (garantiert, unabhaengig davon,
                 # ob die F/B-Fuellung durch Bahnen fragmentiert wurde). r>0 als
@@ -755,7 +759,7 @@ class Router:
                         gx, gy = mm2g(x), mm2g(y)
                         if not (0 < gx < self.nx and 0 < gy < self.ny):
                             continue
-                        if any(self._blocked(L, gx, gy, gnd.GetNetCode(), h)
+                        if any(self._blocked(L, gx, gy, gnd.GetNetCode(), hp)
                                for L in range(self.nL)):
                             continue
                         v = pcbnew.PCB_VIA(self.board)
