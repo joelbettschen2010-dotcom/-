@@ -108,16 +108,14 @@ def main():
     ap('  (structure')
     for name, _lid in lmap:
         idx = SIGNAL_LAYERS.index(name) if name in SIGNAL_LAYERS else 0
-        # In1.Cu ist die GND-Plane -> als power deklarieren (Freerouting
-        # routet dort keine Signale, verbindet nur GND-Pads per Via).
-        typ = "power" if name == "In1.Cu" else "signal"
-        ap(f'    (layer {name} (type {typ}) (property (index {idx})))')
+        # Alle 4 Lagen als Signal (GND wird als Bahn mitgeroutet — erreichte
+        # 15 offen vs. 87 mit Plane; die GND-Fuellung in KiCad umfliesst die
+        # Bahnen danach).
+        ap(f'    (layer {name} (type signal) (property (index {idx})))')
     # Umriss als geschlossener Pfad (Freerouting mag (path pcb 0 ...))
     ap(f'    (boundary (path pcb 0 {boundary}))')
-    # Durchgehende GND-Plane auf In1.Cu (deckt das ganze Board ab)
-    ap(f'    (plane GND (rect In1.Cu {x0} {min(y0,y1)} {x1} {max(y0,y1)}))')
     ap('    (via via_default)')
-    ap('    (rule (width 150) (clearance 150))')
+    ap('    (rule (width 150) (clearance 130))')
     ap('  )')
 
     ap('  (placement')
@@ -156,7 +154,7 @@ def main():
     for n in routed_nets:
         ap(f'      "{n}"')
     ap('      (circuit (use_via via_default))')
-    ap('      (rule (width 150) (clearance 150))')
+    ap('      (rule (width 150) (clearance 130))')
     ap('    )')
     ap('  )')
     ap('  (wiring')
