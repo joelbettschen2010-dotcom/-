@@ -40,62 +40,53 @@ Vollständig vom eigenen Grid-Router (`autoroute.py`) verdrahtet:
 (nur kosmetische Silk-Hinweise). Gerber liegt in `button-board/fab/` —
 dieses Board kann **direkt bestellt** werden.
 
-### Main-Board — 4-Lagen, ~91% verdrahtet (Rest fine-pitch, s. u.)
-Das Main-Board ist **absichtlich als 4-Lagen-Design** ausgelegt:
-
-| Lage | Funktion |
-|---|---|
-| F.Cu | Signal (horizontal bevorzugt) + GND-Füllung |
-| In1.Cu | **durchgehende GND-Plane** (Rückstrompfad, EMV) |
-| In2.Cu | Signal (horizontal) + GND-Füllung |
-| B.Cu | Signal (vertikal) + GND-Füllung, PVDD-Zone unter den Amps |
+### Main-Board — 4-Lagen, ~97 % via Freerouting verdrahtet
+Das Main-Board ist ein **4-Lagen-Design** (F.Cu / In1.Cu / In2.Cu / B.Cu).
 
 **Warum 4 Lagen:** Die Bauteildichte (ADAU1701 LQFP-48 mit 0.5 mm Pitch,
 ESP32-S3-Modul, 2× TPA3118 HTSSOP, alle Stecker auf 100×80 mm) ist auf
-2 Lagen **nachweislich nicht** vollständig routbar — zwei unabhängige
-Verfahren (Greedy-Multiseed und PathFinder-Verhandlung) blieben bei ~71
-offenen Verbindungen stehen. 4 Lagen mit durchgehender Masse­fläche sind
-für ein Mixed-Signal-Board dieser Klasse ohnehin die fachlich richtige
-Wahl (sauberer Bass, weniger EMV).
+2 Lagen **nachweislich nicht** vollständig routbar (getestet: blieb bei
+~71 offenen Verbindungen stehen).
 
-**Fertig verdrahtet (~91 %):** Der mitgelieferte eigene Grid-Router
-(`autoroute.py`, 0.125-mm-Raster, 0.15-mm-Bahnen, 0.45-mm-Vias) hat das
-Board mit **~3080 Bahnsegmenten/Vias** verdrahtet:
+**Verdrahtet mit Freerouting.** KiCads `ExportSpecctraDSN`/`ImportSpecctraSES`
+funktionieren im headless Build nicht — daher ein eigener DSN-Exporter
+(`dsn_export.py`) und SES-Importer (`ses_import.py`), die das Board an die
+**Freerouting-Engine** (lokaler Docker-Container, echtes Push-and-Shove)
+übergeben und das Ergebnis zurückholen. Kette in `route_freerouting.sh`.
 
-* GND als durchgehende In1-Plane, jeder GND-Pad per Via-in-Pad angebunden
-* PVDD, 5V, 3V3, AGND und alle Signalnetze als Bahnen geroutet
-* SOLID-Zonenanbindung → **0 starved-thermal, 0 isolierte Kupferinseln**
-* Netzklasse 0.127 mm (JLCPCB-4-Lagen-5-mil)
+Freerouting hat **522 Verbindungen bis auf die USB-C-Gruppe geroutet**
+(~2680 Bahnsegmente/Vias, **0 Kurzschlüsse, 0 isolierte Inseln, 0
+starved-thermal**). Zonen (GND/AGND/PVDD) werden nach dem Import gefüllt und
+umfliessen die Bahnen; Netzklasse 0.127 mm (JLCPCB-4-Lagen-5-mil).
 
-**Was offen ist (~38 Verbindungen + 16 enge Stellen):** Es bleiben die
-**Fine-Pitch-Ausbrüche** am ADAU1701 (LQFP-48, 0.5 mm Pitch) und an den
-TPA3118 (HTSSOP) offen — konkret v. a. `U6_OUT*` (Amp-Ausgänge),
-`USB_D±`, `MCLKI/OSCO`, `ADC0/1_IN`, `DAC_L/R/SUB`, `SDA/SCL`, `PLL_LF`,
-`DSP_NRST`, `EE_WP`, sowie ~3 GND / 5×3V3-Reste. Diese Push-and-Shove-
-Ausbrüche zwischen 0.5-mm-Pins kann ein Raster-Router nicht sauber ziehen;
-dazu kommen 16 reale Clearance-Engstellen (<0.127 mm, meist an breiten
-VBAT-Bahnen und ESP-Boot-Pads).
+**Was offen bleibt (10 Pad-Enden):** die 5 USB-C-Netze `VBUS`, `USB_DN`,
+`USB_DP`, `CC1`, `CC2` am Steckverbinder J11 (Platinenrand, Fine-Pitch) +
+2 einzelne GND-Pads in der DSP-Ecke (je ein Via genügt). Dazu 7 kleine
+Clearance-Engstellen (USB-C-Fanout, ein 3V3-Segment auf In1).
+Der ESP32-S3 lässt sich meanwhile über den **UART-Debug-Header J12**
+programmieren (geroutet) — die USB-Buchse ist für Betrieb/Update, nicht
+zwingend fürs erste Flashen.
 
-**So wird es fertig (1–3 h in KiCad 7):** Das Board öffnet fertig platziert
-mit ~91 % gezogener Verdrahtung; nur die genannten ~38 Luftlinien mit dem
-**interaktiven Router** (Push-and-Shove, `R`-Modus) nachziehen und die 16
-Engstellen per Drag entzerren. Platzierung, GND-Plane, Zonen, Netzklassen
-und Regeln stehen bereits. Danach `./export_fab.sh` neu laufen lassen.
+**So wird es fertig (~20 min in KiCad 7):** Board öffnet fertig verdrahtet;
+nur die 5 USB-C-Luftlinien mit dem interaktiven Router (`R`) nachziehen und
+die paar Engstellen per Drag entzerren, dann `./export_fab.sh`.
 
-> ⚠️ In diesem Zustand ist das Main-Board **noch nicht bestellbar** (DRC
-> meldet die offenen Netze + 16 Clearance-Punkte). Das **Button-Board ist
-> fertig und kann sofort bestellt werden.** Nach dem Nachziehen der ~38
+> ⚠️ In diesem Zustand ist das Main-Board **fast fertig, aber noch nicht
+> bestellbar** (DRC meldet die 5 USB-C-Netze + wenige Clearance-Punkte). Das
+> **Button-Board ist fertig und sofort bestellbar.** Nach dem Nachziehen der USB-C-Netze
 > Netze ist auch das Main-Board fertigungsreif.
 
-**Reproduzieren des Routing-Laufs:**
+**Reproduzieren des Routing-Laufs (Freerouting, empfohlen):**
 ```bash
-cd pcb && (cd main-board && python3 generate.py)
-RGRID=0.125 TIGHT=1 VIA=small NLAYERS=3 CLEAR=0.15 SEED=3 STITCH=10 \
-  GNDANCHOR=0 python3 autoroute.py main-board/main-board.kicad_pcb --keepout 64,76,100,80
-# danach Flaechen-Anbindung nachziehen:
-CONNECT_ONLY=1 RGRID=0.125 TIGHT=1 VIA=small NLAYERS=3 STITCH=7 \
-  python3 autoroute.py main-board/main-board.kicad_pcb --keepout 64,76,100,80
+cd pcb && ./route_freerouting.sh 24      # platzieren -> DSN -> Freerouting -> Board
+# Voraussetzung: laufender Docker-Daemon + Image
+#   ghcr.io/freerouting/freerouting:latest
 ```
+
+Der mitgelieferte eigene Grid-Router (`autoroute.py`) verdrahtet ebenfalls
+~91 % (siehe Git-Historie), erreicht aber die Fine-Pitch-Ausbrüche nicht so
+gut wie Freerouting; er bleibt als eigenständiges Werkzeug erhalten und
+routet das Button-Board zu 100 %.
 
 ## Dateien
 

@@ -11,7 +11,7 @@ geschlossenen Kammern.
 |---|---|---|
 | `acoustics/` | T/S-Simulation, Volumen-Sweep, Crossover-Optimierung + Plots | ✅ läuft, Plots generiert |
 | `dsp/` | ADAU1701-Programmgenerator, Parameter-XML, 3 Presets, Doku | ✅ generiert |
-| `pcb/main-board/` | Haupt-PCB 100×80, **4-Lagen** (Amps, DSP, ESP32, Power) | ✅ 4-Lagen, GND-Plane, ~91% verdrahtet (~3080 Bahnen/Vias); ~38 Fine-Pitch-Netze in KiCad nachziehen (s. `pcb/README.md`) |
+| `pcb/main-board/` | Haupt-PCB 100×80, **4-Lagen** (Amps, DSP, ESP32, Power) | ✅ 4-Lagen, ~97% via **Freerouting** verdrahtet (~2715 Bahnen/Vias, 0 Shorts); nur 5 USB-C-Netze + 2 GND-Pads offen (s. `pcb/README.md`) |
 | `pcb/button-board/` | Bedien-PCB 60×20 (Taster, RGB-LED, OLED) | ✅ **vollständig geroutet, DRC-sauber, bestellbar** |
 | `firmware/` | ESP32-S3 PlatformIO | ✅ kompiliert (`pio run` SUCCESS) |
 | `webapp/` | Next.js-14-PWA (Dashboard, EQ, Settings, Info) | ✅ baut (`npm run build`), läuft vom ESP32 |
