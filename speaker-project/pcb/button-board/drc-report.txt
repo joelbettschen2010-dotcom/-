@@ -1,0 +1,102 @@
+** Drc report for button-board/button-board.kicad_pcb **
+** Created on 2026-07-06 06:13:57 **
+
+** Found 28 DRC violations **
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(38.4900 mm, 15.3500 mm): Line on F.Silkscreen
+    @(38.9300 mm, 17.5000 mm): Reference 'J2'
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(47.0000 mm, 17.2700 mm): Reference 'R6'
+    @(47.3500 mm, 16.7500 mm): Line on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(51.0000 mm, 16.9200 mm): Reference 'C1'
+    @(47.3500 mm, 16.7500 mm): Line on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(46.7100 mm, 12.7406 mm): Line on F.Silkscreen
+    @(46.8500 mm, 12.4000 mm): Footprint Text '1' of LED1
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(38.9300 mm, 17.5000 mm): Reference 'J2'
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(51.0000 mm, 10.5000 mm): Reference 'LED1'
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(46.8500 mm, 12.4000 mm): Footprint Text '1' of LED1
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(17.0000 mm, 13.6000 mm): Reference 'J1'
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(51.0000 mm, 18.6000 mm): Footprint C1
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(34.2500 mm, 12.7000 mm): Footprint R4
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(42.0000 mm, 17.0000 mm): Footprint D1
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(43.2500 mm, 12.7000 mm): Footprint R5
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(32.0000 mm, 9.5000 mm): Footprint SW4
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(5.0000 mm, 9.5000 mm): Footprint SW1
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(41.0000 mm, 9.5000 mm): Footprint SW5
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(3.0000 mm, 17.5000 mm): Footprint H
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(14.0000 mm, 9.5000 mm): Footprint SW2
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(7.2500 mm, 12.7000 mm): Footprint R1
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(58.2000 mm, 15.0000 mm): Footprint H
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(23.0000 mm, 9.5000 mm): Footprint SW3
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(47.0000 mm, 18.7000 mm): Footprint R6
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(16.2500 mm, 12.7000 mm): Footprint R2
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(36.6000 mm, 17.5000 mm): Footprint J2
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(46.2000 mm, 12.6000 mm): Footprint C2
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(25.2500 mm, 12.7000 mm): Footprint R3
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(51.0000 mm, 14.0000 mm): Footprint LED1
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(10.0000 mm, 16.5000 mm): Footprint J1
+[lib_footprint_issues]: The current configuration does not include the library ''.
+    Local override; Severity: warning
+    @(50.0000 mm, 9.5000 mm): Footprint SW6
+
+** Found 1 unconnected pads **
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(18.0000 mm, 16.5000 mm): PTH pad 5 [SCL] of J1
+    @(31.5200 mm, 17.5000 mm): PTH pad 3 [SCL] of J2
+
+** Found 0 Footprint errors **
+
+** End of Report **

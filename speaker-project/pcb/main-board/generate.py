@@ -1,0 +1,190 @@
+"""
+Main-Board generieren: Schaltplan (.kicad_sch) + Layout (.kicad_pcb).
+
+Platzierungskonzept (100 x 80 mm, EMV-orientiert):
+
+   0                                  100 (mm)
+   +--------------------------------------+ 0
+   | J7 J8 J9 (Speaker)   J1 XT30  J2/J3  |      <- Leistungsseite oben
+   |  [Filter L2-L7]   [Q1 Q2 F1]  Bulk   |
+   |  U6 TPA (FR)  U7 TPA (Sub)  [Buck 5V]|
+   |--------------------------------------| 40
+   |  U3 ADAU1701 + Analog   U8 ESP32-S3  |
+   |  [AGND-Insel]           (Antenne  -> |      <- Antenne ueber Platinenrand
+   | J6 Aux   J13 BT   J5 ICP  J14 J11 USB|
+   +--------------------------------------+ 80
+   Lautsprecher-Ausgaenge (oben links) sind maximal vom Analog-Eingang
+   (unten links) getrennt; Star-Ground-Netztie NT1 sitzt am AGND-Rand.
+"""
+
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, ".."))
+sys.path.insert(0, HERE)
+
+import design  # noqa: E402
+from schgen import write_schematic  # noqa: E402
+
+BOARD_W, BOARD_H = 100, 80
+
+
+def gen_schematic():
+    write_schematic(os.path.join(HERE, "main-board.kicad_sch"),
+                    "SpeakerBox Pro - Main Board", design.COMPS, design.GROUPS,
+                    page="A1")
+    print("Schaltplan geschrieben: main-board.kicad_sch")
+
+
+def gen_pcb():
+    import pcbnew
+    from pcbgen import BoardBuilder, shelf_pack
+
+    # 4-Lagen-Aufbau: F.Cu / In1.Cu(GND-Plane) / In2.Cu / B.Cu.
+    # Die dichte Bestueckung (LQFP-48-DSP, ESP32-Modul, 2x HTSSOP-Amp, alle
+    # Stecker auf 100x80) ist auf 2 Lagen NICHT vollstaendig routbar (2
+    # unabhaengige Router konvergieren bei ~71 offenen Kanten; auch eine
+    # 3V3-Plane statt 3. Signallage half nicht -> 57). In1 ist eine
+    # durchgehende Masseflaeche (Rueckstrompfad + Schirmung); geroutet wird
+    # auf F/In2/B = 3 Signallagen (NLAYERS=3).
+    b = BoardBuilder(os.path.join(HERE, "main-board.kicad_pcb"),
+                     BOARD_W, BOARD_H, copper_layers=4)
+    by = {c.ref: c for c in design.COMPS}
+
+    # ---- Fixe Platzierung der Schluesselbauteile -------------------------
+    fixed = {
+        # Lautsprecher-Klemmen Oberkante links (max. Abstand zum Analog-In)
+        "J7": (8, 4, 0), "J8": (22, 4, 0), "J9": (36, 4, 0),
+        # Akku-Eingang + Balancer oben rechts (XH-Stecker 15.9mm breit!)
+        "J1": (58, 5, 0), "J2": (70, 6, 0), "J3": (86.5, 6, 0),
+        # Ausgangsfilter FR (13.7mm-Courtyards -> 14mm-Raster)
+        "L2": (7, 17, 0), "L3": (21, 17, 0), "L4": (35, 17, 0), "L5": (49, 17, 0),
+        # Sub-Filter zweite Reihe
+        "L6": (7, 32, 0), "L7": (21, 32, 0),
+        # Endstufen
+        "U6": (33, 33, 0), "U7": (46, 33, 0),
+        # Eingangsschutz + Softswitch-Reihe
+        "F1": (64, 14, 0), "Q1": (72, 14, 0), "Q2": (80, 14, 0), "D1": (88, 14, 0),
+        "J4": (97, 14, 0),
+        # Bulk-Elkos an PVDD
+        "C80": (64, 27, 0), "C81": (78.5, 27, 0), "C82": (64, 38, 0),
+        # Buck + LDO rechte Spalte (gestaffelt)
+        "U1": (92, 35.5, 0), "D8": (84, 37, 0), "L1": (92, 43, 0),
+        "U2": (85, 50, 0), "U9": (90, 56, 0), "C5": (94.8, 30.5, 0),
+        # DSP-Sektion unten links (AGND-Insel)
+        "U3": (28, 55, 0), "Y1": (26, 66, 0), "C17": (16, 45, 0),
+        "R22": (58.3, 67, 90), "R21": (91, 21, 0),
+        "R14": (41, 76, 0), "R62": (45, 76, 0), "R20": (49, 76, 0), "C31": (53, 76, 0),
+        "R63": (57, 76, 0), "C30": (91, 24, 0), "R19": (87, 21, 0),
+        "R13": (73, 34.5, 0), "C12": (77, 34.5, 0), "C11": (94.5, 22.5, 0), "R12": (91, 27.4, 0), "C10": (69, 34.8, 0), "FB1": (82.6, 44.5, 0),
+        "C3": (74, 38, 0), "C6": (78, 38, 0), "R10": (58.3, 45.6, 0), "R11": (61, 43.5, 0),
+        "C7": (65, 45.2, 0), "C8": (69, 45.2, 0), "C9": (73, 47, 0), "C28": (87.5, 30.5, 0), "C29": (91, 30.5, 0), "C40": (58.3, 70.5, 90), "C43": (58.3, 56.5, 90), "U4": (44, 48, 0), "NT1": (46, 64, 0),
+        # Audio-Eingang + Stecker Unterkante links
+        "J6": (9, 72, 270), "J13": (14, 76.5, 90), "J14": (40, 70, 0), "J5": (30, 62, 0),
+        # ESP32 Ecke unten rechts, Antenne ragt ueber die Unterkante
+        "U8": (84, 72, 180),
+        # USB-C rechte Kante
+        "J11": (97, 52, 90),
+        # Debug/Service
+        "J12": (76.5, 42, 0), "J10": (60, 48, 0), "SW1": (52, 46, 0), "SW2": (52, 53, 0),
+    }
+    placed = set()
+    for ref, (x, y, rot) in fixed.items():
+        b.add_footprint(by[ref], x, y, rot)
+        placed.add(ref)
+
+    # ---- Rest gruppenweise in Regionen packen ---------------------------
+    # ---- Bohrloecher (vor der Packung registrieren!) ----------------------
+    for x, y in [(4, 43), (4, 58), (96.5, 28), (52, 5)]:
+        b.mounting_hole(x, y)
+
+    regions = {
+        "POWER INPUT + SOFT SWITCH": (52, 8, 100, 21),
+        "5V BUCK + 3V3 LDO": (80, 30, 100, 56),
+        "DSP ADAU1701": (6, 40, 56, 52),
+        "AUDIO IN + DAC OUT": (2, 54, 28, 72),
+        "AMP FULLRANGE (U6 Master BTL)": (2, 23.6, 100, 26.8),
+        "AMP SUB (U7 Slave PBTL)": (28, 38.8, 66, 41.8),
+        "ESP32-S3 + USB + DEBUG": (56, 44, 80, 58),
+        "BLUETOOTH + CONNECTORS": (28, 56, 44, 68),
+    }
+    # Amp-Gruppen zuerst packen (deren Baender sind am knappsten)
+    order = ["AMP FULLRANGE (U6 Master BTL)", "AMP SUB (U7 Slave PBTL)",
+             "POWER INPUT + SOFT SWITCH", "5V BUCK + 3V3 LDO", "DSP ADAU1701",
+             "AUDIO IN + DAC OUT", "ESP32-S3 + USB + DEBUG",
+             "BLUETOOTH + CONNECTORS"]
+    groups = dict(design.GROUPS)
+    leftover_all = []
+    for gname in order:
+        comps = [by[r] for r in groups[gname] if r not in placed]
+        if not comps:
+            continue
+        # gap 1.1: bewaehrter Kompromiss — 1.3+ passt nicht mehr aufs Board (getestet): Korridore fuer den Autorouter (Ueberlauf
+        # groessere Gaps lassen 20 Teile ohne Platz
+        leftover = shelf_pack(b, comps, regions[gname], gap=1.1)
+        leftover_all += leftover
+    # Ueberlauf in Reserve-Region
+    if leftover_all:
+        rest = shelf_pack(b, leftover_all, (2, 2, 98, 78))
+        if rest:
+            rest = shelf_pack(b, rest, (52, 58, 59.5, 78))
+        if rest:
+            rest = shelf_pack(b, rest, (18.5, 60, 23.8, 73))
+        if rest:
+            print("NICHT untergebracht:", [c.ref for c in rest])
+
+    # ---- Zonen -----------------------------------------------------------
+    # In1.Cu: durchgehende GND-Plane (Rueckstrompfad, EMV).
+    b.zone("GND", pcbnew.In1_Cu, (0, 0, BOARD_W, BOARD_H), priority=0)
+    # AGND-Insel (Analogbereich unten links) mit hoher Prioritaet
+    b.zone("AGND", pcbnew.F_Cu, (2, 42, 52, 78), priority=3)
+    b.zone("AGND", pcbnew.B_Cu, (2, 42, 52, 78), priority=3)
+    # PVDD-Polygon auf B.Cu unter der Verstaerkersektion (Leistungsverteilung)
+    b.zone("PVDD", pcbnew.B_Cu, (28, 8, 100, 42), priority=2)
+    # GND-Flaechen auf allen drei Signallagen (fuellt zwischen den Bahnen)
+    b.zone("GND", pcbnew.F_Cu, (0, 0, BOARD_W, BOARD_H), priority=0)
+    b.zone("GND", pcbnew.In2_Cu, (0, 0, BOARD_W, BOARD_H), priority=0)
+    b.zone("GND", pcbnew.B_Cu, (0, 0, BOARD_W, BOARD_H), priority=0)
+    # No-Pour ueber dem NT1-Sternmasse-Polygon (netzloses Kupfer): Zonen
+    # muessen 0.2mm Abstand halten; die GND/AGND-Anbindung der NT1-Pads
+    # laeuft ueber geroutete Bahnen, nicht ueber die Fuellung.
+    b.keepout_pour((43.7, 62.7, 48.3, 65.3),
+                   layers=[pcbnew.F_Cu, pcbnew.In1_Cu, pcbnew.In2_Cu,
+                           pcbnew.B_Cu])
+
+    b.save()
+    print("Layout geschrieben: main-board.kicad_pcb")
+
+
+def gen_project():
+    # Netzklasse MUSS in der Projektdatei stehen: beim projektlosen Laden
+    # faellt KiCad sonst auf Default-Regeln (0.2mm Clearance, 0.6er-Vias)
+    # zurueck und die DRC meldet Hunderte Falsch-Fehler gegen unsere
+    # 0.127mm/0.45mm-Auslegung.
+    import json
+    proj = os.path.join(HERE, "main-board.kicad_pro")
+    pro = {
+        "meta": {"filename": "main-board.kicad_pro", "version": 1},
+        "net_settings": {
+            "classes": [{
+                "name": "Default", "clearance": 0.127,
+                "track_width": 0.15, "via_diameter": 0.45, "via_drill": 0.2,
+                "microvia_diameter": 0.3, "microvia_drill": 0.1,
+                "diff_pair_width": 0.15, "diff_pair_gap": 0.127,
+                "diff_pair_via_gap": 0.25,
+                "wire_width": 6, "bus_width": 12, "line_style": 0,
+                "pcb_color": "rgba(0, 0, 0, 0.000)",
+                "schematic_color": "rgba(0, 0, 0, 0.000)"
+            }],
+            "meta": {"version": 3}
+        }
+    }
+    with open(proj, "w") as fh:
+        json.dump(pro, fh, indent=2)
+
+
+if __name__ == "__main__":
+    gen_schematic()
+    gen_pcb()
+    gen_project()
