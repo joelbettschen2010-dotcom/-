@@ -160,6 +160,30 @@ class BoardBuilder:
         self.board.Add(z)
         return z
 
+    def keepout_pour(self, rect, layers=None):
+        """Sperrflaeche NUR gegen Zonen-Fuellung (Bahnen/Vias erlaubt).
+        Verhindert, dass GND/AGND-Pours das netzlose Net-Tie-Polygon
+        beruehren (DRC: zone clearance vs. Polygon)."""
+        z = pcbnew.ZONE(self.board)
+        z.SetIsRuleArea(True)
+        z.SetDoNotAllowCopperPour(True)
+        z.SetDoNotAllowTracks(False)
+        z.SetDoNotAllowVias(False)
+        z.SetDoNotAllowPads(False)
+        z.SetDoNotAllowFootprints(False)
+        x0, y0, x1, y1 = rect
+        chain = pcbnew.SHAPE_LINE_CHAIN()
+        for p in [pt(x0, y0), pt(x1, y0), pt(x1, y1), pt(x0, y1)]:
+            chain.Append(p.x, p.y)
+        chain.SetClosed(True)
+        z.Outline().AddOutline(chain)
+        ls = pcbnew.LSET()
+        for lid in (layers or [pcbnew.F_Cu]):
+            ls.AddLayer(lid)
+        z.SetLayerSet(ls)
+        self.board.Add(z)
+        return z
+
     def track(self, netname, path, width, layer=pcbnew.F_Cu):
         for a, b in zip(path, path[1:]):
             t = pcbnew.PCB_TRACK(self.board)

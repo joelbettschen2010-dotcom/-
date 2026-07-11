@@ -89,7 +89,7 @@ def main():
                 continue
             # path = ['path', LAYER, WIDTH, x1,y1, x2,y2, ...]
             lay = path[1]
-            width = int(round(float(path[2])))
+            width = int(round(float(path[2]) * 1000))   # um -> nm!
             coords = path[3:]
             lid = LAYER.get(lay)
             if lid is None:
@@ -122,10 +122,20 @@ def main():
             board.Add(v)
             nvias += 1
 
-    # Netzklasse + Zonen neu fuellen
+    # Design-Regeln robust setzen: das projektlose Laden/Speichern setzt
+    # BOARD_DESIGN_SETTINGS teilweise auf KiCad-Defaults zurueck (Via-Min
+    # 0.5/0.3 -> 199 Falsch-Fehler gegen unsere 0.45/0.2-Vias).
+    ds = board.GetDesignSettings()
+    ds.m_TrackMinWidth = pcbnew.FromMM(0.13)
+    ds.m_MinClearance = pcbnew.FromMM(0.127)
+    ds.m_ViasMinSize = pcbnew.FromMM(0.45)
+    ds.m_MinThroughDrill = pcbnew.FromMM(0.2)
     try:
-        board.GetDesignSettings().m_NetSettings.m_DefaultNetClass \
-            .SetClearance(pcbnew.FromMM(0.127))
+        dnc = ds.m_NetSettings.m_DefaultNetClass
+        dnc.SetClearance(pcbnew.FromMM(0.127))
+        dnc.SetViaDiameter(pcbnew.FromMM(0.45))
+        dnc.SetViaDrill(pcbnew.FromMM(0.2))
+        dnc.SetTrackWidth(pcbnew.FromMM(0.15))
     except Exception:
         pass
     pcbnew.SaveBoard(out, board)

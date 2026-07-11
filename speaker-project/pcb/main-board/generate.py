@@ -71,14 +71,14 @@ def gen_pcb():
         "C80": (64, 27, 0), "C81": (78.5, 27, 0), "C82": (64, 38, 0),
         # Buck + LDO rechte Spalte (gestaffelt)
         "U1": (92, 35.5, 0), "D8": (84, 37, 0), "L1": (92, 43, 0),
-        "U2": (85, 50, 0), "U9": (90, 56, 0),
+        "U2": (85, 50, 0), "U9": (90, 56, 0), "C5": (94.8, 30.5, 0),
         # DSP-Sektion unten links (AGND-Insel)
         "U3": (28, 55, 0), "Y1": (26, 66, 0), "C17": (16, 45, 0),
         "R22": (58.3, 67, 90), "R21": (91, 21, 0),
         "R14": (41, 76, 0), "R62": (45, 76, 0), "R20": (49, 76, 0), "C31": (53, 76, 0),
         "R63": (57, 76, 0), "C30": (91, 24, 0), "R19": (87, 21, 0),
         "R13": (73, 34.5, 0), "C12": (77, 34.5, 0), "C11": (94.5, 22.5, 0), "R12": (91, 27.4, 0), "C10": (69, 34.8, 0), "FB1": (82.6, 44.5, 0),
-        "C3": (74, 38, 0), "C6": (78, 38, 0), "R10": (57.3, 45.3, 0), "R11": (61, 43.5, 0),
+        "C3": (74, 38, 0), "C6": (78, 38, 0), "R10": (58.3, 45.6, 0), "R11": (61, 43.5, 0),
         "C7": (65, 45.2, 0), "C8": (69, 45.2, 0), "C9": (73, 47, 0), "C28": (87.5, 30.5, 0), "C29": (91, 30.5, 0), "C40": (58.3, 70.5, 90), "C43": (58.3, 56.5, 90), "U4": (44, 48, 0), "NT1": (46, 64, 0),
         # Audio-Eingang + Stecker Unterkante links
         "J6": (9, 72, 270), "J13": (14, 76.5, 90), "J14": (40, 70, 0), "J5": (30, 62, 0),
@@ -146,16 +146,42 @@ def gen_pcb():
     b.zone("GND", pcbnew.F_Cu, (0, 0, BOARD_W, BOARD_H), priority=0)
     b.zone("GND", pcbnew.In2_Cu, (0, 0, BOARD_W, BOARD_H), priority=0)
     b.zone("GND", pcbnew.B_Cu, (0, 0, BOARD_W, BOARD_H), priority=0)
+    # No-Pour ueber dem NT1-Sternmasse-Polygon (netzloses Kupfer): Zonen
+    # muessen 0.2mm Abstand halten; die GND/AGND-Anbindung der NT1-Pads
+    # laeuft ueber geroutete Bahnen, nicht ueber die Fuellung.
+    b.keepout_pour((43.7, 62.7, 48.3, 65.3),
+                   layers=[pcbnew.F_Cu, pcbnew.In1_Cu, pcbnew.In2_Cu,
+                           pcbnew.B_Cu])
 
     b.save()
     print("Layout geschrieben: main-board.kicad_pcb")
 
 
 def gen_project():
+    # Netzklasse MUSS in der Projektdatei stehen: beim projektlosen Laden
+    # faellt KiCad sonst auf Default-Regeln (0.2mm Clearance, 0.6er-Vias)
+    # zurueck und die DRC meldet Hunderte Falsch-Fehler gegen unsere
+    # 0.127mm/0.45mm-Auslegung.
+    import json
     proj = os.path.join(HERE, "main-board.kicad_pro")
-    if not os.path.exists(proj):
-        with open(proj, "w") as fh:
-            fh.write('{"meta":{"filename":"main-board.kicad_pro","version":1}}\n')
+    pro = {
+        "meta": {"filename": "main-board.kicad_pro", "version": 1},
+        "net_settings": {
+            "classes": [{
+                "name": "Default", "clearance": 0.127,
+                "track_width": 0.15, "via_diameter": 0.45, "via_drill": 0.2,
+                "microvia_diameter": 0.3, "microvia_drill": 0.1,
+                "diff_pair_width": 0.15, "diff_pair_gap": 0.127,
+                "diff_pair_via_gap": 0.25,
+                "wire_width": 6, "bus_width": 12, "line_style": 0,
+                "pcb_color": "rgba(0, 0, 0, 0.000)",
+                "schematic_color": "rgba(0, 0, 0, 0.000)"
+            }],
+            "meta": {"version": 3}
+        }
+    }
+    with open(proj, "w") as fh:
+        json.dump(pro, fh, indent=2)
 
 
 if __name__ == "__main__":

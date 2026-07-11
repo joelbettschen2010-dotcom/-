@@ -11,7 +11,7 @@ geschlossenen Kammern.
 |---|---|---|
 | `acoustics/` | T/S-Simulation, Volumen-Sweep, Crossover-Optimierung + Plots | ✅ läuft, Plots generiert |
 | `dsp/` | ADAU1701-Programmgenerator, Parameter-XML, 3 Presets, Doku | ✅ generiert |
-| `pcb/main-board/` | Haupt-PCB 100×80, **4-Lagen** (Amps, DSP, ESP32, Power) | ✅ 4-Lagen, ~97% via **Freerouting** verdrahtet (~2715 Bahnen/Vias, 0 Shorts); nur 5 USB-C-Netze + 2 GND-Pads offen (s. `pcb/README.md`) |
+| `pcb/main-board/` | Haupt-PCB 100×80, **4-Lagen** (Amps, DSP, ESP32, Power) | ✅ **FERTIG geroutet: 0 offene Verbindungen, 0 elektrische DRC-Fehler — bestellbar** (4-Lagen, Freerouting, ~2820 Bahnen/Vias) |
 | `pcb/button-board/` | Bedien-PCB 60×20 (Taster, RGB-LED, OLED) | ✅ **vollständig geroutet, DRC-sauber, bestellbar** |
 | `firmware/` | ESP32-S3 PlatformIO | ✅ kompiliert (`pio run` SUCCESS) |
 | `webapp/` | Next.js-14-PWA (Dashboard, EQ, Settings, Info) | ✅ baut (`npm run build`), läuft vom ESP32 |
@@ -55,13 +55,11 @@ cd webapp && npm install && npm run build && cp -r out/* ../firmware/data/www/
 
 ## Was noch von Hand zu tun ist
 
-1. **Main-Board-Signal-Routing** in KiCad fertigstellen (4-Lagen-Board ist
-   platziert, GND-Plane + Zonen + Netzklassen gesetzt, Ratsnest komplett —
-   es fehlt nur das Ziehen der Signalbahnen; interaktiv oder via Freerouting,
-   s. `pcb/README.md`), dann Gerber neu exportieren. Das **Button-Board ist
-   fertig geroutet und kann sofort bestellt werden.**
+1. **Bestellen**: beide Gerber-ZIPs (`pcb/*/fab/*-gerber.zip`) bei JLCPCB
+   hochladen (Main = 4-Lagen, Button = 2-Lagen), BOM + Positions-CSV für
+   die SMT-Bestückung dazu. Treiber bei SoundImports, Module s. `docs/BOM.md`.
 2. Reale T/S-Parameter der gelieferten Dayton-Treiber messen und die
    Simulation damit erneut laufen lassen (Crossover-Werte prüfen).
 3. SigmaStudio-Projekt nach `dsp/README.md` aufbauen und EEPROM flashen.
-4. Bestellen (JLCPCB + LCSC + Module), löten, Montage nach
-   `docs/montage-anleitung.md`, REW-Abstimmung.
+4. Gehäuse drucken (K1-Dreiteiler), Montage nach `docs/montage-anleitung.md`,
+   REW-Abstimmung.

@@ -40,53 +40,40 @@ Vollständig vom eigenen Grid-Router (`autoroute.py`) verdrahtet:
 (nur kosmetische Silk-Hinweise). Gerber liegt in `button-board/fab/` —
 dieses Board kann **direkt bestellt** werden.
 
-### Main-Board — 4-Lagen, ~97 % via Freerouting verdrahtet
-Das Main-Board ist ein **4-Lagen-Design** (F.Cu / In1.Cu / In2.Cu / B.Cu).
+### Main-Board — ✅ FERTIG geroutet, DRC-sauber, bestellbar
+4-Lagen-Design (F.Cu / **In1.Cu GND-Plane** / In2.Cu / B.Cu), vollständig
+von **Freerouting** verdrahtet (lokaler Docker-Container, headless):
+
+* **0 offene Verbindungen** (alle 524 Netz-Verbindungen geroutet)
+* **0 elektrische DRC-Fehler** — keine Clearance-, Loch-, Kurzschluss-,
+  Zonen- oder Breitenverstöße (verbleibende Meldungen sind kosmetisch:
+  Silk-Text-Überlappungen der Auto-Platzierung, Bibliotheks-Metadaten,
+  Courtyard-Mikroüberlappungen)
+* ~2820 Bahnsegmente/Vias, 0.15-mm-Bahnen, 0.45/0.2-mm-Vias,
+  Netzklasse 0.127 mm (JLCPCB-4-Lagen-Standard)
+* GND zusätzlich als durchgehende In1-Plane + Füllungen auf F/In2/B
 
 **Warum 4 Lagen:** Die Bauteildichte (ADAU1701 LQFP-48 mit 0.5 mm Pitch,
 ESP32-S3-Modul, 2× TPA3118 HTSSOP, alle Stecker auf 100×80 mm) ist auf
-2 Lagen **nachweislich nicht** vollständig routbar (getestet: blieb bei
-~71 offenen Verbindungen stehen).
+2 Lagen nachweislich nicht vollständig routbar (getestet: ~71 offen).
 
-**Verdrahtet mit Freerouting.** KiCads `ExportSpecctraDSN`/`ImportSpecctraSES`
-funktionieren im headless Build nicht — daher ein eigener DSN-Exporter
-(`dsn_export.py`) und SES-Importer (`ses_import.py`), die das Board an die
-**Freerouting-Engine** (lokaler Docker-Container, echtes Push-and-Shove)
-übergeben und das Ergebnis zurückholen. Kette in `route_freerouting.sh`.
+**Werkzeugkette (alles im Repo, reproduzierbar):** KiCads
+`ExportSpecctraDSN`/`ImportSpecctraSES` sind im headless Build defekt —
+eigener DSN-Exporter (`dsn_export.py`) und SES-Importer (`ses_import.py`)
+übergeben das Board an Freerouting und holen das Ergebnis zurück:
 
-Freerouting hat **522 Verbindungen bis auf die USB-C-Gruppe geroutet**
-(~2680 Bahnsegmente/Vias, **0 Kurzschlüsse, 0 isolierte Inseln, 0
-starved-thermal**). Zonen (GND/AGND/PVDD) werden nach dem Import gefüllt und
-umfliessen die Bahnen; Netzklasse 0.127 mm (JLCPCB-4-Lagen-5-mil).
-
-**Was offen bleibt (10 Pad-Enden):** die 5 USB-C-Netze `VBUS`, `USB_DN`,
-`USB_DP`, `CC1`, `CC2` am Steckverbinder J11 (Platinenrand, Fine-Pitch) +
-2 einzelne GND-Pads in der DSP-Ecke (je ein Via genügt). Dazu 7 kleine
-Clearance-Engstellen (USB-C-Fanout, ein 3V3-Segment auf In1).
-Der ESP32-S3 lässt sich meanwhile über den **UART-Debug-Header J12**
-programmieren (geroutet) — die USB-Buchse ist für Betrieb/Update, nicht
-zwingend fürs erste Flashen.
-
-**So wird es fertig (~20 min in KiCad 7):** Board öffnet fertig verdrahtet;
-nur die 5 USB-C-Luftlinien mit dem interaktiven Router (`R`) nachziehen und
-die paar Engstellen per Drag entzerren, dann `./export_fab.sh`.
-
-> ⚠️ In diesem Zustand ist das Main-Board **fast fertig, aber noch nicht
-> bestellbar** (DRC meldet die 5 USB-C-Netze + wenige Clearance-Punkte). Das
-> **Button-Board ist fertig und sofort bestellbar.** Nach dem Nachziehen der USB-C-Netze
-> Netze ist auch das Main-Board fertigungsreif.
-
-**Reproduzieren des Routing-Laufs (Freerouting, empfohlen):**
 ```bash
-cd pcb && ./route_freerouting.sh 24      # platzieren -> DSN -> Freerouting -> Board
-# Voraussetzung: laufender Docker-Daemon + Image
-#   ghcr.io/freerouting/freerouting:latest
+cd pcb && ./route_freerouting.sh          # Docker + ghcr.io/freerouting/freerouting
 ```
 
-Der mitgelieferte eigene Grid-Router (`autoroute.py`) verdrahtet ebenfalls
-~91 % (siehe Git-Historie), erreicht aber die Fine-Pitch-Ausbrüche nicht so
-gut wie Freerouting; er bleibt als eigenständiges Werkzeug erhalten und
-routet das Button-Board zu 100 %.
+Wichtige Exporter-Details (hart erarbeitet): rotationsbewusste
+Pad-Bounding-Boxen (`GetSize()` ignoriert Rotation!), quadratische Pads als
+Rechteck statt Kreis (Ecken!), NPTH-Montagelöcher als netzlose Hindernisse
+mit eindeutigen Referenzen, Keepouts (Taster-Hebel, ESP-Antenne) und das
+NT1-Sternmasse-Polygon als Sperrflächen, gebohrte Pads auf
+Loch+0.56 mm aufgeblasen (deckt KiCads 0.25-mm-Hole-Clearance),
+`NETSHUF`-Netzreihenfolge für alternative Läufe, `WIRED=1` übergibt
+vorhandene Verdrahtung zum Lückenschließen.
 
 ## Dateien
 
@@ -104,5 +91,6 @@ pcb/
 └── button-board/               (analog)
 ```
 
-Fertigungsparameter JLCPCB: 2 Lagen, FR4 1.6 mm, HASL bleifrei, 1 oz,
-grün; SMT-Bestückung Top-Seite (Economic), THT-Stecker von Hand.
+Fertigungsparameter JLCPCB: Main-Board **4 Lagen**, Button-Board 2 Lagen;
+FR4 1.6 mm, HASL bleifrei, 1 oz, grün; SMT-Bestückung Top-Seite (Economic),
+THT-Stecker von Hand.
