@@ -1,0 +1,35 @@
+# wx – Beispielkonfiguration
+#
+# Kopieren nach:  ~/.config/wx/config.toml
+# (oder $XDG_CONFIG_HOME/wx/config.toml). Beim ersten Start legt wx diese
+# Datei ohnehin automatisch mit den beiden Standardorten an.
+
+# Standardort, wenn `wx` ohne Argument aufgerufen wird:
+default = "frutigen"
+
+# Prognosehorizont in Tagen (1–16, modellabhaengig):
+forecast_days = 7
+
+# Stunden, die die Terminal-Ansicht ab jetzt zeigt:
+display_hours = 48
+
+# Eigene Orte: `wx <key>` oder `wx "<name>"` nutzt diese Koordinaten direkt
+# (ohne Geocoding-Aufruf – schneller und offline-freundlich).
+[places.frutigen]
+name = "Frutigen"
+lat = 46.587
+lon = 7.649
+country = "CH"
+
+[places.punta_gorda]
+name = "Punta Gorda"
+lat = 26.93
+lon = -82.05
+country = "US"
+
+# Weitere Orte frei ergaenzen, z.B.:
+# [places.zermatt]
+# name = "Zermatt"
+# lat = 46.020
+# lon = 7.749
+# country = "CH"
