@@ -52,7 +52,7 @@ Drei Laufzeit-Bausteine, strikt entkoppelt über die Supabase-Datenbank als Nach
 
 ### 2.4 KI — Claude API
 - **Nicht im Zahlen-Score** (Frage 2). Nur:
-  1. **Report-Narrativ** (Erklärungen + priorisierte Fix-Liste) — erzeugt **erst bei Anforderung des vollständigen Reports** (E-Mail vorhanden) → Kosten an Leads gekoppelt, nicht an jeden anonymen Scan. Cache pro Domain, harter Monatsdeckel.
+  1. **Report-Narrativ** (Erklärungen + priorisierte Fix-Liste) — erzeugt **erst beim bezahlten $79-Audit** → Kosten an **Umsatz** gekoppelt, nicht an jeden anonymen Scan. Cache pro Domain, harter Monatsdeckel.
   2. **Support-Agent** (siehe `SUPPORT_AGENT.md`).
 - Modell-Split über Env: günstiges Modell (Klassifikation/Routing), stärkeres (Antwort/Narrativ).
 
@@ -72,7 +72,7 @@ Drei Laufzeit-Bausteine, strikt entkoppelt über die Supabase-Datenbank als Nach
    f. **Deterministische Checks** → Kategorie-Scores → Gesamt 0–100 mit kritischen Gates (siehe `SCORING.md`).
    g. Findings (`id, category, severity, status, evidence, fix, weight`) + priorisierte Fix-Liste bauen.
 5. Worker schreibt `score`, `score_breakdown`, `findings`, `report`, setzt `done`.
-6. Browser-Poll erhält `done` → Report-Ansicht rendert. „Vollständigen Report per E-Mail" → `POST /api/report-email` → (bei erstem Bedarf) Claude-Narrativ erzeugen, per Resend/n8n versenden.
+6. Browser-Poll erhält `done` → **Teaser-Report** (Score + Top-3) rendert. „Vollen Fix-Plan freischalten" → Checkout ($79) → verifizierter Webhook setzt `purchases.status='paid'` → voller Report inkl. Claude-Narrativ freigeschaltet und (optional) per Resend/n8n versendet.
 
 ---
 
@@ -118,6 +118,26 @@ create table report_emails (
   sent_at     timestamptz null,
   created_at  timestamptz not null default now()
 );
+
+-- ========== MONETARISIERUNG (neue Strategie: $79-Einmal-Audit + optionales Monitoring) ==========
+-- Freier Teaser (Score + Top-3) gratis; der vollständige Report/Audit ist bezahlt.
+create table purchases (
+  id            uuid primary key default gen_random_uuid(),
+  scan_id       uuid null references scans(id) on delete set null,
+  user_id       uuid null,                        -- Vorsorge
+  email         text not null,                    -- Kauf-/Kontakt-E-Mail (mit Einwilligung)
+  product       text not null,                    -- audit_one_time | monitoring_monthly | monitoring_annual
+  provider      text not null,                    -- lemonsqueezy | stripe
+  provider_ref  text null,                         -- externe Order-/Subscription-ID
+  amount_cents  int  not null,
+  currency      text not null default 'USD',
+  status        text not null default 'pending',   -- pending | paid | refunded | canceled
+  entitlement   text not null,                     -- full_report | monitoring
+  expires_at    timestamptz null,                  -- für Abos / Jahres-Prepay
+  created_at    timestamptz not null default now()
+);
+create index on purchases (email);
+create index on purchases (scan_id);
 
 -- ========== SUPPORT: WISSENSBASIS ==========
 create table kb_articles (
@@ -220,6 +240,7 @@ create trigger trg_enforce_kb before update on escalations
 ```sql
 alter table scans           enable row level security;
 alter table report_emails   enable row level security;
+alter table purchases       enable row level security;
 alter table kb_articles     enable row level security;
 alter table kb_chunks       enable row level security;
 alter table tickets         enable row level security;
@@ -247,6 +268,10 @@ NEXT_PUBLIC_TURNSTILE_SITE_KEY=     # öffentlich (Widget)
 TURNSTILE_SECRET_KEY=               # Server
 RESEND_API_KEY=                     # oder N8N_EMAIL_WEBHOOK_URL
 N8N_EMAIL_WEBHOOK_URL=              # Alternative zu Resend (Frage 7)
+LEMONSQUEEZY_API_KEY=               # Checkout/Billing ($79-Audit, Monitoring)
+LEMONSQUEEZY_WEBHOOK_SECRET=        # Kauf-Webhook server-seitig verifizieren
+STRIPE_SECRET_KEY=                  # Alternative zu Lemon Squeezy
+STRIPE_WEBHOOK_SECRET=
 APP_BASE_URL=                       # z.B. https://agentready.<domain>
 CRAWLER_CONTACT_URL=                # ehrliche UA-Kontakt-URL (Leitplanke 3)
 SCAN_RATE_LIMIT_PER_IP_PER_HOUR=
