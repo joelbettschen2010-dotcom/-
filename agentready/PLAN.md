@@ -1,97 +1,98 @@
 # PLAN.md — AgentReady
 
 > Meilensteine mit Stundenschätzung, Reihenfolge, Abhängigkeiten, je ein prüfbares Abnahmekriterium.
-> **Neue Go-to-Market-Strategie (Fokus: Jahr-1-Profit):** Gratis-Teaser als Traffic-Köder → **einmaliger $79-Audit** als Hauptprodukt → Monitoring später als Upsell. Details: `REVENUE_PROJECTION.md`.
-> Leitprinzip der Reihenfolge: **Time-to-first-dollar.** Der erste zahlende Kunde kommt so früh wie möglich (~Monat 2), nicht am Ende.
+> **Produktmodell (Entscheidung):** Gratis-Scan (alle Shops, nur Diagnose) → **bezahlte Auto-Fix-Shopify-App** (Done-for-you, Abo). Details: `PRICING.md`, `ARCHITECTURE.md`.
+> Leitprinzip: Der Kunde zahlt für **behobene** AI-Auffindbarkeit, nicht für einen Report — die App baut die Fixes automatisch ein und hält sie aktuell.
 
 ---
 
 ## 0. Produkt-/Monetarisierungsmodell (bestimmt die Reihenfolge)
 
-| Ebene | Was | Preis | Baut welcher Meilenstein |
-|---|---|---|---|
-| **Gratis-Teaser** | Score 0–100 + Top-3-Probleme (teilbar) | $0 | M4 |
-| **Hauptprodukt** | Voller „AI-Readiness Audit + Fix Plan" (alle Befunde, Claude-Erklärungen, Umsetzung) | **$79 einmalig** | **M5** |
-| **Upsell** | Monitoring: wöchentlicher Re-Scan + Report + Alerts | $29/Mon. / $290/Jahr | M7 (nach Validierung) |
+| Ebene | Was | Preis | Plattform | Baut welcher Meilenstein |
+|---|---|---|---|---|
+| **Gratis-Scan** | Score 0–100 + Befunde (Diagnose, read-only) | $0 | **alle Shops** | M1–M4 |
+| **Auto-Fix-App** | Shopify-App injiziert & pflegt schema.org-Markup automatisch (Kunde: installieren + freischalten) | **$29/Mo, 7-Tage-Trial** (Shopify Billing) | **nur Shopify** | **M5–M6** |
+| **Content-Auto-Fix** (später) | Beschreibungen/Alt-Texte per Claude, mit Freigabe | im Abo | Shopify | später |
 
-**Validierungssignal:** Zahlungsbereitschaft ($79-Käufe), nicht eine Umfrage. Erst wenn Käufe kommen, werden Monitoring (M7) und der volle Support-Agent (M8) gebaut.
+**Validierungssignal:** App-Installationen und Trial→Bezahlt-Conversion. Erst danach Support-Agent (M8) und Erweiterungen.
+
+**Warum die App der Fix-Weg ist:** Eine **Theme-App-Extension (App-Embed)** rendert das JSON-LD *dynamisch aus den echten Produktdaten* — nicht ein einmaliges Schreiben. Dadurch immer korrekt, selbstpflegend, reversibel (Toggle), überlebt Theme-Updates. Kunden­aufwand = installieren + einschalten.
 
 ---
 
 ## Reihenfolge & Abhängigkeiten
 
 ```
-M0 Fundament ─► M1 Scan-Core ─► M2 Scoring ─► M3 Worker ─► M4 Frontend+Teaser ─► M5 Checkout+$79-Audit  ◄── ERSTER FRANKEN
-                                                                                        │
-                                                                         M6 Launch + 1 Outbound-Kanal
-                                                                                        │
-                                        (nur nach echten Käufen:)  M7 Monitoring-Upsell ─► M8 Support-Agent (voll)
+M0 Fundament ─► M1 Scan-Core ─► M2 Scoring ─► M3 Worker ─► M4 Frontend+Scan-Teaser ─► M5 Fix-Engine ─► M6 Shopify-App  ◄── ERSTER UMSATZ
+                                                                                                              │
+                                                                                            M7 Launch (App-Listing + 1 Kanal)
+                                                                                                              │
+                                                                                        (nach echten Abos:) M8 Support-Agent (voll)
 ```
-M0→M5 linear = kürzester Pfad zum Umsatz. M6 macht verkaufsfähig. M7/M8 folgen erst nach Validierung durch Käufe.
+M0→M6 = kürzester Pfad zum zahlenden Kunden. Fix-Engine (M5) ist der geteilte Kern; die App (M6) ist die Liefer- und Abrechnungsschicht darauf.
 
 ---
 
-## M0 — Fundament: Repo, CLAUDE.md, Schema, RLS, Skeleton
+## M0 — Fundament: Repo, CLAUDE.md, Schema, RLS
 **~3–4 h**
-- Monorepo: `web/` (Next.js), `worker/` (Python), `db/` (SQL), `agentready/` (Docs).
-- **Zuerst `CLAUDE.md`** (Kontext, Befehle, Konventionen, Leitplanken, Monetarisierungsmodell).
-- Supabase-Schema aus `ARCHITECTURE.md` §4 inkl. **`purchases`-Tabelle**; RLS auf **allen** Tabellen (default-deny).
-- `.env.example` mit allen Namen (inkl. Payment-Provider), keine Werte. Lint/Format/Testrunner beidseitig.
-- **Abnahme:** Migration läuft; RLS auf jeder Tabelle aktiv; `.env.example` vollständig; Testbefehl grün; `CLAUDE.md` vorhanden.
+- Monorepo: `web/` (Next.js: Marketing + Scan), `app/` (Shopify-App), `worker/` (Python), `db/` (SQL), `agentready/` (Docs).
+- **Zuerst `CLAUDE.md`** (Kontext, Befehle, Konventionen, Leitplanken, Produktmodell).
+- Supabase-Schema (`ARCHITECTURE.md` §4) inkl. `shops`, `app_installs`, `subscriptions`, `fixes`; RLS auf **allen** Tabellen (default-deny).
+- `.env.example` mit allen Namen (inkl. Shopify-App + Billing), keine Werte. Lint/Format/Testrunner.
+- **Abnahme:** Migration läuft; RLS aktiv auf jeder Tabelle; `.env.example` vollständig; Testbefehl grün; `CLAUDE.md` vorhanden.
 
-## M1 — Scan-Core-Bibliothek (Python, aufrufbar)
+## M1 — Scan-Core (Python, aufrufbar) — die Diagnose
 **~8–12 h** · hängt an M0
-- `run_scan(url) -> ScanResult` als reine Funktion: URL-Normalisierung + **SSRF-Validierung**; robots.txt (Abbruch-Pfad `blocked_by_robots`); sitemap.xml; Plattform-Erkennung (Shopify `/products.json`); gestufte Produktseiten-Erkennung; höfliches Fetching (≥1 s, ≤15 Seiten, 10 s Timeout, ehrlicher UA, read-only); Parser JSON-LD/Microdata/RDFa → `Product`/`Offer`; **CSR-Erkennung**.
-- **Tests mit eingefrorenen HTML-Fixtures** (Shopify, Nicht-Shopify+JSON-LD, CSR-only, robots-blockiert, kaputtes Schema).
-- **Abnahme:** Fixtures liefern erwartete Felder; SSRF weist private IPs/localhost/Metadaten ab; robots-blockiert → `blocked_by_robots`; CSR-Fixture erkannt; Tests grün.
+- `run_scan(url) -> ScanResult`: URL-Normalisierung + **SSRF**; robots.txt (Abbruch-Pfad); sitemap.xml; Plattform-Erkennung (Shopify `/products.json`); gestufte Produktseiten-Erkennung; höfliches Fetching (≥1 s, ≤15 Seiten, 10 s Timeout, ehrlicher UA, read-only); Parser JSON-LD/Microdata/RDFa → `Product`/`Offer`; **CSR-Erkennung**. Tests mit eingefrorenen Fixtures.
+- **Abnahme:** Fixtures liefern erwartete Felder; SSRF weist private IPs ab; robots-blockiert → `blocked_by_robots`; CSR erkannt; Tests grün.
 
 ## M2 — Scoring-Engine (deterministisch)
 **~6–8 h** · hängt an M1
-- Prüfungen A–E aus `SCORING.md`, Gewichte, **kritische Gates G1–G4**, „nicht anwendbar"-Logik, priorisierte Fix-Liste, llms.txt-Bonus + Ehrlichkeitshinweis. **Trennung Teaser (Score + Top-3) vs. voller Report** vorbereiten (gleiche Berechnung, unterschiedliche Sichtbarkeit).
-- **Snapshot-Tests:** Fixture → exakter Score/Breakdown.
-- **Abnahme:** Score exakt reproduzierbar; „warum X?" aus Breakdown ablesbar; retrieval-blockierter Fixture durch G1 ≤30; CSR-Fixture triggert G2.
+- Prüfungen A–E aus `SCORING.md`, Gewichte, kritische Gates G1–G4, priorisierte Befund-Liste. Snapshot-Tests.
+- **Abnahme:** Score exakt reproduzierbar; „warum X?" ablesbar; retrieval-blockiert → G1 ≤30; CSR → G2.
 
 ## M3 — Worker-Laufzeit
 **~4–6 h** · hängt an M1/M2
-- Poll-Schleife, atomares Job-Claiming, Status-Übergänge, Concurrency-Deckel, Domain-Delay, Logging, Kosten-Logging, Heartbeat, Stuck-Job-Reset. systemd-Unit + README.
-- **Abnahme:** `queued`-Zeile → `done` mit Score/Findings; blockiert/fehlerhaft korrekt; zwei Jobs respektieren Concurrency; Heartbeat aktualisiert.
+- Poll-Schleife, atomares Claiming, Status, Concurrency-Deckel, Logging, Kosten-Logging, Heartbeat, Stuck-Job-Reset. systemd-Unit (EU-VPS, `ARCHITECTURE.md` §8). Verifikations-Re-Scan als Funktion.
+- **Abnahme:** `queued` → `done` mit Score/Findings; parallele Jobs respektieren Concurrency; Heartbeat aktualisiert.
 
-## M4 — Frontend: Gratis-Scan + **Teaser** (der Traffic-Köder)
+## M4 — Frontend: Gratis-Scan + „Automatisch fixen"-CTA
 **~7–10 h** · hängt an M3
-- Landingpage + Scan-Formular + **Turnstile**; `POST /api/scan` (Turnstile, SSRF, IP-Rate-Limit, Domain-Cache); `GET /api/scan/:token` Polling; **Teaser-Report-Ansicht: Score + Top-3-Probleme sichtbar, Rest verdeckt** mit Klartext-CTA „Vollen Fix-Plan freischalten"; teilbarer Ergebnis-Link. Rendering **getrennt** von der Ausführung.
-- **Abnahme:** deployte Seite: URL rein → Fortschritt → Score + Top-3 + verdeckter Rest + CTA; Turnstile blockt fehlende Verifikation; Domain-Cache greift; keine Secrets im Bundle.
+- Landingpage + Scan-Formular + **Turnstile**; `POST /api/scan` (Turnstile, SSRF, Rate-Limit, Domain-Cache); Polling; Ergebnis-Ansicht (Score + Befunde). **Klartext-CTA je nach Plattform:** Shopify erkannt → „Automatisch beheben — Shopify-App installieren"; sonst → „Fix-Plan als PDF" (Fallback). Teilbarer Ergebnis-Link.
+- **Abnahme:** URL rein → Fortschritt → Score + Befunde + passender CTA; Shopify-Shops sehen den App-CTA; keine Secrets im Bundle.
 
-## M5 — **Monetarisierung: Checkout + voller $79-Audit** ⭐ erster Franken
-**~5–8 h** · hängt an M4
-- **Lemon Squeezy** (oder Stripe Payment Link) Checkout für den $79-Audit; Webhook verifiziert Kauf → `purchases`-Zeile `paid` → schaltet **vollen Report** frei (alle Befunde + **Claude-Narrativ/Erklärungen** + Umsetzungsanleitung). E-Mail-/Kauf-Erfassung mit **Einwilligung** + Löschpfad. Claude-Narrativ nur für **zahlende** Käufe erzeugt → Kosten an Umsatz gekoppelt, Cache pro Domain, Budgetdeckel.
-- **Abnahme:** Bezahlen → voller Report sofort freigeschaltet und (optional) per Mail zugestellt; Webhook-Manipulation greift nicht (Signatur geprüft); Claude-Kosten geloggt & gedeckelt; Löschpfad funktioniert; ohne Zahlung bleibt der Rest verdeckt.
+## M5 — Fix-Engine: korrektes Markup aus echten Daten (der geteilte Kern)
+**~8–12 h** · hängt an M1
+- `generate_fixes(shop_products) -> FixSet`: erzeugt **valides schema.org-JSON-LD** aus den echten Produktdaten (Shopify Admin/Storefront-API bzw. `/products.json`), **deterministische Templates** — **niemals fabrizieren** (fehlende GTIN/Marke → als „braucht Merchant-Input" markiert, nicht erfunden). Claude nur für Sprach-Teile (Beschreibungs-/Alt-Text-Entwürfe, mit Freigabe). Tests mit Fixture-Produktdaten → erwartetes JSON-LD.
+- **Abnahme:** Fixture-Produkte → valides, vollständiges JSON-LD (Preis>0, Währung, availability, brand/gtin wo vorhanden); erfundene Felder kommen nicht vor; Tests grün.
 
-## M6 — Launch + ein Outbound-Kanal
-**~3–5 h** · hängt an M5
-- Datenschutz + Löschpfad-Seite, Methodik-/„Warum dieser Score?"-Seite, finaler UA/robots-Text + Kontakt-URL, **minimaler manueller Support** (Kontaktformular → dein Postfach), teilbares Ergebnis + einfacher Outbound-Flow (du scannst Shops, verschickst personalisiertes Ergebnis + CTA).
-- **Abnahme:** 30 reale Shops scanbar & verkaufsfähig; Kaufabwicklung end-to-end live; Datenschutz-/Methodik-Seiten live; ein Testverkauf durchgelaufen.
+## M6 — Shopify-App (⭐ Bezahlprodukt / erster Umsatz)
+**~16–24 h** · hängt an M4/M5 · **grösster Block, bewusst**
+- Shopify-App (Shopify-CLI; Remix-Template ist der Standardweg — eingebautes OAuth/Billing/App-Bridge; auf VPS/Vercel gehostet). **OAuth-Installation**; **Theme-App-Extension / App-Embed-Block**, der das aus M5 erzeugte JSON-LD **dynamisch auf jeder Produktseite** rendert; **Shopify Billing** (7-Tage-Trial → $29/Mo); **Verifikations-Re-Scan** zeigt den Score-Anstieg im App-Dashboard; sauberes Deinstallieren/Toggle (Embed entfernt sich). Optional: `robots.txt.liquid` Retrieval-Bots freigeben.
+- **Abnahme:** App auf Dev-Store installieren → App-Embed rendert valides Product-JSON-LD aus Live-Daten → Re-Scan zeigt höheren Score → Abo via Shopify Billing (Trial, dann Belastung) → Deinstallation entfernt den Embed rückstandsfrei; schreibt **nur** in den installierenden Shop.
 
----
-### ⬇︎ Ab hier erst nach echten $79-Käufen (Validierung bestanden)
----
-
-## M7 — Monitoring-Upsell (Wiederkehr, sät Jahr 2)
-**~6–9 h** · hängt an M5/M6
-- Konto per Magic-Link (Supabase-Auth); Abo-Checkout $29/Mon. **und $290/Jahr**; Cron-**Re-Scan** (nutzt `run_scan()` wieder); **Wochen-Report-Mail**; Alerts bei Score-Verschlechterung; RLS-Policies auf `user_id` scharf schalten.
-- **Abnahme:** Käufer schaltet Monitoring frei → wöchentlicher Re-Scan läuft automatisch → Report kommt; Jahres-Prepay buchbar; Konto sieht nur eigene Daten (RLS).
-
-## M8 — Support-Agent (vollständig, wie geplant)
-**~12–16 h** · hängt an M0/M1/M3, kommt **bewusst spät**
-- Ganze Architektur aus `SUPPORT_AGENT.md`: Intake, Klassifikation/Routing, vier Tools + `escalate`, geerdeter Entwurf mit **Belegpflicht**, **Never-Autonomous-Gates** (Code), Stufe-A-**Review-UI**, **KI-Kennzeichnung** (EU-KI-VO Art. 50), **erzwungene KB-Rückkopplung** (Trigger + UI), Metriken je Kategorie, Stufen-Flags B/C (gebaut, gesperrt), Kostendeckel, KB-Seed.
-- **Abnahme:** Ticket → klassifiziert → geerdeter Entwurf mit Belegen ODER Eskalation ohne Beleg; money/complaint eskalieren immer; Mensch gibt frei; Eskalation nicht ohne KB-Artikel `resolved`; KI-Kennzeichnung überall; Metriken abfragbar; Budgetüberschreitung erzwingt `draft_only`.
+## M7 — Launch + ein Kanal
+**~5–8 h** · hängt an M6
+- Datenschutz + Löschpfad, Methodik-/„Warum dieser Score?"-Seite, finaler UA/robots + Kontakt-URL, **minimaler manueller Support** (Kontaktformular → Postfach). **App-Verbreitung:** entweder App-Store-Listing (Review-Prozess einplanen) **oder** unlisted Custom-App-Install-Link für die ersten Kunden (schneller). Ein Outbound-Kanal (personalisierte Scan-Ergebnisse).
+- **Abnahme:** 30 reale Shops scanbar; App auf mind. einem echten Shop live installiert + abgerechnet; Datenschutz-/Methodik-Seiten live.
 
 ---
+### ⬇︎ Ab hier erst nach echten Abos (Validierung bestanden)
+---
 
-## Summe & Reihenfolge-Logik
-**Time-to-first-dollar (M0–M5) ≈ 33–48 h** → bei 6–8 h/Woche **~5–8 Wochen → erster Verkauf ~Monat 2.** Gesamt (M0–M8) ≈ **54–78 h**.
+## M8 — Support-Agent (vollständig)
+**~12–16 h** · hängt an M0/M1/M6 · bewusst spät
+- Ganze Architektur aus `SUPPORT_AGENT.md`: Intake, Klassifikation/Routing, vier Tools + `escalate`, Belegpflicht, Never-Autonomous-Gates (Code), Stufe-A-Review-UI, KI-Kennzeichnung (EU-KI-VO Art. 50), erzwungene KB-Rückkopplung (Trigger+UI), Metriken je Kategorie, Kostendeckel, KB-Seed.
+- **Abnahme:** Ticket → klassifiziert → geerdeter Entwurf mit Belegen ODER Eskalation; money/complaint eskalieren immer; Eskalation nicht ohne KB-Artikel `resolved`; KI-Kennzeichnung überall; Budgetüberschreitung erzwingt `draft_only`.
 
-**Bewusste Entscheidung:** Der volle Support-Agent (M8) bleibt „das ganze" wie besprochen — aber **nach** den ersten Umsätzen, weil er kein Umsatz treibt und Zeit-bis-erster-Franken kostet. Bis dahin genügt minimaler manueller Support (M6). *Wenn du ihn lieber vor dem Launch willst, sag Bescheid — dann tausche ich M8 vor M6/M7.*
+## Später (nicht jetzt, nicht verbauen)
+Content-Auto-Fix (Beschreibungen/Alt-Texte mit Freigabe), WooCommerce-Plugin, Nicht-Shopify-DIY-Export, Monitoring-Alerts als eigener Tarif, Multi-Shop/Agentur-Plan.
 
-**Streich-/Vertag-Kandidaten bei Zeitdruck:** pgvector (FTS reicht), n8n-E-Mail-In (Formular reicht), Alerts in M7. Realtime-Fortschritt ist bereits durch Polling ersetzt.
+---
 
-**Was NICHT gebaut wird (Brief §7):** Konten-Vollsystem/Multi-Shop, Zahlungen über das Nötige hinaus, Sichtbarkeitsprüfung gegen Engines, Schema-Auto-Generierung, Shopify-App. Nur die drei Vorsorge-Punkte (nullable `user_id`, `run_scan()` als Funktion, Report getrennt) — plus jetzt die schlanke `purchases`-Tabelle, die die neue Strategie braucht.
+## Summe & Reality-Check
+**Time-to-first-dollar (M0–M6) ≈ 52–76 h** → bei 6–8 h/Woche **~8–12 Wochen bis zur zahlfähigen App.** Gesamt (M0–M8) ≈ **66–92 h**.
+
+**Bewusster Trade-off:** Done-for-you (Auto-Fix-App) ist mehr Bau und **späterer** erster Umsatz als das frühere DIY-$79-Modell — dafür klebriger (Abo) und mit dem App Store als Distributionskanal. Diese Wahl ist getroffen.
+
+**Streich-/Vertag-Kandidaten bei Zeitdruck:** App-Store-Listing → erst unlisted Install-Link; PDF-Fallback für Nicht-Shopify; Content-Auto-Fix; Support-Agent nach hinten. **Nicht streichbar:** Fix-Engine-Korrektheit (M5) + App-Embed-Verifikation (M6) — das ist der Kern, für den bezahlt wird.

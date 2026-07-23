@@ -25,6 +25,8 @@ Drei Laufzeit-Bausteine, strikt entkoppelt über die Supabase-Datenbank als Nach
 
 **Der Client spricht nie direkt mit Supabase.** Jeder DB-Zugriff läuft server-seitig (Next.js Route Handler mit `service_role`, oder Worker). Damit ist RLS trivially wasserdicht: alle Tabellen default-deny, kein `anon`-Zugriff nötig. (Details §5.)
 
+**Vierte Komponente (Bezahlprodukt): die Shopify-App.** Getrennt von der Marketing-/Scan-Seite (eigenes `app/`), läuft als Shopify-eingebettete App (OAuth, App-Bridge, Shopify Billing) und schreibt **ausschliesslich in den Shop des installierenden Merchants** — mit dessen OAuth-Erlaubnis. Der Fix ist eine Theme-App-Extension (App-Embed), die schema.org-JSON-LD **dynamisch aus den Live-Produktdaten** rendert (§2.5). Klar getrennt vom read-only-Scan fremder Shops (Leitplanke 4 gilt fürs Scannen; die App schreibt nur in den eigenen Shop des zahlenden Kunden).
+
 ---
 
 ## 2. Komponenten
@@ -52,9 +54,22 @@ Drei Laufzeit-Bausteine, strikt entkoppelt über die Supabase-Datenbank als Nach
 
 ### 2.4 KI — Claude API
 - **Nicht im Zahlen-Score** (Frage 2). Nur:
-  1. **Report-Narrativ** (Erklärungen + priorisierte Fix-Liste) — erzeugt **erst beim bezahlten $79-Audit** → Kosten an **Umsatz** gekoppelt, nicht an jeden anonymen Scan. Cache pro Domain, harter Monatsdeckel.
+  1. **Scan-Narrativ** (Befunde in Klartext + priorisierte Fix-Hinweise) im Gratis-Ergebnis — knapp gehalten, Cache pro Domain, harter Monatsdeckel. Der eigentliche *Fix* ist die App (§2.5), nicht der Text.
   2. **Support-Agent** (siehe `SUPPORT_AGENT.md`).
 - Modell-Split über Env: günstiges Modell (Klassifikation/Routing), stärkeres (Antwort/Narrativ).
+
+### 2.5 Shopify-App (Bezahlprodukt)
+- Eigene Shopify-eingebettete App (Shopify-CLI; **Remix-Template = Standardweg** mit eingebautem OAuth/Billing/App-Bridge; auf VPS/Vercel gehostet).
+- **OAuth-Installation** mit minimalen Scopes (`read_products` — die Theme-App-Extension braucht keinen breiten Theme-Schreib-Scope). Access-Token **verschlüsselt** in `app_installs`, nur Server/Worker.
+- **Theme-App-Extension / App-Embed-Block:** rendert das aus der Fix-Engine (§2.6) erzeugte **schema.org-JSON-LD dynamisch auf jeder Produktseite** aus den Live-Produktdaten. Kein einmaliges Schreiben → immer korrekt, selbstpflegend, reversibel (Toggle), überlebt Theme-Updates. Kundenaufwand = installieren + einschalten.
+- **Shopify Billing** (7-Tage-Trial → $29/Mo, `PRICING.md`). Shopify wickelt Zahlung + Steuer ab; 0 % Plattformgebühr bis $1 Mio./Jahr.
+- **App-Dashboard:** zeigt den **Verifikations-Re-Scan** (Score vorher/nachher) und nicht-auto-fixbare Punkte (fehlende GTIN, CSR) als ehrlichen Hinweis.
+
+### 2.6 Fix-Engine (geteilter Kern)
+- `generate_fixes(shop_products) -> FixSet`: **deterministische Templates** erzeugen valides `Product`/`Offer`-JSON-LD aus echten Produktdaten (Shopify Admin/Storefront-API bzw. `/products.json`).
+- **Niemals fabrizieren:** fehlende GTIN/Marke/Preis werden **nicht erfunden**, sondern als „braucht Merchant-Input" markiert (Google bestraft falsches Markup; es täuscht Agenten).
+- **Claude nur für Sprache:** Beschreibungs-/Alt-Text-Entwürfe bei dürftigen Daten — **mit Merchant-Freigabe**, nie stillschweigend.
+- Läuft im Python-Worker (wiederverwendbar); die App fragt sie ab.
 
 ---
 
@@ -72,7 +87,7 @@ Drei Laufzeit-Bausteine, strikt entkoppelt über die Supabase-Datenbank als Nach
    f. **Deterministische Checks** → Kategorie-Scores → Gesamt 0–100 mit kritischen Gates (siehe `SCORING.md`).
    g. Findings (`id, category, severity, status, evidence, fix, weight`) + priorisierte Fix-Liste bauen.
 5. Worker schreibt `score`, `score_breakdown`, `findings`, `report`, setzt `done`.
-6. Browser-Poll erhält `done` → **Teaser-Report** (Score + Top-3) rendert. „Vollen Fix-Plan freischalten" → Checkout ($79) → verifizierter Webhook setzt `purchases.status='paid'` → voller Report inkl. Claude-Narrativ freigeschaltet und (optional) per Resend/n8n versendet.
+6. Browser-Poll erhält `done` → **Ergebnis** (Score + Befunde) rendert. Bei erkanntem Shopify-Shop: CTA „Automatisch beheben — Shopify-App installieren" → OAuth-Install (§2.5) → App-Embed rendert das Fix-Markup → **Verifikations-Re-Scan** zeigt den Score-Anstieg. Nicht-Shopify: PDF-Fix-Plan als Fallback.
 
 ---
 
@@ -119,25 +134,47 @@ create table report_emails (
   created_at  timestamptz not null default now()
 );
 
--- ========== MONETARISIERUNG (neue Strategie: $79-Einmal-Audit + optionales Monitoring) ==========
--- Freier Teaser (Score + Top-3) gratis; der vollständige Report/Audit ist bezahlt.
-create table purchases (
-  id            uuid primary key default gen_random_uuid(),
-  scan_id       uuid null references scans(id) on delete set null,
-  user_id       uuid null,                        -- Vorsorge
-  email         text not null,                    -- Kauf-/Kontakt-E-Mail (mit Einwilligung)
-  product       text not null,                    -- audit_one_time | monitoring_monthly | monitoring_annual
-  provider      text not null,                    -- lemonsqueezy | stripe
-  provider_ref  text null,                         -- externe Order-/Subscription-ID
-  amount_cents  int  not null,
-  currency      text not null default 'USD',
-  status        text not null default 'pending',   -- pending | paid | refunded | canceled
-  entitlement   text not null,                     -- full_report | monitoring
-  expires_at    timestamptz null,                  -- für Abos / Jahres-Prepay
-  created_at    timestamptz not null default now()
+-- ========== BEZAHLPRODUKT: SHOPIFY-APP (Auto-Fix, Abo) ==========
+-- Ein Shop, der die App installiert. Access-Token verschlüsselt (nur Server/Worker).
+create table shops (
+  id                 uuid primary key default gen_random_uuid(),
+  shop_domain        text not null unique,           -- foo.myshopify.com
+  user_id            uuid null,                       -- Vorsorge
+  created_at         timestamptz not null default now()
 );
-create index on purchases (email);
-create index on purchases (scan_id);
+
+create table app_installs (
+  id                 uuid primary key default gen_random_uuid(),
+  shop_id            uuid not null references shops(id) on delete cascade,
+  access_token_enc   text not null,                   -- verschlüsselt; nie Klartext/Bundle
+  scopes             text not null,
+  status             text not null default 'installed', -- installed | uninstalled
+  embed_enabled      boolean not null default false,  -- App-Embed vom Merchant freigeschaltet?
+  installed_at       timestamptz not null default now(),
+  uninstalled_at     timestamptz null
+);
+
+create table subscriptions (
+  id                 uuid primary key default gen_random_uuid(),
+  shop_id            uuid not null references shops(id) on delete cascade,
+  shopify_charge_id  text null,                       -- Shopify Billing recurring charge
+  plan               text not null default 'basic',   -- basic | pro
+  status             text not null default 'trial',   -- trial | active | canceled | frozen
+  trial_ends_at      timestamptz null,
+  current_period_end timestamptz null,
+  created_at         timestamptz not null default now()
+);
+
+-- Erzeugte Fixes je Shop (Audit-Trail; das Markup selbst rendert der App-Embed live)
+create table fixes (
+  id                 uuid primary key default gen_random_uuid(),
+  shop_id            uuid not null references shops(id) on delete cascade,
+  kind               text not null,                   -- product_jsonld | robots | content_suggestion
+  status             text not null default 'proposed', -- proposed | approved | applied
+  needs_merchant     boolean not null default false,  -- z.B. fehlende GTIN
+  payload            jsonb,
+  created_at         timestamptz not null default now()
+);
 
 -- ========== SUPPORT: WISSENSBASIS ==========
 create table kb_articles (
@@ -240,7 +277,10 @@ create trigger trg_enforce_kb before update on escalations
 ```sql
 alter table scans           enable row level security;
 alter table report_emails   enable row level security;
-alter table purchases       enable row level security;
+alter table shops           enable row level security;
+alter table app_installs    enable row level security;
+alter table subscriptions   enable row level security;
+alter table fixes           enable row level security;
 alter table kb_articles     enable row level security;
 alter table kb_chunks       enable row level security;
 alter table tickets         enable row level security;
@@ -266,12 +306,15 @@ SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=          # nur Server-Routen, nie Bundle
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=     # öffentlich (Widget)
 TURNSTILE_SECRET_KEY=               # Server
-RESEND_API_KEY=                     # oder N8N_EMAIL_WEBHOOK_URL
-N8N_EMAIL_WEBHOOK_URL=              # Alternative zu Resend (Frage 7)
-LEMONSQUEEZY_API_KEY=               # Checkout/Billing ($79-Audit, Monitoring)
-LEMONSQUEEZY_WEBHOOK_SECRET=        # Kauf-Webhook server-seitig verifizieren
-STRIPE_SECRET_KEY=                  # Alternative zu Lemon Squeezy
-STRIPE_WEBHOOK_SECRET=
+RESEND_API_KEY=                     # oder N8N_EMAIL_WEBHOOK_URL (Report-Mail / PDF-Fallback)
+N8N_EMAIL_WEBHOOK_URL=
+# --- Shopify-App (Bezahlprodukt, Billing via Shopify) ---
+SHOPIFY_API_KEY=
+SHOPIFY_API_SECRET=
+SHOPIFY_APP_URL=                    # öffentliche App-URL (OAuth-Callback)
+SHOPIFY_SCOPES=read_products
+SHOPIFY_WEBHOOK_SECRET=             # App-Uninstall/Update-Webhooks verifizieren
+APP_TOKEN_ENCRYPTION_KEY=           # verschlüsselt Access-Tokens in app_installs
 APP_BASE_URL=                       # z.B. https://agentready.<domain>
 CRAWLER_CONTACT_URL=                # ehrliche UA-Kontakt-URL (Leitplanke 3)
 SCAN_RATE_LIMIT_PER_IP_PER_HOUR=
