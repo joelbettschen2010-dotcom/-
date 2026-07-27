@@ -17,7 +17,7 @@ Shops have been optimized for human browsers for 20 years. AI agents decide from
 | **Free scan** | Score 0–100 + findings, read-only, anonymous, no email required | $0 | **all shops** |
 | **Auto-Fix app** ⭐ | Shopify app that **automatically renders and maintains** correct schema.org markup on every product page. Merchant installs it, toggles it on — done. | **$29/mo, 7-day trial** via Shopify Billing | **Shopify only** |
 
-- The free scan is the lead magnet and is platform-independent. **Non-Shopify shops get an honest "auto-fix is Shopify-only for now" note — no fallback product, no email capture.**
+- The free scan is the lead magnet and is platform-independent. **Non-Shopify shops get a free DIY fallback: a fix plan by email** (optional, with consent + deletion path) containing a ready-to-paste JSON-LD snippet and instructions. It stays **free** because a second paid product would need its own payment processor and tax handling — recurring manual work for a minority segment. (Later it can become paid via Lemon Squeezy if demand shows up.)
 - **The paid product must genuinely fix the shop with near-zero merchant effort.** That is the whole promise; don't dilute it into "here's a report."
 
 **Success criterion (keep in view):** the owner can have **~30 real shops scanned and measure how many install the app and convert from trial to paying.** If a milestone doesn't serve that, propose cutting it.
@@ -34,7 +34,7 @@ Shops have been optimized for human browsers for 20 years. AI agents decide from
 2. **Respect the scanned shop's `robots.txt`.** If it excludes us, abort and report that as the result — never circumvent.
 3. **Crawl politely:** honest User-Agent with a contact URL, ≥1 s pause per domain, ≤15 pages per scan, 10 s timeout.
 4. **Read-only on foreign shops.** The auto-fix writes **only** into the shop of the merchant who installed the app, within their granted OAuth scopes — never into a shop we merely scanned.
-5. **Store no personal data** beyond the minimum: merchant shop domain + encrypted access token, and a support requester's email if they write in (with a deletion path). **The free scan stores no user email** — only a hashed IP for rate limiting. Never store personal data extracted from scanned shops.
+5. **Store no personal data** beyond the minimum: the fallback fix-plan email (voluntary, with documented consent + deletion path), merchant shop domain + encrypted access token, support requester emails, and hashed IPs for rate limiting. **Every one of these needs a working deletion path.** Never store personal data extracted from scanned shops.
 6. **Do not look for security vulnerabilities.** This product assesses data quality/discoverability and fixes structured data. Nothing else.
 7. **Prevent SSRF:** validate scan URLs against private IP ranges, localhost and metadata endpoints — re-check the **resolved IP after DNS resolution** (DNS-rebinding), on **every redirect hop**.
 8. **Row Level Security on every Supabase table from day 1** (default-deny). The `service_role` key and merchant access tokens live only in server/worker env — never in a frontend bundle, never in a commit.
@@ -64,6 +64,20 @@ The ≤15-page / ≥1 s politeness limits (guardrail 3) apply to scanning **fore
 
 **3.7 — Verify against current Shopify docs, not memory.**
 Shopify's CLI, app template, API version and Billing surface change often. Before implementing an M5 sub-step, check the current official docs/CLI output rather than relying on recalled patterns. Pin the API version explicitly.
+
+**3.8 — Adaptive model routing (cost discipline).**
+Every Claude call picks a model by task, starting cheap and escalating only on demand. Configure via env, never hardcode:
+
+| Tier | Env var → model | Use for | Price /Mtok |
+|---|---|---|---|
+| Triage | `ANTHROPIC_MODEL_CLASSIFY` → `claude-haiku-4-5` | classification, routing, metric summarization, "is this even an incident?" | $1 / $5 |
+| Standard | `ANTHROPIC_MODEL_ANSWER` → `claude-sonnet-5` | briefing script, analysis, proposals, support replies | $3 / $15 |
+| Deep | `ANTHROPIC_MODEL_DEEP` → `claude-opus-4-8` | genuine root-cause analysis, code diffs | $5 / $25 |
+
+**Escalation rule:** always start at Triage. Go to Standard only if Triage confirms there is something to say. Go to Deep only if (a) Standard explicitly reports uncertainty, **or** (b) the task is producing a code diff — and only within the monthly cap. Log model + cost on every call. When the cap is hit, fall back to deterministic output — never silently skip the work.
+
+**3.9 — An agent may never change production on its own.**
+The paid fix renders inside paying merchants' live shops, so a bad autonomous code change breaks other people's stores silently. Any agent that touches code (§M8): **draft PRs with tests only — never merge, never push to `main`, never deploy.** Enforce a **denylist** in code where not even a draft is allowed: the Liquid embed markup, billing, auth/RLS, scoring weights, guardrail code (SSRF/robots), migrations, prices. The GitHub token must not carry merge rights. There is deliberately **no** fully-autonomous tier.
 
 ---
 
@@ -108,9 +122,9 @@ All checks A–E with weights, **critical gates G1–G4**, "not applicable" hand
 Poll loop, atomic job claiming (`FOR UPDATE SKIP LOCKED`), status transitions, concurrency cap, per-domain delay, structured logging, Claude cost logging, **heartbeat row**, stuck-job reset. `systemd` unit + a short deploy README for the EU VPS.
 **Acceptance:** inserting a `queued` row → `done` with score/findings · two parallel jobs respect the cap · heartbeat updates · **killing and restarting the worker mid-scan loses no job**.
 
-### M4 — Frontend: free scan + app CTA
-Landing + scan form + **Turnstile**; `POST /api/scan` (Turnstile verify, SSRF, per-IP rate limit on hashed IP, per-domain cache); polling; result view (score, category breakdown, findings **with evidence**). **Platform-aware CTA:** Shopify → "Fix it automatically — install the app"; otherwise → honest "Shopify only for now." Shareable result link.
-**Acceptance:** on the deployed site a real URL produces progress → score → findings → correct CTA · Turnstile blocks a missing token · repeat scan of the same domain serves cache · **`grep` the built client bundle for secrets: none present**.
+### M4 — Frontend: free scan + app CTA + non-Shopify fallback
+Landing + scan form + **Turnstile**; `POST /api/scan` (Turnstile verify, SSRF, per-IP rate limit on hashed IP, per-domain cache); polling; result view (score, category breakdown, findings **with evidence**). **Platform-aware branch:** Shopify → "Fix it automatically — install the app"; **non-Shopify → "Get your fix plan by email"** with an explicit consent checkbox → `report_emails` → send (Resend or n8n webhook) a plan containing a **ready-to-paste JSON-LD snippet + instructions**, plus a working deletion path. Shareable result link.
+**Acceptance:** on the deployed site a real URL produces progress → score → findings → correct branch · a non-Shopify shop → entering an email delivers a plan whose JSON-LD **validates** · the deletion path removes the email · Turnstile blocks a missing token · repeat scan of the same domain serves cache · **`grep` the built client bundle for secrets: none present**.
 
 ### M5 — Shopify app ⭐ the paid product / first revenue (biggest block)
 Shopify app via CLI + **Remix template**, with **session storage on Postgres/Supabase** (§3.3) as the very first step. Then: **OAuth install** (`read_products` only — the embed itself needs no scope); **Theme App Extension with a Liquid app-embed block** rendering schema.org `Product`/`Offer` JSON-LD from the live `product` object (§3.1, §3.2); **Shopify Billing** (7-day trial → $29/mo via `appSubscriptionCreate`); **dashboard** with product preview (missing fields), **`embed_enabled` status + theme-editor deep link** (§3.5), and the **verification re-scan** (score before/after); mandatory webhooks (`app/uninstalled` **plus the three GDPR webhooks** — these are an App Store review blocker); clean uninstall.
@@ -120,15 +134,40 @@ Shopify app via CLI + **Remix template**, with **session storage on Postgres/Sup
 Privacy page + deletion path, methodology / "why this score?" page, final UA + contact URL, **minimal manual support** (contact form → owner's inbox). **Distribution:** an **unlisted custom-app install link** for the first customers (fast, no review on the critical path), App Store listing submitted in parallel. One outbound channel: personalized scan results posted as help in communities.
 **Acceptance:** 30 real shops scannable · **at least one real shop installed and billing** · privacy + methodology pages live.
 
-> ### ⬇︎ Build M7 only after real paid installs exist. Do not start it early.
+### M7 — Operator Cockpit: dashboard + 1-minute voice briefing (internal)
+A protected internal route **`/ops`** in `web/` (Basic Auth from env, `noindex`, **never public** — a 401 without credentials is part of acceptance). Live metrics read server-side via `service_role`, plus **day-over-day deltas** from `ops_daily_snapshots` (the worker writes one snapshot per day — it already runs, so no extra cron).
 
-### M7 — Support agent (full)
+Show: scans (24 h / 7 d) · new + active installs · **installs whose app-embed is NOT enabled** (§3.5 — the silent churn killer) · trials started · paying shops + MRR · cancellations · Claude spend month-to-date vs. cap · worker heartbeat age · failed/stuck scans · open tickets.
+
+**"Play daily briefing" button** — speaks the situation in **~60 seconds**:
+- **Speech: the browser's Web Speech API (`speechSynthesis`)** — free, no API key, no infrastructure, works on mobile. Browsers require a user gesture to start speaking; the button *is* that gesture. Keep the TTS provider behind one small interface so a paid cloud voice can be swapped in later via env if the owner dislikes the built-in voice.
+- **Script:** generated once per day by Claude (Standard tier, §3.8) from the **deterministic** metrics and cached in `ops_daily_snapshots.brief_script`. If Claude is unavailable or the budget cap is hit, fall back to a **deterministic template script** — the button must always work.
+- **Script rules:** max ~150 words (≈60 s). **Anything needing action comes first** (embed off, budget near cap, worker silent, escalation open), then the numbers with their change, then a one-line outlook. Never read raw tables aloud.
+
+**Acceptance:** `/ops` without credentials → 401 · with credentials → the numbers match a direct DB query · pressing the button plays audio that finishes in **45–75 s** · with a simulated problem (embed off / budget near cap / stale heartbeat) that problem is spoken **first** · with Claude disabled the deterministic script still plays.
+
+### M8 — Operator Agent (the "business agent")
+An agent that watches the business, diagnoses problems, proposes improvements, and drafts fixes. It runs in the worker (same machinery as the support agent), logs everything to `operator_actions`, and uses **adaptive model routing** (§3.8).
+
+**Tools — small and explicit:** `get_metrics(range)` · `get_errors(range)` · `get_scan(domain|id)` · `search_logs(query)` · `read_repo(path)` / `search_code(query)` (**read-only**) · `open_issue(...)` · `open_draft_pr(branch, diff, tests)` (**never merges**) · `notify_owner(urgency, message)`.
+
+**What it does:** writes the daily briefing script (M7) · diagnoses incidents ("7 scans on `*.example.com` failed with 429 — our per-domain delay is too aggressive there") · proposes improvements **with evidence** ("trial→paid is 12 %; 4 of 9 installs never enabled the embed → the onboarding step is missing") · opens **draft PRs with tests** for narrow, well-understood bugs.
+
+**Hard limits — enforce in code, not in the prompt (§3.9):** never merge/push/deploy · **denylist** (Liquid embed, billing, auth/RLS, scoring weights, guardrail code, migrations, prices) where not even a draft may be produced · nothing customer-facing (no merchant emails, no billing actions) · no deletions or schema changes · **evidence requirement** — a finding without concrete metrics/logs/code references is not emitted · per-run and monthly cost caps.
+
+**Staged autonomy:** **A** = proposals only, human decides (start here). **B** = for individual, measurably reliable categories it may open draft PRs without asking first — the merge always stays human. **C (fully autonomous) deliberately does not exist.**
+
+**Acceptance:** a simulated incident (several failed scans) → the agent detects it, names a cause **with evidence**, and it appears in the cockpit · one real simple bug → **draft PR with a test, CI green, not merged** · an attempt to modify a denylisted file → **blocked in code and logged** · the run log shows model routing (cheap first, escalation only when justified) · exceeding the budget cap → briefing degrades to the deterministic script instead of failing.
+
+> ### ⬇︎ Build M9 only after real paid installs exist. Do not start it early.
+
+### M9 — Support agent (full)
 Everything in `agentready/SUPPORT_AGENT.md`: intake, classification/routing, the four tools + `escalate`, **evidence requirement enforced in code** (no citations → escalate, never guess), **never-autonomous gates in code** (money, complaints/at-risk, harmful recommendations, promises, no-evidence → always escalate), **Stage-A review UI**, **AI disclosure on every AI-written message** (EU AI Act Art. 50, in force since 2026-08-02), **enforced KB feedback loop** (an escalation cannot be resolved without a linked KB article — DB trigger *and* UI), per-category metrics, cost caps, seeded KB.
 **Acceptance:** ticket → classified → grounded draft **with citations** OR escalation when evidence is missing · money/complaint always escalate · escalation cannot be set `resolved` without a KB article · every AI message carries the disclosure · exceeding the budget forces `draft_only`.
 
-**Owner time to first paying customer (M0–M6): ~25–44 h → ~6–10 weeks at 6–8 h/week.** M5 carries the most uncertainty because Shopify app development is new to the owner.
+**Owner time to first paying customer (M0–M6): ~26–45 h → ~6–10 weeks at 6–8 h/week.** M5 carries the most uncertainty because Shopify app development is new to the owner. M7 (~3–5 h) and M8 (~6–10 h) come right after launch because they are what keeps the owner's weekly hours low; M9 (~8–14 h) waits for real subscriptions.
 
-**Cuttable under time pressure:** App Store listing (unlisted link first), the Claude narrative in scan results (deterministic findings suffice), M7. **Not cuttable:** correctness of the Liquid markup and the verification re-scan — that is what the customer pays for.
+**Cuttable under time pressure:** App Store listing (unlisted link first), the Claude narrative in scan results (deterministic findings suffice), M8's draft-PR capability (diagnosis + proposals alone are already most of the value). **Not cuttable:** correctness of the Liquid markup, the verification re-scan, and the M8 denylist/no-merge enforcement.
 
 ---
 
@@ -158,7 +197,7 @@ Blocked on one thing → keep building everything else. Never idle when you can 
 
 Some steps only the owner can do. When you reach one: **stop, give a numbered checklist in German, say exactly what to click and what value to paste where, then verify it worked before continuing** (e.g. read back the store domain, make a test API call, confirm the env var is set). Don't hand over a wall of steps at once — one checkpoint at a time.
 
-Expected owner actions: Supabase project (EU region) · Vercel project · domain + crawler contact URL · **Shopify Partner account** · **development store** · **app registration in the Partner dashboard** (API key/secret, app URL, redirect URLs) · Shopify CLI login · enabling the app embed in the dev store's theme editor · Billing test flow · EU VPS + `systemd` deploy · Anthropic API key.
+Expected owner actions: Supabase project (EU region) · Vercel project · domain + crawler contact URL · email sending (Resend account or n8n webhook) for the fallback plan · **Shopify Partner account** · **development store** · **app registration in the Partner dashboard** (API key/secret, app URL, redirect URLs) · Shopify CLI login · enabling the app embed in the dev store's theme editor · Billing test flow · EU VPS + `systemd` deploy · Anthropic API key · **a GitHub token without merge rights** (M8).
 
 Where a step has a known trap, warn before it happens — e.g. the session-storage default (§3.3), and that the app embed must be **toggled on in the theme editor** after install or nothing renders (§3.5).
 
@@ -179,9 +218,9 @@ Where a step has a known trap, warn before it happens — e.g. the session-stora
 
 ## 10. Do NOT build (but do not preclude)
 
-Content auto-fix (descriptions/alt-text via metafields with merchant approval), a Pro tier, WooCommerce plugin, any non-Shopify paid fallback, PDF/email reports, recurring visibility checks against the answer engines, multi-shop/agency plans, user accounts beyond the Shopify install.
+Content auto-fix (descriptions/alt-text via metafields with merchant approval), a Pro tier, WooCommerce plugin, a **paid** non-Shopify product (the fallback stays free), recurring visibility checks against the answer engines, multi-shop/agency plans, user accounts beyond the Shopify install, any fully-autonomous agent tier.
 
-**Foresight is limited to:** a nullable `user_id` column, `run_scan()` as a callable function, report rendering separate from scan execution, and the lean `shops` / `app_installs` / `subscriptions` / `fixes` tables. Nothing more — no premature generalization.
+**Foresight is limited to:** a nullable `user_id` column, `run_scan()` as a callable function, report rendering separate from scan execution, a swappable TTS interface (M7), and the lean `shops` / `app_installs` / `subscriptions` / `fixes` / `operator_actions` tables. Nothing more — no premature generalization.
 
 ---
 

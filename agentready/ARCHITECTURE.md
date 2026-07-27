@@ -47,7 +47,10 @@ Drei Laufzeit-Bausteine, strikt entkoppelt über die Supabase-Datenbank als Nach
 - **Route Handler `GET /api/scan/:public_token`**: liest Status/Report server-seitig, gibt JSON zurück. Der Browser **pollt** diese Route alle ~2 s bis `done`/`failed`.
   - *Bewusste Vereinfachung ggü. Supabase Realtime:* Polling einer Server-Route hält RLS airtight (kein Client-DB-Zugriff nötig) und ist bei 1–3-min-Scans völlig ausreichend. Realtime ist ein optionales späteres Upgrade.
 - **Report-Ansicht**: rendert Score (0–100), Kategorie-Aufschlüsselung und priorisierte Fix-Liste aus dem `report`-JSON. Report-Rendering ist **getrennt** von der Scan-Ausführung (Vorsorge, Abschnitt 7 des Briefs).
-- **Kein E-Mail-Gate, kein Nicht-Shopify-Fallback** (Entscheidung): Der Scan ist vollständig gratis und anonym; Shopify-Shops sehen den App-CTA, Nicht-Shopify-Shops einen ehrlichen Hinweis „Auto-Fix aktuell nur für Shopify". → **Es wird keine Nutzer-E-Mail gespeichert** (siehe §7).
+- **Kein E-Mail-Gate für den Scan** — das Ergebnis erscheint sofort und anonym. Verzweigung danach:
+  - **Shopify** → CTA „Automatisch beheben — App installieren".
+  - **Nicht-Shopify** → **Fallback: Fix-Plan per E-Mail** (optional, mit Einwilligung) → `POST /api/report-email` → `report_emails`. Erzeugt einen konkreten, umsetzbaren Fix-Plan (fertiges JSON-LD-Snippet + Anleitung) — DIY statt Done-for-you.
+- **Warum der Fallback gratis ist (und nicht bezahlt):** Ein zweites Bezahlprodukt bräuchte einen eigenen Zahlungsabwickler (Stripe/Lemon) inkl. Steuerpflicht — Shopify Billing deckt nur die App. Das wäre wiederkehrende Handarbeit für ein Minderheitssegment (Leitplanke: 6–8 h/Woche). Der Fallback ist daher **Lead-Capture + Goodwill**. *Später* bezahlbar über Lemon Squeezy (Merchant-of-Record, übernimmt Steuern), falls die Nachfrage es zeigt.
 
 ### 2.2 Scan-Worker — Python 3.12 (kleiner EU-VPS, systemd)
 - Langlebiger Dienst. **Poll-Schleife**: beansprucht `queued`-Scans atomar (`UPDATE ... WHERE status='queued' ... RETURNING`, bzw. `FOR UPDATE SKIP LOCKED`), setzt `running`, führt `run_scan(url)` aus, schreibt Ergebnis, setzt `done` / `failed` / `blocked_by_robots`.
@@ -87,6 +90,51 @@ Drei Laufzeit-Bausteine, strikt entkoppelt über die Supabase-Datenbank als Nach
 - **Server-seitig bleibt nur:** die **Analyse** (was fehlt — das kann die Scan-/Scoring-Logik aus M1/M2 bereits), das Dashboard-Preview und der Verifikations-Re-Scan.
 - **Claude nur für Sprache (später):** Beschreibungs-/Alt-Text-Entwürfe bei dürftigen Daten — in **Metafields** abgelegt, vom Liquid gelesen, **nur mit Merchant-Freigabe**.
 
+### 2.7 Operator-Dashboard mit Sprach-Briefing (intern, nur der Betreiber)
+- **Geschützte Route `/ops`** in `web/` — Basic-Auth über Env, `noindex`, **nie öffentlich**. Kein eigenes Deployment nötig.
+- **Kennzahlen live** aus Supabase (`service_role`, server-seitig) + **Delta zum Vortag** aus `ops_daily_snapshots` (der Worker schreibt den Snapshot 1×/Tag — er läuft ohnehin, kein Extra-Cron).
+- Inhalt: Scans (24 h / 7 T), neue + aktive Installs, **Installs ohne eingeschalteten Embed** (Risiko R14), gestartete Trials, zahlende Shops + MRR, Kündigungen, Claude-Kosten Monat-bis-dato vs. Deckel, Worker-Heartbeat-Alter, fehlgeschlagene/hängende Scans, offene Tickets/Eskalationen.
+- **„Tages-Briefing abspielen"-Button:** spricht die Lage in **~60 Sekunden** vor.
+  - **Sprachausgabe: Web Speech API (`speechSynthesis`) im Browser** — kostenlos, kein Key, keine Infrastruktur, funktioniert auch mobil. (Browser verlangen eine Nutzergeste zum Start — der Button *ist* die Geste.) Optionales Upgrade auf Cloud-TTS später hinter einer Env-Variable, falls die Stimmqualität stört.
+  - **Sprechtext:** 1×/Tag von Claude aus den *deterministischen* Kennzahlen erzeugt und in `ops_daily_snapshots.brief_script` gecacht (~30 Aufrufe/Monat → vernachlässigbare Kosten, Deckel gilt trotzdem). Fällt Claude aus oder ist das Budget erschöpft → **deterministischer Template-Text**, damit der Button immer funktioniert.
+  - **Regel für den Text:** max. ~150 Wörter (≈60 s). **Handlungsbedarf zuerst** (Embed nicht eingeschaltet, Budget fast erschöpft, Worker still, Eskalation offen), dann Zahlen mit Veränderung, dann Ausblick. Keine Vorlesung von Rohtabellen.
+- **Warum das zum 6–8-h-Budget passt:** ein Knopf statt Dashboard-Wühlen — der Betriebs-Blick kostet eine Minute statt einer halben Stunde.
+
+### 2.8 Operator-Agent (der „Business-Agent")
+Ein Claude-basierter Agent, der den Betrieb **beobachtet, diagnostiziert und Verbesserungen vorschlägt** — und für eng umrissene Fälle **Fix-Entwürfe als Draft-PR** öffnet. Läuft im Python-Worker (dieselbe Maschinerie wie der Support-Agent), Audit-Trail in `operator_actions`.
+
+**Was er kann:**
+| Aufgabe | Beispiel |
+|---|---|
+| **Reporting** | erzeugt den Sprechtext fürs Tages-Briefing (§2.7) |
+| **Incident-Diagnose** | „7 Scans auf `*.example.com` schlugen mit 429 fehl — Rate-Limit zu aggressiv für diese Domain" |
+| **Verbesserungs-Vorschläge** | „Trial→Bezahlt liegt bei 12 %; 4 von 9 Installs haben den Embed nie eingeschaltet → Onboarding-Schritt fehlt" (mit Belegen) |
+| **Bug-Fix-Entwurf** | öffnet **Draft-PR** mit Diff **und Test**, CI läuft — Merge nur durch den Menschen |
+
+**Adaptive Modellwahl (Kernanforderung).** Jede Aufgabe wird zuerst klassifiziert, dann geroutet — billig starten, nur bei Bedarf eskalieren:
+
+| Stufe | Modell (Env) | Wofür | Richtpreis |
+|---|---|---|---|
+| **Triage** | `claude-haiku-4-5` (`ANTHROPIC_MODEL_CLASSIFY`) | Klassifikation, Metrik-Zusammenfassung, „ist das überhaupt ein Vorfall?" | $1/$5 pro Mtok |
+| **Standard** | `claude-sonnet-5` (`ANTHROPIC_MODEL_ANSWER`) | Briefing-Text, Analyse, Vorschläge | $3/$15 |
+| **Tief** | `claude-opus-4-8` (`ANTHROPIC_MODEL_DEEP`) | echte Root-Cause-Analyse, Code-Diff | $5/$25 |
+
+**Eskalationsregel:** Immer bei Triage beginnen. Auf *Standard* nur, wenn Triage einen Vorfall/Vorschlag bestätigt. Auf *Tief* nur, wenn (a) Standard explizit Unsicherheit meldet, **oder** (b) es um einen Code-Diff geht — und nur innerhalb des Monatsdeckels. Jeder Aufruf protokolliert Modell + Kosten in `operator_actions`.
+
+**Werkzeuge (klein und explizit):** `get_metrics(range)`, `get_errors(range)`, `get_scan(domain|id)`, `search_logs(query)`, `read_repo(path)` / `search_code(query)` (**read-only**), `open_issue(...)`, `open_draft_pr(...)` (**nie mergen**), `notify_owner(urgency, msg)`.
+
+**⚠ Harte Grenzen — niemals autonom (Code-Regel, nicht Prompt-Bitte):**
+1. **Kein Merge, kein Push auf `main`, kein Deploy.** Nur Draft-PRs.
+2. **Denylist unantastbarer Bereiche** — auch kein PR-Entwurf: Liquid-Embed-Markup, Billing-Code, Auth/RLS, Scoring-Gewichte, Leitplanken-Code (SSRF/robots), Migrationen, Preise.
+3. **Nichts Kundenseitiges.** Keine Mails/Nachrichten an Merchants, keine Abo-/Geld-Aktionen.
+4. **Keine Datenlöschung**, kein Schema-Wechsel.
+5. **Belegpflicht:** jeder Befund/Vorschlag referenziert konkrete Metriken, Logs oder Code-Stellen. Ohne Beleg → kein Vorschlag.
+6. **Kostendeckel** pro Lauf und pro Monat; bei Erschöpfung → nur noch deterministisches Briefing.
+
+**Stufenfreigabe (wie beim Support):** **A** = alles nur Vorschlag, Mensch entscheidet (Start). **B** = für einzelne, gemessen zuverlässige Kategorien darf er Draft-PRs *ohne Rückfrage öffnen* (Merge bleibt beim Menschen). **C** existiert bewusst **nicht** — vollautonome Codeänderung ist dauerhaft ausgeschlossen.
+
+**Warum diese Härte:** Der bezahlte Fix rendert im Live-Shop zahlender Merchants. Ein fehlerhafter autonomer Codeeingriff bricht fremde Shops still — das ist die höchste Blast-Radius-Aktion im ganzen System. Draft-PR + Tests + CI + menschlicher Merge kostet dich Minuten und verhindert genau das.
+
 ---
 
 ## 3. Datenfluss (Scan, End-to-End)
@@ -103,7 +151,7 @@ Drei Laufzeit-Bausteine, strikt entkoppelt über die Supabase-Datenbank als Nach
    f. **Deterministische Checks** → Kategorie-Scores → Gesamt 0–100 mit kritischen Gates (siehe `SCORING.md`).
    g. Findings (`id, category, severity, status, evidence, fix, weight`) + priorisierte Fix-Liste bauen.
 5. Worker schreibt `score`, `score_breakdown`, `findings`, `report`, setzt `done`.
-6. Browser-Poll erhält `done` → **Ergebnis** (Score + Befunde) rendert. Bei erkanntem Shopify-Shop: CTA „Automatisch beheben — Shopify-App installieren" → OAuth-Install (§2.5) → Merchant schaltet App-Embed im Theme-Editor ein → Liquid rendert das Fix-Markup (§2.6) → **Verifikations-Re-Scan** zeigt den Score-Anstieg im App-Dashboard. Nicht-Shopify: ehrlicher Hinweis „Auto-Fix aktuell nur für Shopify" (kein Fallback-Produkt).
+6. Browser-Poll erhält `done` → **Ergebnis** (Score + Befunde) rendert. Bei erkanntem Shopify-Shop: CTA „Automatisch beheben — Shopify-App installieren" → OAuth-Install (§2.5) → Merchant schaltet App-Embed im Theme-Editor ein → Liquid rendert das Fix-Markup (§2.6) → **Verifikations-Re-Scan** zeigt den Score-Anstieg im App-Dashboard. Nicht-Shopify: Hinweis „Auto-Fix aktuell nur für Shopify" **+ Angebot „Fix-Plan per E-Mail"** (Einwilligung → `report_emails` → Versand via Resend/n8n).
 
 ---
 
@@ -139,6 +187,54 @@ create table scans (
 );
 create index on scans (status);
 create index on scans (cache_key, finished_at desc);
+
+-- Nicht-Shopify-Fallback: E-Mail für den Fix-Plan (einzige Nutzer-PII, mit Einwilligung)
+create table report_emails (
+  id          uuid primary key default gen_random_uuid(),
+  scan_id     uuid not null references scans(id) on delete cascade,
+  email       text not null,
+  consent_at  timestamptz not null default now(),  -- Einwilligung dokumentiert
+  sent_at     timestamptz null,
+  deleted_at  timestamptz null,                    -- Löschpfad (DSGVO)
+  created_at  timestamptz not null default now()
+);
+create index on report_emails (email);
+
+-- Aktionen/Vorschläge des Operator-Agenten (§2.8) — Audit-Trail, Stufenfreigabe
+create table operator_actions (
+  id             uuid primary key default gen_random_uuid(),
+  kind           text not null,      -- brief | incident | proposal | draft_pr | alert
+  severity       text not null default 'info',  -- info | warn | critical
+  title          text not null,
+  body_md        text not null,
+  evidence       jsonb,              -- Metriken/Logs/Code-Stellen, auf die er sich stützt
+  model_used     text null,
+  cost_cents     int  not null default 0,
+  status         text not null default 'proposed', -- proposed | approved | rejected | applied
+  external_ref   text null,          -- GitHub Issue/PR-URL
+  created_at     timestamptz not null default now(),
+  decided_at     timestamptz null
+);
+create index on operator_actions (status, created_at desc);
+
+-- Täglicher Geschäfts-Snapshot für das Operator-Dashboard (§2.7) — erlaubt Deltas ggü. Vortag
+create table ops_daily_snapshots (
+  day               date primary key,
+  scans_total       int not null default 0,
+  installs_new      int not null default 0,
+  installs_active   int not null default 0,
+  embed_enabled     int not null default 0,   -- aktive Installs MIT eingeschaltetem Embed (R14)
+  trials_started    int not null default 0,
+  paying_shops      int not null default 0,
+  mrr_cents         int not null default 0,
+  cancellations     int not null default 0,
+  claude_cost_cents int not null default 0,   -- Monat bis dato
+  failed_scans      int not null default 0,
+  open_tickets      int not null default 0,
+  brief_script      text null,                -- ~150-Wörter-Sprechtext (1×/Tag erzeugt, gecacht)
+  brief_generated_at timestamptz null,
+  created_at        timestamptz not null default now()
+);
 
 -- Betriebs-Heartbeat (Worker-Ausfall erkennen, §8)
 create table worker_heartbeat (
@@ -289,7 +385,10 @@ create trigger trg_enforce_kb before update on escalations
 **Prinzip:** Jede Tabelle `enable row level security`. In v1 (kein Nutzer-Login) gibt es **keine** Policies für `anon`/`authenticated` → default-deny → aus dem Browser ist nichts direkt lesbar/schreibbar. Sämtlicher Zugriff läuft über `service_role` (Next.js Server-Routen + Worker). `service_role` umgeht RLS bauartbedingt.
 
 ```sql
-alter table scans            enable row level security;
+alter table scans               enable row level security;
+alter table report_emails       enable row level security;
+alter table operator_actions    enable row level security;
+alter table ops_daily_snapshots enable row level security;
 alter table worker_heartbeat enable row level security;
 alter table shops           enable row level security;
 alter table app_installs    enable row level security;
@@ -320,6 +419,10 @@ SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=          # nur Server-Routen, nie Bundle
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=     # öffentlich (Widget)
 TURNSTILE_SECRET_KEY=               # Server
+RESEND_API_KEY=                     # Fallback-Fix-Plan per E-Mail (oder N8N_EMAIL_WEBHOOK_URL)
+N8N_EMAIL_WEBHOOK_URL=
+OPS_BASIC_AUTH_USER=                # schützt /ops (Operator-Cockpit)
+OPS_BASIC_AUTH_PASSWORD=
 # --- Shopify-App (Bezahlprodukt, Billing via Shopify) ---
 SHOPIFY_API_KEY=
 SHOPIFY_API_SECRET=
@@ -341,8 +444,13 @@ SCAN_CACHE_TTL_MINUTES=
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 ANTHROPIC_API_KEY=
-ANTHROPIC_MODEL_CLASSIFY=           # günstig (Klassifikation/Routing)
-ANTHROPIC_MODEL_ANSWER=             # stärker (Narrativ/Support-Antwort)
+ANTHROPIC_MODEL_CLASSIFY=claude-haiku-4-5   # Triage/Klassifikation (billig)
+ANTHROPIC_MODEL_ANSWER=claude-sonnet-5      # Analyse/Narrativ/Support-Antwort
+ANTHROPIC_MODEL_DEEP=claude-opus-4-8        # Root-Cause/Code-Diff (selten, gedeckelt)
+OPERATOR_AGENT_ENABLED=false        # Operator-Agent (§2.8) — erst nach Launch an
+OPERATOR_MAX_RUN_COST_CENTS=        # Deckel pro Agentenlauf
+GITHUB_TOKEN=                       # nur Draft-PR/Issue — NIE mit Merge-Rechten
+GITHUB_REPO=
 SCAN_USER_AGENT=                    # ehrlicher UA inkl. CRAWLER_CONTACT_URL
 CRAWL_MAX_PAGES=15
 CRAWL_DELAY_SECONDS=1
@@ -362,7 +470,7 @@ MAX_TICKET_COST_CENTS=              # pro Ticket
 - **robots.txt (Leitplanke 2):** vor dem Crawlen holen; verbietet sie unseren UA → abbrechen + `blocked_by_robots` melden. Nie umgehen.
 - **Höflichkeit (Leitplanke 3):** ehrlicher UA mit Kontakt-URL, ≥1 s/Domain, ≤15 Seiten, 10 s Timeout.
 - **Read-only (Leitplanke 4):** nur GET; keine Formulare/Zustandsänderungen.
-- **Keine PII aus Shops (Leitplanke 5):** wir extrahieren Produkt-/Struktur­daten, keine Personendaten. **Der Gratis-Scan speichert gar keine Nutzer-E-Mail** (kein E-Mail-Gate, kein Fallback-Produkt) → nur gehashte IP fürs Rate-Limit. Personenbezogen im System sind nur: die Shop-Domain des installierenden Merchants und — falls jemand Support schreibt — dessen E-Mail im Ticket (mit Löschpfad).
+- **Keine PII aus Shops (Leitplanke 5):** wir extrahieren Produkt-/Struktur­daten, keine Personendaten. Personenbezogen im System sind nur: **E-Mail für den Fallback-Fix-Plan** (freiwillig, mit dokumentierter Einwilligung + Löschpfad), die Shop-Domain des installierenden Merchants, Support-Ticket-E-Mails, und gehashte IPs fürs Rate-Limit. **Jede** dieser Stellen braucht einen funktionierenden Löschpfad (`report_emails.deleted_at`, Shopify-GDPR-Webhooks, Ticket-Löschung).
 - **Kein Security-Scanning (Leitplanke 6):** nur Datenqualität/Auffindbarkeit.
 - **Missbrauch (Frage 6):** Turnstile + IP-Rate-Limit (gehashte IP) + Domain-Cache. SSRF ohnehin Pflicht.
 

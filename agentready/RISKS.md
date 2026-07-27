@@ -70,7 +70,12 @@
 - **Frühwarnung:** `app_installs.embed_enabled = false` trotz aktivem Abo; Re-Scan zeigt keinen Score-Anstieg.
 - **Gegenmassnahme:** Onboarding im Dashboard erzwingt den Schritt (Deep-Link in den Theme-Editor), **Statusanzeige „Embed aktiv/inaktiv"**, automatische Verifikation per Re-Scan, Erinnerung bei inaktivem Embed.
 
-### R12 — Datenschutz (stark reduziert durch „kein E-Mail-Gate")
-**Warum relevant:** Der Gratis-Scan speichert **keine** Nutzer-E-Mail mehr → Risiko deutlich kleiner. Verbleibend: Shop-Domain + verschlüsselter Access-Token des Merchants, Support-Ticket-E-Mails, gehashte IPs.
-- **Frühwarnung:** Löschanfrage ohne funktionierenden Pfad; Shopify-Pflicht-GDPR-Webhooks nicht implementiert (App-Review-Blocker!).
-- **Gegenmassnahme:** Shopifys **verpflichtende GDPR-Webhooks** (`customers/data_request`, `customers/redact`, `shop/redact`) implementieren; Löschpfad; Token verschlüsselt; keine fremde PII.
+### R12 — Datenschutz
+**Warum relevant:** PII an mehreren Stellen: Fallback-E-Mail (`report_emails`), Merchant-Shop-Domain + Token, Support-Ticket-E-Mails, gehashte IPs.
+- **Frühwarnung:** Löschanfrage ohne funktionierenden Pfad; Shopify-Pflicht-GDPR-Webhooks nicht implementiert (**App-Review-Blocker!**); E-Mail ohne dokumentierte Einwilligung.
+- **Gegenmassnahme:** Einwilligung (`consent_at`) + Löschpfad (`deleted_at`) beim Fallback; Shopifys **verpflichtende GDPR-Webhooks** (`customers/data_request`, `customers/redact`, `shop/redact`); Token verschlüsselt; keine fremde PII.
+
+### R15 — Operator-Agent richtet Schaden an (neu)
+**Warum kritisch:** Ein Agent mit Code-Zugriff auf ein Produkt, dessen Markup in **fremden Live-Shops** rendert, ist die höchste Blast-Radius-Komponente. Ein fehlerhafter autonomer Eingriff bricht zahlende Kunden **still**.
+- **Frühwarnung:** Draft-PR berührt einen Denylist-Bereich; Vorschlag ohne Beleg; Agentenkosten laufen hoch; PR ohne Test.
+- **Gegenmassnahme (Code, nicht Prompt):** **nie Merge/Push/Deploy** — nur Draft-PRs mit Tests, CI muss grün sein, Merge nur durch den Menschen; **harte Denylist** (Liquid-Embed, Billing, Auth/RLS, Scoring-Gewichte, Leitplanken-Code, Migrationen, Preise) — dort nicht mal ein Entwurf; GitHub-Token **ohne** Merge-Rechte; Belegpflicht; Kostendeckel pro Lauf/Monat; **Stufe C (vollautonom) existiert dauerhaft nicht**.
