@@ -127,7 +127,9 @@ def total_score(checks) -> int:
 
 ## 5. Priorisierte Fix-Liste (was der Nutzer zuerst sieht)
 
-Priorität eines Fixes = **erreichbarer Punktgewinn × Kategoriegewicht**, plus Gate-Treffer immer zuoberst. So sieht der Betreiber die Massnahmen mit dem grössten Effekt auf seine KI-Auffindbarkeit zuerst — nicht eine alphabetische Mängelliste. Jeder Eintrag: Problem in Klartext, warum es KI-Auffindbarkeit kostet, konkreter Fix. (Die ausformulierte Erklärung im vollständigen Report stammt von Claude; die Priorisierung selbst ist deterministisch.)
+Priorität eines Fixes = **erreichbarer Punktgewinn × Kategoriegewicht**, plus Gate-Treffer immer zuoberst. So sieht der Betreiber die Massnahmen mit dem grössten Effekt auf seine KI-Auffindbarkeit zuerst — nicht eine alphabetische Mängelliste. Jeder Eintrag: Problem in Klartext, warum es KI-Auffindbarkeit kostet, konkreter Fix. (Priorisierung und Befunde sind **deterministisch**; Claude formuliert höchstens die Klartext-Erklärung aus.)
+
+**Bezug zum Bezahlprodukt:** Befunde, die die Shopify-App **automatisch behebt** (fehlendes/unvollständiges `Product`/`Offer`-Markup — Kategorie B, das grösste Gewicht), werden im Ergebnis als *„automatisch behebbar"* markiert. Befunde, die der Merchant selbst liefern muss (echte GTIN) oder die architektonisch sind (CSR/kein SSR), werden ehrlich als **nicht auto-fixbar** ausgewiesen (Leitplanke 9 — keine Garantien).
 
 ---
 

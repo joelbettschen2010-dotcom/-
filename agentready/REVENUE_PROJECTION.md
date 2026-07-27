@@ -8,7 +8,7 @@
 ## 1. Das Modell (und was es für Jahr 1 heisst)
 
 Bezahlt ist jetzt ein **Abo** (Done-for-you-App), nicht eine Einmalzahlung. Das heisst:
-- **Jahr-1-Cash läuft langsamer an** (Abo compoundet erst über die Zeit) und **später** (die App muss vor dem ersten Umsatz fertig sein, ~Monat 5).
+- **Jahr-1-Cash läuft langsamer an** (Abo compoundet erst über die Zeit) und **später** (die App muss vor dem ersten Umsatz fertig sein, ~Monat 2–3).
 - Dafür **klebriger** (wiederkehrend) und der **Shopify App Store ist ein eigener Distributionskanal** → stärkeres Jahr 2.
 
 Bewusster Trade-off gegenüber dem früheren $79-Einmal-Modell (das brachte mehr Jahr-1-Cash, aber kein Auto-Fix und keine Wiederkehr).
@@ -32,21 +32,24 @@ Bewusster Trade-off gegenüber dem früheren $79-Einmal-Modell (das brachte mehr
 
 ## 3. Basis-Szenario, Monat 0–12
 
+> **Zeitleiste korrigiert:** Mit Claude Code zählen nur *deine* Stunden (Setup/Prüfen/Testen) → **App live ~Monat 2–3**, nicht Monat 5 (`PLAN.md`).
+
 | Monat | Phase | Scans/Mon. | Neue Trials | Zahlende Shops (Ende) | **MRR (USD)** |
 |---|---|---:|---:|---:|---:|
-| 0–2 | Bauen (Scan, Scoring, Worker) | 0 | 0 | 0 | **$0** |
-| 3 | **Gratis-Scan live** (Leads) | 40 | 0 | 0 | **$0** |
-| 4 | Fix-Engine + App fast fertig | 80 | 0 | 0 | **$0** |
-| 5 | **App live** ⭐ | 120 | 4 | 2 | **~$58** |
-| 6 | App-Listing + Outbound | 160 | 6 | 5 | **~$145** |
-| 7 | Ramp | 200 | 8 | 8 | **~$232** |
-| 8 | Ramp | 240 | 10 | 11 | **~$319** |
-| 9 | Ramp | 280 | 11 | 15 | **~$435** |
-| 10 | Ramp | 320 | 13 | 19 | **~$551** |
-| 11 | Ramp | 360 | 14 | 23 | **~$667** |
-| 12 | Ramp | 400 | 16 | **~27** | **~$783** |
+| 0–1 | Bauen (Scan → Worker → Frontend) | 0 | 0 | 0 | **$0** |
+| 2 | Gratis-Scan live, App im Bau | 50 | 0 | 0 | **$0** |
+| 3 | **App live** ⭐ | 100 | 4 | 2 | **~$58** |
+| 4 | Unlisted Link + Outbound | 150 | 6 | 5 | **~$145** |
+| 5 | Ramp | 200 | 8 | 9 | **~$261** |
+| 6 | Ramp | 240 | 9 | 13 | **~$377** |
+| 7 | Ramp | 280 | 11 | 18 | **~$522** |
+| 8 | Ramp | 310 | 12 | 23 | **~$667** |
+| 9 | Ramp | 340 | 13 | 28 | **~$812** |
+| 10 | Ramp | 360 | 14 | 33 | **~$957** |
+| 11 | Ramp | 380 | 15 | 38 | **~$1.102** |
+| 12 | Ramp | 400 | 16 | **~43** | **~$1.247** |
 
-**Basis Jahr 1:** Total eingenommen ≈ **$3.000–3.500**, Profit ≈ **$2.500–2.900**. Exit Monat 12: **~$780 MRR** (~$9.400 ARR-Run-Rate), **alles wiederkehrend**.
+**Basis Jahr 1:** Total eingenommen ≈ **$5.000–5.500**, Profit ≈ **$4.500–5.000**. Exit Monat 12: **~$1.250 MRR** (~$15k ARR-Run-Rate), **alles wiederkehrend**. (Höher als die frühere Rechnung, weil die App ~2 Monate früher live ist.)
 
 Vergleich: Weniger Jahr-1-Cash als das $79-Einmal-Modell (~$6k), aber **höhere Exit-MRR und voll wiederkehrend** — das zahlt sich in Jahr 2 aus.
 

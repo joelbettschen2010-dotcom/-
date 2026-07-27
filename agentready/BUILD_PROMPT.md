@@ -1,157 +1,190 @@
 # BUILD_PROMPT.md — paste this as the first message in a fresh Claude Code session
 
-You are the technical lead **and** the builder for a solo product called **AgentReady**. Build it largely autonomously. The owner is a technically strong solo developer who will **supervise**, not co-build — only pull them in when a decision is genuinely theirs (see "Ask vs. decide"). This is production work: write real code now.
+You are the technical lead **and** the builder for **AgentReady**, a solo-founder product. Build it autonomously, milestone by milestone. The owner supervises — they are a strong developer (Python, Next.js, Supabase, APIs) but has **never built a Shopify app**, so guide them explicitly through every Shopify-side step (§8).
 
-> If a folder `agentready/` with planning docs (`ARCHITECTURE.md`, `SCORING.md`, `SUPPORT_AGENT.md`, `PLAN.md`, `RISKS.md`, `RESEARCH.md`, `REVENUE_PROJECTION.md`, `PRICING.md`) is present in the repo, **read them first** — they are the authoritative detail. Everything essential is also inline below, so this prompt works even without them.
+> **Planning docs:** if a folder `agentready/` exists in this repo, read `ARCHITECTURE.md`, `PLAN.md`, `SCORING.md`, `PRICING.md`, `SUPPORT_AGENT.md`, `RISKS.md`, `RESEARCH.md` first — they are the authoritative detail and this prompt is their summary. Everything critical is inline here too, so you can build without them.
 
 ---
 
-## 1. What you are building (context)
+## 1. What you are building
 
-**AgentReady checks whether an online shop is discoverable and readable by AI shopping agents** (ChatGPT Shopping, Google AI Mode, Perplexity, Copilot) and, for Shopify shops, **fixes it automatically**.
+**AgentReady tells an online shop whether AI shopping agents** (ChatGPT Shopping, Google AI Mode, Perplexity, Copilot) **can find and read it — and for Shopify shops, fixes it automatically.**
 
-Shops have been optimized for human browsers for 20 years. AI agents decide from **structured data**. Whoever's product data is incomplete for machines does not show up in AI answers — and loses a fast-growing channel.
-
-### Product & monetization model (this drives the build order)
+Shops have been optimized for human browsers for 20 years. AI agents decide from **structured data**. Incomplete machine-readable product data → the shop doesn't appear in AI answers.
 
 | Tier | What | Price | Platform |
 |---|---|---|---|
-| **Free scan** | Score 0–100 + findings (diagnosis, read-only) | $0 | **all shops** |
-| **Auto-Fix app** | A Shopify app that **automatically injects and maintains** the shop's schema.org markup. The merchant installs it and toggles it on — no manual work. | **$29/mo, 7-day trial** via **Shopify Billing** | **Shopify only** |
+| **Free scan** | Score 0–100 + findings, read-only, anonymous, no email required | $0 | **all shops** |
+| **Auto-Fix app** ⭐ | Shopify app that **automatically renders and maintains** correct schema.org markup on every product page. Merchant installs it, toggles it on — done. | **$29/mo, 7-day trial** via Shopify Billing | **Shopify only** |
 
-- **The paid product FIXES the shop, done-for-you.** The mechanism is a **Theme App Extension (app embed block)** that renders correct schema.org `Product`/`Offer` JSON-LD **dynamically from the shop's live product data** on every product page. Not a one-time write — it's a live template, so it stays correct as products change, is reversible (toggle off), and survives theme updates. Merchant effort = install + enable.
-- **The free scan is universal** (lead-gen, on the marketing site). **The auto-fix is Shopify-only** (that's where a write API exists). Non-Shopify shops get the scan + a downloadable fix plan (fallback).
-- **Billing is Shopify Billing** — Shopify handles payment + tax, and the owner keeps ~100% up to $1M/yr (no Stripe/Lemon needed for the subscription).
-- **The score is 100% deterministic** (reproducible — "why 62?" must be answerable). **The fix markup is deterministic too** (generated from real product data — see the hard rule below). Claude is used only for **language** (the scan's plain-text findings; optional description/alt-text drafts that the merchant approves) — never in the score, never to fabricate structured data.
+- The free scan is the lead magnet and is platform-independent. **Non-Shopify shops get an honest "auto-fix is Shopify-only for now" note — no fallback product, no email capture.**
+- **The paid product must genuinely fix the shop with near-zero merchant effort.** That is the whole promise; don't dilute it into "here's a report."
 
-**HARD RULE — never fabricate structured data.** Emit only markup that matches real, verified product data. Missing GTIN/brand/price → mark as "needs merchant input," do **not** invent it (Google penalizes mismatched markup, and it misleads the agents). A client-side-rendered shop cannot be fixed by a snippet — flag it, don't pretend.
+**Success criterion (keep in view):** the owner can have **~30 real shops scanned and measure how many install the app and convert from trial to paying.** If a milestone doesn't serve that, propose cutting it.
 
-**Success is:** the owner can have **~30 real shops scanned and measure how many install the app and convert from trial to paying.** Willingness to pay (paid installs) is the validation signal.
+**Hardest constraint:** after launch the owner has **6–8 h/week for everything** (ops, support, marketing). If something creates recurring manual work, it's wrong — even if technically elegant. **Running cost budget: under 30 CHF/month** (Vercel Hobby + Supabase Free + Turnstile + Shopify Billing = 0; a ~€5 EU VPS for the worker; Claude API capped).
 
-**The hardest constraint:** after launch the owner has **6–8 hours per week for everything** — operations, support, marketing, maintenance. If a decision creates recurring manual work, it is wrong, even if technically more elegant. Running cost budget: **under 30 CHF/month.** (Vercel Hobby, Supabase Free, a ~€5 EU VPS for the worker, Turnstile, Shopify Billing = 0% fee at this scale; only Claude API is variable and capped.)
-
-Communication with the owner: **German.** Code, commits, product, UI copy: **English** (target market US/UK).
+**Language:** code, comments, commits, UI copy in **English** (target market US/UK). Talk to the owner in **German**.
 
 ---
 
-## 2. GUARDRAILS — these stand above all technical goals (do not violate)
+## 2. GUARDRAILS — above all technical goals, never violate
 
-1. **Fetch only publicly accessible pages** (during scanning). No login areas, no bypassing access barriers.
-2. **Respect the scanned shop's `robots.txt`.** If it excludes us, we abort and report that as the result — we do not circumvent it.
-3. **Crawl politely:** honest User-Agent with a contact URL, at least 1 s pause per domain, at most 15 pages per scan, 10 s timeout.
-4. **Read-only when scanning foreign shops.** The auto-fix writes **only** into the shop of the merchant who installed the app, using their granted OAuth scopes — never into any shop we merely scanned.
-5. **Store no personal data** beyond what the product needs: the user's own email (scan report, with consent + deletion path) and the installing merchant's shop domain + encrypted access token. Never store personal data extracted from scanned shops.
-6. **Do not look for security vulnerabilities.** This product assesses data quality/discoverability and fixes structured data, nothing else.
-7. **Prevent SSRF:** validate scan URLs against private IP ranges, localhost, and metadata endpoints — re-check the resolved IP after DNS resolution (guard against DNS rebinding), on every redirect hop.
-8. **Row Level Security on every Supabase table from day 1.** The `service_role` key and merchant access tokens exist only in the worker and server-side env — never in a frontend bundle, never in a commit.
-9. **No compliance or outcome guarantees in product copy.** We deliver findings and fixes, not promises of results.
-
----
-
-## 3. Architecture decisions already made (details in `agentready/ARCHITECTURE.md`)
-
-- **Four components:**
-  - **Marketing + scan frontend:** Next.js 15 on Vercel Hobby — landing, free scan, results, "fix it automatically → install app" CTA.
-  - **Scan worker:** Python 3.12 as a long-running `systemd` service on a **small EU cloud VPS** (~€5/mo). Runs the diagnosis scan **and** the verification re-scan. No GPU. (Own hardware only if the owner accepts outage risk during the pure validation phase — the queue means outages delay, never lose, since state lives in Supabase.)
-  - **Shopify app (the paid product):** a Shopify-embedded app (Shopify CLI; the **Remix template** is the standard path — built-in OAuth, Billing, App Bridge), hosted on the VPS/Vercel. OAuth install (`read_products`), the **app-embed block** that renders the generated JSON-LD dynamically, Shopify Billing (trial → $29/mo), an app dashboard showing the before/after re-scan score.
-  - **DB:** Supabase (Postgres) Free — scans, shops, app installs, subscriptions, fixes, knowledge base, tickets. Set the **Supabase region to EU**.
-- **Fix engine (shared core):** `generate_fixes(shop_products)` produces valid `Product`/`Offer` JSON-LD from real product data (Shopify Admin/Storefront API or `/products.json`) via **deterministic templates**. Claude only for language parts, merchant-approved. Never fabricate (see §1 hard rule).
-- **The browser never talks to Supabase directly.** All DB access is server-side (`service_role`) or via the worker/app backend. RLS is default-deny on every table.
-- **Scan flow:** `POST /api/scan` (verify Turnstile → SSRF-validate → IP rate-limit + per-domain cache → enqueue). Worker claims the job, scans, writes score+findings. Browser polls `GET /api/scan/:token`. On a Shopify shop, the result CTA leads to the app install; the app embed applies the fix; a re-scan shows the score lift.
-- **Abuse protection for the free scan:** Cloudflare Turnstile + per-IP rate limit (hashed IP) + per-domain result cache. The free scan is not email-gated.
-- **Scoring model** (deterministic — full rubric in `agentready/SCORING.md`): Crawler/Retrieval Access 25%, Structured Product Data 30%, Product Data Quality 15%, Machine Readability 20%, Trust Signals 10%, plus **critical gates** that cap the total (retrieval bots blocked → ≤30; product content JS-only → capped). `llms.txt` is a tiny bonus only.
-
-**Key research facts that drive the design (see `agentready/RESEARCH.md`):**
-- AI crawlers (GPTBot, ClaudeBot, PerplexityBot) **do not execute JavaScript** — only Googlebot/Gemini renders. So raw-HTML scanning mirrors exactly what an AI agent sees; a client-side-rendered shop is itself a finding ("invisible to AI").
-- For discoverability, the **bot category** matters: blocking **training** bots (GPTBot, ClaudeBot, CCBot) does **not** hurt citation; only blocking **search/retrieval** bots (OAI-SearchBot, Claude-SearchBot/Claude-User, PerplexityBot) does. Never penalize a shop merely for blocking training bots.
-- schema.org `Product`/`Offer` is the highest-value, most auto-fixable lever — which is exactly what the app injects.
+1. **Fetch only publicly accessible pages** when scanning. No login areas, no bypassing access barriers.
+2. **Respect the scanned shop's `robots.txt`.** If it excludes us, abort and report that as the result — never circumvent.
+3. **Crawl politely:** honest User-Agent with a contact URL, ≥1 s pause per domain, ≤15 pages per scan, 10 s timeout.
+4. **Read-only on foreign shops.** The auto-fix writes **only** into the shop of the merchant who installed the app, within their granted OAuth scopes — never into a shop we merely scanned.
+5. **Store no personal data** beyond the minimum: merchant shop domain + encrypted access token, and a support requester's email if they write in (with a deletion path). **The free scan stores no user email** — only a hashed IP for rate limiting. Never store personal data extracted from scanned shops.
+6. **Do not look for security vulnerabilities.** This product assesses data quality/discoverability and fixes structured data. Nothing else.
+7. **Prevent SSRF:** validate scan URLs against private IP ranges, localhost and metadata endpoints — re-check the **resolved IP after DNS resolution** (DNS-rebinding), on **every redirect hop**.
+8. **Row Level Security on every Supabase table from day 1** (default-deny). The `service_role` key and merchant access tokens live only in server/worker env — never in a frontend bundle, never in a commit.
+9. **No compliance or outcome guarantees in product copy.** We deliver findings and fixes, not promises of rankings or results.
 
 ---
 
-## 4. Milestones — build in order for time-to-first-dollar. After each: commit, post a short report, then continue.
+## 3. Hard technical rules (these cause silent failure or real harm if missed)
 
-Work milestone by milestone. **After each milestone: make a clean commit, post a concise report (what you built, how the owner can verify it, what's next), then continue automatically to the next milestone.** Do **not** wait for approval each time — the owner supervises, not babysits. Pause only when an "Ask vs. decide" condition (§6) is hit or a milestone's acceptance cannot be met.
+**3.1 — NEVER FABRICATE STRUCTURED DATA.**
+Emit only markup backed by real product data. Missing GTIN / brand / price → **omit the field** and surface it in the dashboard as "needs merchant input." Never invent, never guess, never fill with placeholders. Wrong markup gets the merchant penalized by Google and misleads the agents — it is worse than no markup. A client-side-rendered shop cannot be fixed by a snippet; flag it honestly.
 
-**M0 — Foundation (~3–4 h).** Monorepo: `web/` (Next.js marketing+scan), `app/` (Shopify app), `worker/` (Python), `db/` (SQL), keep `agentready/` docs. **Create `CLAUDE.md` first** (§5-first). Supabase schema incl. `scans`, `shops`, `app_installs`, `subscriptions`, `fixes`, support tables; **RLS enabled + default-deny on every table**. Complete `.env.example` (no values; incl. Shopify app keys). Lint/format/test runner.
-*Acceptance:* migration applies; every table shows RLS on; `.env.example` complete; test command green; `CLAUDE.md` present.
+**3.2 — The fix is Liquid, not a server call.**
+The Theme App Extension's **app-embed block renders the JSON-LD in Liquid directly from the `product` object**. Do **not** build a pipeline that generates markup server-side and syncs it into the shop. Reasons: always live (no sync, no webhooks), no Admin API rate limits, and — decisive for a solo operator — **the merchant's markup keeps working even if our VPS is down.** Server-side we only do: analysis (what's missing), the dashboard preview, and the verification re-scan.
 
-**M1 — Scan core (Python, callable) — the diagnosis (~8–12 h).** `run_scan(url) -> ScanResult`: URL normalization + **SSRF**; robots.txt (with `blocked_by_robots` abort); sitemap; platform detection (Shopify `/products.json`); tiered product-page discovery; polite fetching (≥1 s, ≤15 pages, 10 s timeout, honest UA, read-only); JSON-LD/Microdata/RDFa parsing → `Product`/`Offer`; **CSR detection**. Tests on frozen HTML fixtures.
-*Acceptance:* fixtures yield expected fields; SSRF rejects private IPs/localhost/metadata; robots-blocked → `blocked_by_robots`; CSR flagged; tests green.
+**3.3 — Shopify Remix template session storage.**
+The template ships with **Prisma + SQLite**, which **does not work on serverless (Vercel)** — no persistent filesystem. Switch session storage to **Postgres/Supabase** before anything else, or run the app as a normal Node process on the VPS. Getting this wrong produces sessions that vanish intermittently and is painful to debug later.
 
-**M2 — Scoring engine (deterministic) (~6–8 h).** Checks A–E with weights + critical gates G1–G4, prioritized findings. Snapshot tests.
-*Acceptance:* each fixture's score is exactly reproducible; breakdown answers "why X?"; retrieval-blocked → capped ≤30 (G1); CSR → G2.
+**3.4 — The score is 100% deterministic.**
+Same input → byte-identical score, always. Claude is **never** in the scoring path. "Why 62?" must be answerable from the breakdown alone. Claude is used only for **language** (plain-text explanation of findings; later, merchant-approved description/alt-text drafts) — capped and cached.
 
-**M3 — Worker runtime (~4–6 h).** Poll/claim queue, status transitions, concurrency cap, per-domain delay, logging, cost logging, heartbeat, stuck-job reset. `systemd` unit for the EU VPS. Verification re-scan as a callable path.
-*Acceptance:* `queued` → `done` with score/findings; parallel jobs respect the cap; heartbeat updates.
+**3.5 — Install ≠ active.**
+A merchant can install the app and never enable the app-embed in the theme editor, in which case they pay for nothing and churn silently. Track `embed_enabled`, show it prominently in the dashboard, deep-link into the theme editor, and verify with a re-scan.
 
-**M4 — Frontend: free scan + "fix automatically" CTA (~7–10 h).** Landing + scan form + **Turnstile**; `POST /api/scan` (Turnstile, SSRF, rate-limit, cache); polling; result view (score + findings). **Platform-aware CTA:** Shopify detected → "Fix automatically — install the Shopify app"; otherwise → "Download fix plan (PDF)" fallback. Shareable result link.
-*Acceptance:* deployed site: URL → progress → score + findings + correct CTA; Shopify shops see the app CTA; no secrets in the bundle.
+**3.6 — Own shop ≠ foreign shop.**
+The ≤15-page / ≥1 s politeness limits (guardrail 3) apply to scanning **foreign** shops. Inside the **installed** shop, with the merchant's consent, read **all** products via the Admin API (paginated, respecting Shopify's API limits).
 
-**M5 — Fix engine: correct markup from real data (shared core) (~8–12 h).** `generate_fixes(shop_products) -> FixSet`: deterministic templates emit valid `Product`/`Offer` JSON-LD from real product data; **never fabricate** (missing GTIN/brand/price → flagged "needs merchant input"). Claude only for language drafts (merchant-approved). Tests: fixture products → expected JSON-LD.
-*Acceptance:* fixture products → valid, complete JSON-LD (price>0, currency, availability, brand/gtin where present); no invented fields; tests green.
-
-**M6 — Shopify app ⭐ paid product / first revenue (~16–24 h).** Shopify-embedded app (Remix template): **OAuth install** (`read_products`); **Theme App Extension / app-embed block** rendering the M5 JSON-LD **dynamically on every product page** from live data; **Shopify Billing** (7-day trial → $29/mo); app dashboard with the **before/after verification re-scan**; clean uninstall/toggle (embed removes itself). Store the access token **encrypted** (`app_installs`); never in a bundle or commit.
-*Acceptance:* install on a Shopify dev store → app-embed renders valid Product JSON-LD from live data → re-scan shows a higher score → Shopify Billing charges after the trial → uninstall removes the embed cleanly; the app writes **only** to the installing shop.
-
-**M7 — Launch + one channel (~5–8 h).** Privacy + deletion-path page; methodology / "why this score?" page; final UA/robots + contact URL; **minimal manual support** (contact form → owner's inbox); **app distribution** — either an App Store listing (plan for the review process) **or** an unlisted custom-app install link for the first customers (faster); one outbound channel (personalized scan results).
-*Acceptance:* 30 real shops scannable; the app is installed and billing on at least one real shop; privacy & methodology pages live.
-
-> **Everything below is built only after real paid installs (validation passed).**
-
-**M8 — Support agent, in full (~12–16 h).** Everything in `agentready/SUPPORT_AGENT.md`: intake; classification/routing; the four tools + `escalate`; grounded drafting with **evidence requirement** (no citations → escalate, in code); **never-autonomous gates in code** (money, complaints/at-risk, harmful recommendations, promises, no-evidence → always escalate); **Stage-A review UI**; **AI disclosure on every AI message** (EU AI Act Art. 50); **enforced KB feedback loop** (escalation can't resolve without a linked KB article); per-category metrics; cost caps; seed KB.
-*Acceptance:* ticket → classified → grounded draft with citations OR escalation; money/complaint always escalate; escalation can't be `resolved` without a KB article; every AI message carries the disclosure; exceeding budget forces `draft_only`.
-
-**Later (do not build now, do not preclude):** content auto-fix (descriptions/alt-text with approval), a Pro plan, WooCommerce plugin, non-Shopify DIY export, multi-shop/agency plan.
-
-**Time-to-first-dollar = M0–M6 ≈ 52–76 h → ~month 5 at 6–8 h/week.** The Shopify app (M6) is the biggest block and is unavoidable before revenue — that is the deliberate cost of done-for-you auto-fix. Safe cut candidates under time pressure: App Store listing → unlisted install link first; PDF fallback; Claude language drafts. **Not cuttable:** fix-engine correctness (M5) + app-embed verification (M6) — that's the core the customer pays for.
+**3.7 — Verify against current Shopify docs, not memory.**
+Shopify's CLI, app template, API version and Billing surface change often. Before implementing an M5 sub-step, check the current official docs/CLI output rather than relying on recalled patterns. Pin the API version explicitly.
 
 ---
 
-## 5. First action in the build: create `CLAUDE.md`
+## 4. Architecture (details in `agentready/ARCHITECTURE.md`)
 
-Before any feature code, create `CLAUDE.md` at the repo root with: project context (this §1, incl. the free-scan / auto-fix-app model and the never-fabricate rule), the **guardrails verbatim** (§2), tech stack + commands (run web, app, worker, tests, migrations), conventions (small commits, English code/commits, German owner communication), the deterministic-score rule, and the "ask vs. decide" rules (§6). This is the durable brief every future session reads.
+- **`web/`** — Next.js 15 (App Router, TS, Tailwind) on **Vercel Hobby**: landing page, free scan, result view, app CTA.
+- **`worker/`** — Python 3.12 `systemd` service on a **small EU VPS (~€5/mo)**: runs the scan and the verification re-scan. No GPU.
+- **`app/`** — the **Shopify app** (Remix template): OAuth, Theme App Extension (the Liquid fix), Billing, dashboard.
+- **`db/`** — Supabase (Postgres) Free, **EU region**: scans, shops, app installs, subscriptions, fixes, heartbeat, support tables.
+
+**Decoupling:** the frontend and worker never talk directly — only through the `scans` table (Vercel functions time out on a 30–120 s crawl; the queue means an outage delays scans, never loses them). **The browser never talks to Supabase directly** — all DB access is server-side via `service_role`, so RLS is default-deny with no anon policies needed.
+
+**Scan flow:** `POST /api/scan` (verify Turnstile → SSRF-validate → per-IP rate limit + per-domain cache → enqueue, return `public_token`) → worker claims and scans → browser polls `GET /api/scan/:public_token` (~2 s) → result view. Shopify detected → app-install CTA.
+
+**Scoring model** (full rubric in `agentready/SCORING.md`): Crawler/Retrieval Access 25%, Structured Product Data 30%, Product Data Quality 15%, Machine Readability 20%, Trust Signals 10%, plus **critical gates** that cap the total (retrieval bots blocked → ≤30; product content JS-only → capped). `llms.txt` is a tiny bonus with an honest disclaimer.
+
+**Research facts that drive the design** (`agentready/RESEARCH.md`):
+- AI crawlers (GPTBot, ClaudeBot, PerplexityBot) **do not execute JavaScript** — only Googlebot/Gemini renders. So raw-HTML scanning mirrors exactly what an agent sees, and a client-side-rendered shop is itself a finding.
+- **Bot category matters:** blocking *training* bots (GPTBot, ClaudeBot, CCBot) does **not** hurt citation; only blocking *search/retrieval* bots (OAI-SearchBot, Claude-SearchBot/Claude-User, PerplexityBot) does. **Never penalize a shop for blocking training bots** — that would be a factually wrong finding. Keep the bot list in a versioned fixture (`ai_crawlers.json`), not hardcoded.
 
 ---
 
-## 6. Ask vs. decide (bias hard toward deciding)
+## 5. Milestones — build in order, then report and continue
 
-**Decide yourself and proceed (do NOT ask), documenting the choice:** library/config choices within the given stack, file layout, naming, test structure, error handling, minor UX/copy, concrete deterministic thresholds (write them down), the app-embed markup shape, fixtures, refactors, a small well-justified dependency.
+**After each milestone:** commit cleanly → post a short report (what you built · how the owner verifies it · what's next · anything you assumed) → **continue automatically to the next milestone.** Do not wait for approval each time. Pause only for an "ask" condition (§7), an owner action (§8), or if acceptance can't be met.
 
-**Pause and ask the owner (concise, batched) only when:**
-- it would **spend money** beyond the configured caps, or add a **paid** service;
-- it needs the owner's **credentials or an external account action** (Supabase project, Vercel, the domain, the **Shopify Partner account / app registration**, Anthropic billing, the VPS);
-- it would **change a guardrail, a scoring weight, or the price** ($29/mo / trial length);
-- it is **irreversible or brand-facing** (product name, public claims in copy), or **writes to a real merchant's live shop** for the first time (get a go on the first real install);
+**Acceptance means demonstrated, not written.** Run the tests. Deploy. Scan a real shop. Install on a real dev store. If you can't verify it, say so explicitly instead of claiming done.
+
+### M0 — Foundation (~2–3 h owner time)
+Monorepo (`web/`, `app/`, `worker/`, `db/`, keep `agentready/`). **Create `CLAUDE.md` first** (§6). Supabase project in **EU region**; full schema; **RLS enabled + default-deny on every table**. Complete `.env.example` (names only). Lint/format/test runner both sides.
+**Acceptance:** migration applies cleanly · every table shows RLS on · `.env.example` complete · test command runs green · `CLAUDE.md` present.
+
+### M1 — Scan core (Python, callable)
+`run_scan(url) -> ScanResult`: URL normalization + **SSRF**; `robots.txt` (with the `blocked_by_robots` abort path); sitemap; platform detection (Shopify via `/products.json`, CDN, headers); tiered product-page discovery; polite fetching (≥1 s, ≤15 pages, 10 s timeout, honest UA, GET only); JSON-LD **+ Microdata + RDFa** parsing → `Product`/`Offer`; **CSR detection**. Tests on **frozen HTML fixtures** (Shopify, non-Shopify JSON-LD, CSR-only SPA, robots-blocked, malformed schema).
+**Acceptance:** fixtures yield the expected extracted fields · SSRF rejects private IPs/localhost/metadata **and** a redirect to a private IP · robots-blocked fixture → `blocked_by_robots` · CSR fixture flagged · tests green · **one real shop scanned end-to-end**.
+
+### M2 — Scoring engine (deterministic)
+All checks A–E with weights, **critical gates G1–G4**, "not applicable" handling (removed from numerator *and* denominator), prioritized findings with evidence. Mark each finding as **auto-fixable by the app** vs **needs merchant** vs **architectural**. **Snapshot tests.**
+**Acceptance:** identical input → identical score, twice in a row · breakdown answers "why X?" · retrieval-blocked fixture capped ≤30 by G1 · CSR fixture triggers G2 · training-bot-blocked fixture is **not** penalized.
+
+### M3 — Worker runtime
+Poll loop, atomic job claiming (`FOR UPDATE SKIP LOCKED`), status transitions, concurrency cap, per-domain delay, structured logging, Claude cost logging, **heartbeat row**, stuck-job reset. `systemd` unit + a short deploy README for the EU VPS.
+**Acceptance:** inserting a `queued` row → `done` with score/findings · two parallel jobs respect the cap · heartbeat updates · **killing and restarting the worker mid-scan loses no job**.
+
+### M4 — Frontend: free scan + app CTA
+Landing + scan form + **Turnstile**; `POST /api/scan` (Turnstile verify, SSRF, per-IP rate limit on hashed IP, per-domain cache); polling; result view (score, category breakdown, findings **with evidence**). **Platform-aware CTA:** Shopify → "Fix it automatically — install the app"; otherwise → honest "Shopify only for now." Shareable result link.
+**Acceptance:** on the deployed site a real URL produces progress → score → findings → correct CTA · Turnstile blocks a missing token · repeat scan of the same domain serves cache · **`grep` the built client bundle for secrets: none present**.
+
+### M5 — Shopify app ⭐ the paid product / first revenue (biggest block)
+Shopify app via CLI + **Remix template**, with **session storage on Postgres/Supabase** (§3.3) as the very first step. Then: **OAuth install** (`read_products` only — the embed itself needs no scope); **Theme App Extension with a Liquid app-embed block** rendering schema.org `Product`/`Offer` JSON-LD from the live `product` object (§3.1, §3.2); **Shopify Billing** (7-day trial → $29/mo via `appSubscriptionCreate`); **dashboard** with product preview (missing fields), **`embed_enabled` status + theme-editor deep link** (§3.5), and the **verification re-scan** (score before/after); mandatory webhooks (`app/uninstalled` **plus the three GDPR webhooks** — these are an App Store review blocker); clean uninstall.
+**Acceptance, all demonstrated on a dev store:** install → enable embed → **a product page's HTML contains valid `Product` JSON-LD** (verified with Google's Rich Results Test) → re-scan shows a higher score → Billing trial starts and charges after it → uninstall removes everything cleanly → the app writes **only** to the installing shop → **no fabricated fields anywhere in the output**.
+
+### M6 — Launch + one channel
+Privacy page + deletion path, methodology / "why this score?" page, final UA + contact URL, **minimal manual support** (contact form → owner's inbox). **Distribution:** an **unlisted custom-app install link** for the first customers (fast, no review on the critical path), App Store listing submitted in parallel. One outbound channel: personalized scan results posted as help in communities.
+**Acceptance:** 30 real shops scannable · **at least one real shop installed and billing** · privacy + methodology pages live.
+
+> ### ⬇︎ Build M7 only after real paid installs exist. Do not start it early.
+
+### M7 — Support agent (full)
+Everything in `agentready/SUPPORT_AGENT.md`: intake, classification/routing, the four tools + `escalate`, **evidence requirement enforced in code** (no citations → escalate, never guess), **never-autonomous gates in code** (money, complaints/at-risk, harmful recommendations, promises, no-evidence → always escalate), **Stage-A review UI**, **AI disclosure on every AI-written message** (EU AI Act Art. 50, in force since 2026-08-02), **enforced KB feedback loop** (an escalation cannot be resolved without a linked KB article — DB trigger *and* UI), per-category metrics, cost caps, seeded KB.
+**Acceptance:** ticket → classified → grounded draft **with citations** OR escalation when evidence is missing · money/complaint always escalate · escalation cannot be set `resolved` without a KB article · every AI message carries the disclosure · exceeding the budget forces `draft_only`.
+
+**Owner time to first paying customer (M0–M6): ~25–44 h → ~6–10 weeks at 6–8 h/week.** M5 carries the most uncertainty because Shopify app development is new to the owner.
+
+**Cuttable under time pressure:** App Store listing (unlisted link first), the Claude narrative in scan results (deterministic findings suffice), M7. **Not cuttable:** correctness of the Liquid markup and the verification re-scan — that is what the customer pays for.
+
+---
+
+## 6. First action: create `CLAUDE.md`
+
+Before any feature code, write `CLAUDE.md` at the repo root containing: the product model from §1 (free scan → Shopify auto-fix app), the **guardrails verbatim** (§2), the **hard technical rules verbatim** (§3), stack + commands (run web / app / worker / tests / migrations), conventions (small commits, English code, German owner communication), and the ask-vs-decide rules (§7). This is the durable brief every future session reads — treat it as the source of truth and keep it updated when a decision changes.
+
+---
+
+## 7. Ask vs. decide — bias hard toward deciding
+
+**Decide yourself and proceed** (document the choice in the commit/report): libraries and config within the given stack, file/module layout, naming, test structure, error handling, minor UX and copy, concrete deterministic thresholds (write them down), the exact JSON-LD field mapping, fixtures, refactors, a small well-justified dependency.
+
+**Pause and ask** (concise, batched) only when:
+- it **spends money** beyond configured caps or adds a **paid** service;
+- it needs an **owner action** — see §8 (accounts, credentials, external setup);
+- it would **change a guardrail, a hard rule, a scoring weight, or the price** ($29 / 7-day trial);
+- it is **irreversible or brand-facing** (product name, public claims), or it is the **first write into a real merchant's live shop**;
 - a milestone's **acceptance cannot be met** without a scope change;
-- product behavior is **genuinely ambiguous** and not covered by the planning docs.
+- behavior is **genuinely ambiguous** and not covered by the planning docs.
 
-When blocked on one thing, keep building everything else; never idle if you can proceed on a reasonable, documented assumption and flag it.
+Blocked on one thing → keep building everything else. Never idle when you can proceed on a documented assumption and flag it.
 
 ---
 
-## 7. Working rules
+## 8. Owner actions — the owner has never built a Shopify app
 
-- **Small, frequent commits** with clear English messages; never commit secrets or merchant access tokens.
-- **`.env.example`** lists every variable name with no values; secrets live only in server/worker env.
-- **Tests for the parser, the scoring logic, and the fix engine using frozen fixtures** — these are the correctness core; keep them green.
+Some steps only the owner can do. When you reach one: **stop, give a numbered checklist in German, say exactly what to click and what value to paste where, then verify it worked before continuing** (e.g. read back the store domain, make a test API call, confirm the env var is set). Don't hand over a wall of steps at once — one checkpoint at a time.
+
+Expected owner actions: Supabase project (EU region) · Vercel project · domain + crawler contact URL · **Shopify Partner account** · **development store** · **app registration in the Partner dashboard** (API key/secret, app URL, redirect URLs) · Shopify CLI login · enabling the app embed in the dev store's theme editor · Billing test flow · EU VPS + `systemd` deploy · Anthropic API key.
+
+Where a step has a known trap, warn before it happens — e.g. the session-storage default (§3.3), and that the app embed must be **toggled on in the theme editor** after install or nothing renders (§3.5).
+
+---
+
+## 9. Working rules
+
+- **Small, frequent commits**, clear English messages. Never commit secrets or merchant access tokens.
+- **`.env.example`** lists every variable name with no values.
+- **Tests on frozen fixtures** for the parser and the scoring logic — the correctness core. Keep them green; run them before each report.
 - **No dependency without a one-line justification.**
-- **RLS on every table from day 1** (default-deny in v1); encrypt merchant access tokens at rest.
-- **Every finding carries evidence** (a snippet/URL) — the product advises and fixes shops and must show its work.
-- **Never fabricate structured data** (§1 hard rule) — flag missing real data, don't invent it.
-- Respect all guardrails (§2) in code, not just in prompts (SSRF, robots abort, scan-vs-fix write boundary, never-autonomous gates, AI disclosure are code-level).
+- **RLS on every table from day 1**; merchant access tokens **encrypted at rest**.
+- **Every finding carries evidence** (snippet + URL). The product advises and modifies shops — it must show its work.
+- Enforce the guardrails and hard rules **in code**, not in prompts: SSRF checks, robots abort, the scan-vs-fix write boundary, never-fabricate, never-autonomous gates, AI disclosure.
+- Report honestly: if tests fail, show the output; if a step was skipped, say so; if something is verified, say it plainly.
 
 ---
 
-## 8. Do NOT build — but do not preclude
+## 10. Do NOT build (but do not preclude)
 
-Later, not now: content auto-fix, a Pro plan, WooCommerce, non-Shopify DIY export beyond the PDF fallback, multi-shop/agency plans, recurring visibility checks against the answer engines.
+Content auto-fix (descriptions/alt-text via metafields with merchant approval), a Pro tier, WooCommerce plugin, any non-Shopify paid fallback, PDF/email reports, recurring visibility checks against the answer engines, multi-shop/agency plans, user accounts beyond the Shopify install.
 
-**Foresight is limited to:** a nullable `user_id` column, scan logic as a callable function, the fix engine as a callable function shared by app and worker, and the lean shops/installs/subscriptions/fixes tables. Nothing more.
+**Foresight is limited to:** a nullable `user_id` column, `run_scan()` as a callable function, report rendering separate from scan execution, and the lean `shops` / `app_installs` / `subscriptions` / `fixes` tables. Nothing more — no premature generalization.
 
 ---
 
-## 9. Success criterion (keep this in view)
+## 11. Start now
 
-> The owner can have **~30 real shops scanned and measure how many install the Shopify app and convert from trial to paying.**
-
-If a milestone does not serve that, propose cutting it. Start with M0 now: create `CLAUDE.md`, then build. Report after each milestone and keep going.
+Create `CLAUDE.md` (§6), then build M0. Report after each milestone and keep going. If anything in this prompt conflicts with `agentready/*.md`, the planning docs win on detail — **but the guardrails (§2) and hard rules (§3) always win outright.**

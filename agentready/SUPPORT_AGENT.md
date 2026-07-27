@@ -21,7 +21,7 @@ Genau vier Read-Werkzeuge + ein eng begrenztes Handeln + Eskalation. Mehr nicht 
 |---|---|---|
 | `kb_search(query)` | Wissensbasis durchsuchen (Postgres-FTS v1, pgvector später) | nur `status='published'` |
 | `get_user_scan(email\|token\|domain)` | Konkreten Scan + Findings des Anfragers laden | nur Scans, die zur Anfrage passen |
-| `get_account_status(email)` | Konto-/Abo-Status | v1 minimal (keine Konten): liefert Lead-/Scan-Historie; Platzhalter für spätere Abo-Felder |
+| `get_account_status(shop_domain\|email)` | Install-/Abo-Status des Shops | liest `shops`/`app_installs`/`subscriptions` (installiert? Embed an? Trial/aktiv?) — **read-only**, ändert nie ein Abo |
 | `trigger_rescan(domain\|scan_id)` | Neuen Scan einreihen | idempotent, rate-limited, nur öffentliche URL |
 | `escalate(reason)` | An Mensch übergeben | erzeugt `escalations`-Zeile; siehe §5/§7 |
 

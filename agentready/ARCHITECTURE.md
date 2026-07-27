@@ -16,9 +16,15 @@ Drei Laufzeit-Bausteine, strikt entkoppelt über die Supabase-Datenbank als Nach
      │   GET  /api/scan/:token (Polling Fortschritt/Report)          │ claim/poll
      │                                                     service_role│ (queued→running→done)
      └────────────────── Report (Score + Fix-Liste) ◄─────  Python Scan-Worker
-                                                            (eigener Linux-Server, systemd)
+                                                            (kleiner EU-VPS, systemd)
                                                                     │
                                                             Claude API (nur Narrativ + Support)
+
+  Shopify-Merchant ──installiert──► Shopify-App (Remix)  ──read_products──► Shopify Admin API
+                                          │                                    (Dashboard/Preview)
+                                          └──► Theme-App-Extension (Liquid App-Embed)
+                                               rendert JSON-LD im Theme des Merchants
+                                               ⚠ läuft OHNE unseren Server weiter
 ```
 
 **Warum diese Entkopplung:** Vercel-Funktionen haben zu kurze Laufzeitgrenzen für einen 30–120-s-Crawl. Der Worker läuft als langlebiger Dienst auf dem eigenen Server. Frontend und Worker reden **nie** direkt miteinander — nur über die `scans`-Tabelle. Das überlebt Worker-Neustarts, braucht keine Extra-Queue-Infrastruktur und hält die 6–8-h/Woche-Randbedingung.
@@ -41,9 +47,9 @@ Drei Laufzeit-Bausteine, strikt entkoppelt über die Supabase-Datenbank als Nach
 - **Route Handler `GET /api/scan/:public_token`**: liest Status/Report server-seitig, gibt JSON zurück. Der Browser **pollt** diese Route alle ~2 s bis `done`/`failed`.
   - *Bewusste Vereinfachung ggü. Supabase Realtime:* Polling einer Server-Route hält RLS airtight (kein Client-DB-Zugriff nötig) und ist bei 1–3-min-Scans völlig ausreichend. Realtime ist ein optionales späteres Upgrade.
 - **Report-Ansicht**: rendert Score (0–100), Kategorie-Aufschlüsselung und priorisierte Fix-Liste aus dem `report`-JSON. Report-Rendering ist **getrennt** von der Scan-Ausführung (Vorsorge, Abschnitt 7 des Briefs).
-- **E-Mail-Erfassung** für den vollständigen Report (optional, mit Einwilligung) → `POST /api/report-email`.
+- **Kein E-Mail-Gate, kein Nicht-Shopify-Fallback** (Entscheidung): Der Scan ist vollständig gratis und anonym; Shopify-Shops sehen den App-CTA, Nicht-Shopify-Shops einen ehrlichen Hinweis „Auto-Fix aktuell nur für Shopify". → **Es wird keine Nutzer-E-Mail gespeichert** (siehe §7).
 
-### 2.2 Scan-Worker — Python 3.12 (eigener Linux-Server, systemd)
+### 2.2 Scan-Worker — Python 3.12 (kleiner EU-VPS, systemd)
 - Langlebiger Dienst. **Poll-Schleife**: beansprucht `queued`-Scans atomar (`UPDATE ... WHERE status='queued' ... RETURNING`, bzw. `FOR UPDATE SKIP LOCKED`), setzt `running`, führt `run_scan(url)` aus, schreibt Ergebnis, setzt `done` / `failed` / `blocked_by_robots`.
 - **Concurrency-Deckel** (z. B. 2–3 gleichzeitige Scans), globaler Höflichkeits-Delay pro Domain.
 - Nutzt `service_role`-Key (Server-Env) und `ANTHROPIC_API_KEY`.
@@ -59,17 +65,27 @@ Drei Laufzeit-Bausteine, strikt entkoppelt über die Supabase-Datenbank als Nach
 - Modell-Split über Env: günstiges Modell (Klassifikation/Routing), stärkeres (Antwort/Narrativ).
 
 ### 2.5 Shopify-App (Bezahlprodukt)
-- Eigene Shopify-eingebettete App (Shopify-CLI; **Remix-Template = Standardweg** mit eingebautem OAuth/Billing/App-Bridge; auf VPS/Vercel gehostet).
-- **OAuth-Installation** mit minimalen Scopes (`read_products` — die Theme-App-Extension braucht keinen breiten Theme-Schreib-Scope). Access-Token **verschlüsselt** in `app_installs`, nur Server/Worker.
-- **Theme-App-Extension / App-Embed-Block:** rendert das aus der Fix-Engine (§2.6) erzeugte **schema.org-JSON-LD dynamisch auf jeder Produktseite** aus den Live-Produktdaten. Kein einmaliges Schreiben → immer korrekt, selbstpflegend, reversibel (Toggle), überlebt Theme-Updates. Kundenaufwand = installieren + einschalten.
-- **Shopify Billing** (7-Tage-Trial → $29/Mo, `PRICING.md`). Shopify wickelt Zahlung + Steuer ab; 0 % Plattformgebühr bis $1 Mio./Jahr.
-- **App-Dashboard:** zeigt den **Verifikations-Re-Scan** (Score vorher/nachher) und nicht-auto-fixbare Punkte (fehlende GTIN, CSR) als ehrlichen Hinweis.
+- Eigene Shopify-eingebettete App (Shopify-CLI; **Remix-Template = Standardweg** mit eingebautem OAuth/Billing/App-Bridge).
+- **OAuth-Installation** mit minimalem Scope: **`read_products`** — ausschliesslich fürs Dashboard/Preview. **Der Fix-Embed selbst braucht gar keinen Scope** (er rendert im Theme-Kontext, §2.6). Access-Token **verschlüsselt** in `app_installs`.
+- **⚠ Session-Storage-Falle:** Das Remix-Template nutzt per Default **Prisma + SQLite** — das funktioniert auf serverless (Vercel) **nicht** (kein persistentes Dateisystem). → **Session-Storage auf Postgres/Supabase umstellen** (oder die App auf dem VPS als Node-Prozess betreiben). Muss beim Bau als Erstes erledigt werden.
+- **Shopify Billing** (7-Tage-Trial → $29/Mo, `PRICING.md`) über die GraphQL-Admin-API (`appSubscriptionCreate`) — **kein eigener Scope nötig**, kein Stripe/Lemon. Shopify wickelt Zahlung + Steuer ab; 0 % Plattformgebühr bis $1 Mio./Jahr.
+- **App-Dashboard:** Produkt-Übersicht mit fehlenden Feldern (Preview), **Verifikations-Re-Scan** (Score vorher/nachher) und ehrliche Liste der nicht-auto-fixbaren Punkte (fehlende GTIN, CSR).
+- **Eigener Shop ≠ fremder Shop:** Die 15-Seiten-/Höflichkeitsgrenzen (Leitplanke 3) gelten für den **Scan fremder Shops**. Im **installierten** Shop liest die App mit Einwilligung des Merchants **alle** Produkte über die Admin-API (paginiert, respektiert API-Limits).
 
-### 2.6 Fix-Engine (geteilter Kern)
-- `generate_fixes(shop_products) -> FixSet`: **deterministische Templates** erzeugen valides `Product`/`Offer`-JSON-LD aus echten Produktdaten (Shopify Admin/Storefront-API bzw. `/products.json`).
-- **Niemals fabrizieren:** fehlende GTIN/Marke/Preis werden **nicht erfunden**, sondern als „braucht Merchant-Input" markiert (Google bestraft falsches Markup; es täuscht Agenten).
-- **Claude nur für Sprache:** Beschreibungs-/Alt-Text-Entwürfe bei dürftigen Daten — **mit Merchant-Freigabe**, nie stillschweigend.
-- Läuft im Python-Worker (wiederverwendbar); die App fragt sie ab.
+### 2.6 Der Fix: Liquid-App-Embed (kein Server im Pfad)
+**Entscheidung (wichtig):** Das schema.org-JSON-LD wird **direkt im Liquid-Template der Theme-App-Extension** aus dem `product`-Objekt gerendert — **nicht** server-seitig erzeugt und synchronisiert.
+
+| | server-erzeugt + Sync | **Liquid-App-Embed (gewählt)** |
+|---|---|---|
+| Datenaktualität | Webhooks/Sync nötig | immer live |
+| Admin-API-Limits | ja | entfällt |
+| **VPS-Ausfall** | Markup veraltet/kaputt | **läuft weiter** ✅ |
+| Bauaufwand | Engine + Sync + Abruf | ein Liquid-Template |
+
+- **Warum es geht:** Ein App-Embed-Block wird in `theme.liquid` eingehängt und hat auf Produktseiten Zugriff auf das globale `product`-Objekt (Standardweg aller Schema-Apps).
+- **Niemals fabrizieren (harte Regel):** Nur Felder ausgeben, die real vorhanden sind. Fehlende GTIN/Marke → Feld **weglassen**, nicht erfinden (Google bestraft falsches Markup; es täuscht die Agenten). Im Dashboard als „braucht Merchant-Input" ausweisen.
+- **Server-seitig bleibt nur:** die **Analyse** (was fehlt — das kann die Scan-/Scoring-Logik aus M1/M2 bereits), das Dashboard-Preview und der Verifikations-Re-Scan.
+- **Claude nur für Sprache (später):** Beschreibungs-/Alt-Text-Entwürfe bei dürftigen Daten — in **Metafields** abgelegt, vom Liquid gelesen, **nur mit Merchant-Freigabe**.
 
 ---
 
@@ -87,7 +103,7 @@ Drei Laufzeit-Bausteine, strikt entkoppelt über die Supabase-Datenbank als Nach
    f. **Deterministische Checks** → Kategorie-Scores → Gesamt 0–100 mit kritischen Gates (siehe `SCORING.md`).
    g. Findings (`id, category, severity, status, evidence, fix, weight`) + priorisierte Fix-Liste bauen.
 5. Worker schreibt `score`, `score_breakdown`, `findings`, `report`, setzt `done`.
-6. Browser-Poll erhält `done` → **Ergebnis** (Score + Befunde) rendert. Bei erkanntem Shopify-Shop: CTA „Automatisch beheben — Shopify-App installieren" → OAuth-Install (§2.5) → App-Embed rendert das Fix-Markup → **Verifikations-Re-Scan** zeigt den Score-Anstieg. Nicht-Shopify: PDF-Fix-Plan als Fallback.
+6. Browser-Poll erhält `done` → **Ergebnis** (Score + Befunde) rendert. Bei erkanntem Shopify-Shop: CTA „Automatisch beheben — Shopify-App installieren" → OAuth-Install (§2.5) → Merchant schaltet App-Embed im Theme-Editor ein → Liquid rendert das Fix-Markup (§2.6) → **Verifikations-Re-Scan** zeigt den Score-Anstieg im App-Dashboard. Nicht-Shopify: ehrlicher Hinweis „Auto-Fix aktuell nur für Shopify" (kein Fallback-Produkt).
 
 ---
 
@@ -111,7 +127,7 @@ create table scans (
   score_breakdown   jsonb null,                   -- {category: {points, max, checks:[...]}}
   findings          jsonb null,                   -- [{id,category,severity,status,evidence,fix,weight}]
   report            jsonb null,                   -- gerendertes View-Model (deterministisch)
-  narrative         jsonb null,                   -- Claude-Narrativ (erst bei Full-Report)
+  narrative         jsonb null,                   -- Claude-Narrativ (knapp, gecacht, gedeckelt)
   narrative_at      timestamptz null,
   pages_crawled     int  null,
   claude_cost_cents int  not null default 0,
@@ -124,14 +140,12 @@ create table scans (
 create index on scans (status);
 create index on scans (cache_key, finished_at desc);
 
--- Der einzige gespeicherte personenbezogene Datensatz (Frage 9): E-Mail für Report.
-create table report_emails (
-  id          uuid primary key default gen_random_uuid(),
-  scan_id     uuid not null references scans(id) on delete cascade,
-  email       text not null,
-  consent_at  timestamptz not null default now(),  -- Einwilligung dokumentiert
-  sent_at     timestamptz null,
-  created_at  timestamptz not null default now()
+-- Betriebs-Heartbeat (Worker-Ausfall erkennen, §8)
+create table worker_heartbeat (
+  id           int primary key default 1,
+  last_seen_at timestamptz not null default now(),
+  worker_id    text null,
+  constraint single_row check (id = 1)
 );
 
 -- ========== BEZAHLPRODUKT: SHOPIFY-APP (Auto-Fix, Abo) ==========
@@ -275,8 +289,8 @@ create trigger trg_enforce_kb before update on escalations
 **Prinzip:** Jede Tabelle `enable row level security`. In v1 (kein Nutzer-Login) gibt es **keine** Policies für `anon`/`authenticated` → default-deny → aus dem Browser ist nichts direkt lesbar/schreibbar. Sämtlicher Zugriff läuft über `service_role` (Next.js Server-Routen + Worker). `service_role` umgeht RLS bauartbedingt.
 
 ```sql
-alter table scans           enable row level security;
-alter table report_emails   enable row level security;
+alter table scans            enable row level security;
+alter table worker_heartbeat enable row level security;
 alter table shops           enable row level security;
 alter table app_installs    enable row level security;
 alter table subscriptions   enable row level security;
@@ -306,15 +320,16 @@ SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=          # nur Server-Routen, nie Bundle
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=     # öffentlich (Widget)
 TURNSTILE_SECRET_KEY=               # Server
-RESEND_API_KEY=                     # oder N8N_EMAIL_WEBHOOK_URL (Report-Mail / PDF-Fallback)
-N8N_EMAIL_WEBHOOK_URL=
 # --- Shopify-App (Bezahlprodukt, Billing via Shopify) ---
 SHOPIFY_API_KEY=
 SHOPIFY_API_SECRET=
 SHOPIFY_APP_URL=                    # öffentliche App-URL (OAuth-Callback)
-SHOPIFY_SCOPES=read_products
-SHOPIFY_WEBHOOK_SECRET=             # App-Uninstall/Update-Webhooks verifizieren
+SHOPIFY_SCOPES=read_products        # Embed braucht keinen Scope; nur Dashboard/Preview
+SHOPIFY_WEBHOOK_SECRET=             # app/uninstalled + Pflicht-GDPR-Webhooks verifizieren
+SHOPIFY_SESSION_DB_URL=             # Postgres/Supabase — NICHT die Prisma-SQLite-Default
 APP_TOKEN_ENCRYPTION_KEY=           # verschlüsselt Access-Tokens in app_installs
+BILLING_PLAN_PRICE_USD=29
+BILLING_TRIAL_DAYS=7
 APP_BASE_URL=                       # z.B. https://agentready.<domain>
 CRAWLER_CONTACT_URL=                # ehrliche UA-Kontakt-URL (Leitplanke 3)
 SCAN_RATE_LIMIT_PER_IP_PER_HOUR=
@@ -347,7 +362,7 @@ MAX_TICKET_COST_CENTS=              # pro Ticket
 - **robots.txt (Leitplanke 2):** vor dem Crawlen holen; verbietet sie unseren UA → abbrechen + `blocked_by_robots` melden. Nie umgehen.
 - **Höflichkeit (Leitplanke 3):** ehrlicher UA mit Kontakt-URL, ≥1 s/Domain, ≤15 Seiten, 10 s Timeout.
 - **Read-only (Leitplanke 4):** nur GET; keine Formulare/Zustandsänderungen.
-- **Keine PII aus Shops (Leitplanke 5):** wir extrahieren Produkt-/Struktur­daten, keine Personendaten. Einzige gespeicherte PII: Nutzer-E-Mail (Frage 9) mit Einwilligung + Löschpfad.
+- **Keine PII aus Shops (Leitplanke 5):** wir extrahieren Produkt-/Struktur­daten, keine Personendaten. **Der Gratis-Scan speichert gar keine Nutzer-E-Mail** (kein E-Mail-Gate, kein Fallback-Produkt) → nur gehashte IP fürs Rate-Limit. Personenbezogen im System sind nur: die Shop-Domain des installierenden Merchants und — falls jemand Support schreibt — dessen E-Mail im Ticket (mit Löschpfad).
 - **Kein Security-Scanning (Leitplanke 6):** nur Datenqualität/Auffindbarkeit.
 - **Missbrauch (Frage 6):** Turnstile + IP-Rate-Limit (gehashte IP) + Domain-Cache. SSRF ohnehin Pflicht.
 
@@ -359,8 +374,8 @@ MAX_TICKET_COST_CENTS=              # pro Ticket
 - **Worker:** `systemd`-Service mit `Restart=always`. Logs via `journald`. **Heartbeat**: Worker schreibt periodisch `worker_heartbeat` (kleine Tabelle/Zeile); ein einfacher Cron/Check meldet, wenn der Heartbeat altert.
 - **Stuck-Job-Schutz:** Scans, die > N min in `running` hängen, werden auf `failed`/`queued` zurückgesetzt (Zeitstempel-Check).
 - **Kostenüberwachung:** `claude_cost_cents` je Scan/Ticket summieren; bei Annäherung an `MONTHLY_CLAUDE_BUDGET_CENTS` E-Mail an Betreiber; bei Überschreitung: Narrativ/Autonomie aus → alles deterministisch bzw. an Mensch.
-- **Retention (Supabase Free schonen):** Job, der Scans älter als N Tage löscht (kein PII darin ausser separater `report_emails`; E-Mails eigener Löschpfad). Achtung: Supabase-Free-Projekte **pausieren bei Inaktivität** → Worker-Poll hält es faktisch wach; zusätzlich einfacher Keep-Alive-Ping dokumentieren.
-- **Kosten-Realität (<30 CHF/Monat):** Vercel Hobby, Supabase Free, Turnstile, Cloudflare, Resend-Free = 0. Einzige variable Kosten = Claude API, gedeckelt. Worker läuft auf bestehendem Server (versunkene Kosten).
+- **Retention (Supabase Free schonen):** Job, der Scans älter als N Tage löscht (enthält keine PII ausser gehashter IP). Achtung: Supabase-Free-Projekte **pausieren bei Inaktivität** → Worker-Poll hält es faktisch wach.
+- **Kosten-Realität (<30 CHF/Monat):** Vercel Hobby, Supabase Free, Turnstile, Shopify Billing (0 % bis $1 Mio.) = 0. **EU-VPS für den Worker ~€4–5/Mo.** Einzige variable Kosten = Claude API, gedeckelt. **Supabase-Region EU** wählen.
 
 ---
 

@@ -51,8 +51,8 @@
 - **Gegenmassnahme:** Worker-Poll + einfacher Keep-Alive hält Projekt wach; Retention-Job für alte Scans; Storage im Wochenblick.
 
 ### R10 — Zu geringe Nachfrage (das eigentliche Validierungsrisiko)
-**Warum entscheidend:** Das Erfolgskriterium ist „wie viele fragen nach mehr?" — nicht „läuft die App".
-- **Frühwarnung:** 30 Scans gemacht, ~0 Nachfragen nach wiederkehrender Version.
+**Warum entscheidend:** Das Erfolgskriterium ist „wie viele installieren die App und zahlen nach dem Trial?" — nicht „läuft die App".
+- **Frühwarnung:** 30 Scans gemacht, ~0 App-Installationen; oder Installationen, aber Trial→Bezahlt nahe 0.
 - **Gegenmassnahme:** Produkt ist bewusst schlank, damit dieses Signal **billig und schnell** gemessen wird; klarer Call-to-Action im Report („wöchentlich überwachen?"); nicht in Features investieren, bevor dieses Signal positiv ist.
 
 ### R11 — Scope-Creep / Zeitbudget
@@ -60,7 +60,17 @@
 - **Frühwarnung:** Arbeit an Dingen aus Brief §7; Meilensteine ohne Bezug zum Erfolgskriterium.
 - **Gegenmassnahme:** Streich-Kandidaten in `PLAN.md`; „dient das den 30 Scans?"-Test je Meilenstein; Section-7-Features strikt vertagt.
 
-### R12 — Datenschutz der Nutzer-E-Mail
-**Warum relevant:** Einzige gespeicherte PII (Frage 9) — falsch gehandhabt = Vertrauens-/Rechtsproblem.
-- **Frühwarnung:** Löschanfrage ohne funktionierenden Pfad; E-Mail ohne dokumentierte Einwilligung.
-- **Gegenmassnahme:** Einwilligung (`consent_at`), Datenschutz-Hinweis, Löschpfad, minimale Speicherung, gehashte IPs; keine fremde PII.
+### R13 — Plattform-Abhängigkeit Shopify (neu, durch das Bezahlprodukt)
+**Warum kritisch:** Das gesamte Bezahlprodukt lebt in Shopifys Ökosystem — Regeln, App-Review, Revenue-Share und API können sich einseitig ändern. Zusätzlich: **App-Store-Review kann Tage bis Wochen dauern** und ist ausserhalb deiner Kontrolle.
+- **Frühwarnung:** Review-Ablehnung; angekündigte API-/Policy-Änderungen; Deprecation-Hinweise auf genutzten Endpunkten.
+- **Gegenmassnahme:** Erste Kunden über **unlisted Custom-App-Install-Link** (umgeht den Review auf dem kritischen Pfad); Listing parallel einreichen; API-Versionen gepinnt und im Quartals-Blick; der **Gratis-Scan ist plattformunabhängig** und bleibt der Lead-Kanal, falls Shopify wegbricht.
+
+### R14 — App-Embed vom Merchant nicht eingeschaltet (stiller Killer)
+**Warum kritisch:** Installation ≠ aktiv. Der Merchant muss den App-Embed im Theme-Editor **einschalten**. Passiert das nicht, zahlt er für nichts, sieht keinen Effekt und churnt — ohne dass du es merkst.
+- **Frühwarnung:** `app_installs.embed_enabled = false` trotz aktivem Abo; Re-Scan zeigt keinen Score-Anstieg.
+- **Gegenmassnahme:** Onboarding im Dashboard erzwingt den Schritt (Deep-Link in den Theme-Editor), **Statusanzeige „Embed aktiv/inaktiv"**, automatische Verifikation per Re-Scan, Erinnerung bei inaktivem Embed.
+
+### R12 — Datenschutz (stark reduziert durch „kein E-Mail-Gate")
+**Warum relevant:** Der Gratis-Scan speichert **keine** Nutzer-E-Mail mehr → Risiko deutlich kleiner. Verbleibend: Shop-Domain + verschlüsselter Access-Token des Merchants, Support-Ticket-E-Mails, gehashte IPs.
+- **Frühwarnung:** Löschanfrage ohne funktionierenden Pfad; Shopify-Pflicht-GDPR-Webhooks nicht implementiert (App-Review-Blocker!).
+- **Gegenmassnahme:** Shopifys **verpflichtende GDPR-Webhooks** (`customers/data_request`, `customers/redact`, `shop/redact`) implementieren; Löschpfad; Token verschlüsselt; keine fremde PII.
