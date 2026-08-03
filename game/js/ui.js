@@ -84,14 +84,25 @@ function starsFor(cfg, res) {
   return res.place === 1 ? 3 : res.place <= 3 ? 2 : 1;
 }
 
-/* Adaptive Gegnerstärke nachführen (Elo-artig) */
+/* Adaptive Gegnerstärke nachführen (Elo-artig, mit Dominanz-Zuschlag).
+   Der Zuschlag sorgt dafür, dass ein klarer Kantersieg die KI deutlich
+   schneller nachzieht als ein knapper – sonst braucht die Anpassung
+   zu viele Rennen. */
 HR.updateSkill = function (cfg, res) {
   const d = S();
   if (!cfg.rivalCount || cfg.rivalCount < 1) return 0;
   const of = Math.max(2, res.of);
   const actual = 1 - (res.place - 1) / (of - 1);       /* 1 = Sieg, 0 = Letzter */
   const before = d.skill;
-  d.skill = U.clamp(d.skill + (actual - 0.5) * 8.5, 5, 100);
+  let delta = (actual - 0.5) * 12;
+  if (res.place === 1 && res.standings.length > 1) {
+    const gap = (res.standings[1].t - res.standings[0].t) / Math.max(1, res.time);
+    delta += U.clamp(gap * 45, 0, 9);                  /* überlegen gewonnen */
+  } else if (res.place === of && res.standings.length > 1) {
+    const gap = (res.standings[of - 1].t - res.standings[of - 2].t) / Math.max(1, res.time);
+    delta -= U.clamp(gap * 45, 0, 9);                  /* klar abgeschlagen */
+  }
+  d.skill = U.clamp(d.skill + delta, 5, 100);
   HR.Save.save();
   return Math.round((d.skill - before) * 10) / 10;
 };
@@ -309,6 +320,8 @@ const UI = HR.UI = {
       '<div class="row"><div class="lbl">Gummiband-KI<small>Hält das Feld zusammen</small></div>' + sw('rubber', s.rubber) + '</div>' +
       '</div>' +
       '<div class="card">' +
+      '<div class="row"><div class="lbl">Gegner<small>Adaptiv folgt deinen Ergebnissen (Stufe ' + Math.round(S().skill) + ')</small></div>' +
+      seg('aiBoost', String(s.aiBoost || 0), [['0', 'Adaptiv'], ['14', 'Hart'], ['28', 'Brutal']]) + '</div>' +
       '<div class="row"><div class="lbl">Lenkung</div>' + seg('steer', s.steer, [['pad', 'Feld'], ['tilt', 'Neigen']]) + '</div>' +
       '<div class="row"><div class="lbl">Grafik<small>Automatisch passt sich der Bildrate an</small></div>' +
       seg('quality', s.quality, [['low', 'Sparsam'], ['auto', 'Auto'], ['high', 'Hoch']]) + '</div>' +
@@ -514,8 +527,11 @@ const UI = HR.UI = {
 
     set(v) {
       const s = S().settings;
-      if (v.indexOf(':') > 0) { const p = v.split(':'); s[p[0]] = p[1]; }
-      else s[v] = !s[v];
+      if (v.indexOf(':') > 0) {
+        const p = v.split(':');
+        /* Zahlenwerte auch als Zahl ablegen, sonst rechnet die KI mit Text */
+        s[p[0]] = /^-?\d+$/.test(p[1]) ? parseInt(p[1], 10) : p[1];
+      } else s[v] = !s[v];
       HR.Save.save();
       if (s.sound) HR.Audio.setMuted(false); else HR.Audio.setMuted(true);
       HR.Race.resize();

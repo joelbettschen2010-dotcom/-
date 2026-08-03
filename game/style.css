@@ -63,7 +63,7 @@ html,body{
   backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .icon-btn:active{transform:scale(.94)}
 
-#mini{width:96px;height:96px;flex:none;border-radius:16px;
+#mini{width:78px;height:100px;flex:none;border-radius:14px;
   background:rgba(10,12,22,.45);border:1px solid rgba(255,255,255,.10);
   backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 

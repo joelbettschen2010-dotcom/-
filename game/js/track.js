@@ -241,21 +241,6 @@ HR.buildTrack = function (seedStr, cfg) {
   const gantry = Art.gantry('ZIEL');
   segs[Math.max(0, total - 24)].sprites.push({ s: gantry, offset: 0, center: true, arch: true });
 
-  /* ------------------------------------------------ Minikarte */
-  const mini = (function () {
-    let head = 0, x = 0, y = 0;
-    const pts = [];
-    for (let i = 0; i < total; i++) {
-      head += segs[i].curve * 0.0062;
-      x += Math.sin(head); y += Math.cos(head);
-      if (i % 6 === 0) pts.push([x, y, i]);
-    }
-    let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
-    for (const p of pts) { if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0]; if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1]; }
-    const w = Math.max(1e-6, maxX - minX), h = Math.max(1e-6, maxY - minY), sc = 1 / Math.max(w, h);
-    return pts.map(p => [(p[0] - minX) * sc + (1 - w * sc) / 2, (p[1] - minY) * sc + (1 - h * sc) / 2, p[2]]);
-  })();
-
   /* ------------------------------------------------ Wetter & Tageszeit */
   const lead = zones[0];
   const weather = rng.chance(lead.rain) ? (lead.snowfall ? 'snow' : 'rain') : 'clear';
@@ -266,7 +251,6 @@ HR.buildTrack = function (seedStr, cfg) {
     total: total,
     trackLength: trackLength,
     zones: zones,
-    mini: mini,
     weather: weather,
     name: cfg.name || (zones.map(z => z.name).join(' · ')),
     findSegment(z) { return segs[Math.floor(z / SEG.LEN) % total]; }

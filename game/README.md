@@ -34,10 +34,15 @@ Es gibt keine gebauten Strecken. Alles entsteht zur Laufzeit aus einer
    dieselbe, und trotzdem muss keine einzige Strecke gespeichert werden.
 3. **Adaptive Gegner-KI** (`js/ui.js`, `HR.updateSkill`) – nach jedem Rennen
    wird die Fahrstärke Elo-artig nachgeführt:
-   `skill += (tatsächliche Platzierung − erwartete) × 8.5`.
-   Daraus ergibt sich das Grundtempo der Gegner. Zusätzlich gibt es ein
-   gedeckeltes Gummiband (±8,5 %), Kurvenbremsung nach Können und
-   gelegentliche Fahrfehler.
+   `skill += (tatsächliche Platzierung − erwartete) × 12`, plus einem
+   Dominanz-Zuschlag von bis zu 9 Punkten, wenn der Vorsprung auf den Zweiten
+   gross war. Damit zieht ein Kantersieg die Gegner sofort spürbar nach.
+   Aus `skill` ergibt sich ihr Grundtempo als Anteil am Höchsttempo des
+   Spielerwagens: `0.78 + skill × 0.26 + Eventschwierigkeit × 0.12`, also
+   je nach Können **88 – 110 %**. Dazu ein gedeckeltes Gummiband,
+   Kurvenbremsung nach Können und gelegentliche Fahrfehler.
+   Wem das Nachführen zu langsam geht, stellt unter *Einstellungen → Gegner*
+   auf **Hart** (+14) oder **Brutal** (+28).
 4. **Endlose Etappen** – im Marathon wird beim Rundenschluss nahtlos eine neue
    Strecke mit neuer Zone und höherer Schwierigkeit erzeugt. Anfang und Ende
    jeder Etappe sind flach und gerade, deshalb sieht man den Übergang nicht.
@@ -61,6 +66,31 @@ Es gibt keine gebauten Strecken. Alles entsteht zur Laufzeit aus einer
 
 Punkte gibt es für knappe Überholmanöver (Kombo), Driftzeit und Tempo –
 sie fliessen in Guthaben und Erfahrung ein.
+
+### Fahrphysik
+
+Das Tempo ist kein Regler, den man beliebig auf- und zudrehen kann:
+
+- **Bremsen** wirkt mit einer festen Verzögerung statt anteilig zum Tempo –
+  aus 196 km/h dauert die Vollbremsung **3,3 Sekunden**, ein schnellerer Wagen
+  braucht entsprechend länger. Besserer Grip verkürzt den Weg.
+- **Beschleunigung** fällt mit steigendem Tempo ab; der Einsteigerwagen
+  braucht **4,8 s auf 100 km/h**, ein ausgebauter Hypersportwagen gut 1,5 s.
+- **Kurvengrenze**: Wer über dem Grip in die Kurve geht, schiebt nach aussen
+  und die Reifen radieren Tempo weg. Man muss also **vor** der Kurve bremsen,
+  statt einfach durchzuhalten.
+- **Ausrollen** aus Rollwiderstand plus quadratischem Luftwiderstand.
+- **Trefferflächen** entsprechen genau der gezeichneten Wagenbreite
+  (0.285 Fahrbahneinheiten) – knapp vorbeiziehen geht wirklich vorbei und
+  gibt Kombopunkte plus NOS.
+
+### Die Streckenvorschau
+
+Die Karte oben rechts zeigt nicht die ganze Runde, sondern die **nächsten
+180 Segmente** – bei Vollgas etwa die Strecke einer Vollbremsung. Sie ist
+immer nach oben ausgerichtet und nach Kurvenschärfe eingefärbt:
+weiss = schnell, gelb = anbremsen, rot = scharf. Gegner in Reichweite
+erscheinen als farbige Punkte.
 
 ## Fortschritt
 

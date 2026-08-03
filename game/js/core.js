@@ -150,14 +150,14 @@ const Save = HR.Save = {
       credits: 6000,
       xp: 0,
       level: 1,
-      skill: 34,                       /* adaptive Gegnerstärke 0…100 */
+      skill: 46,                       /* adaptive Gegnerstärke 0…100 */
       car: 'v88',
       cars: { v88: { up: { motor: 0, getriebe: 0, reifen: 0, turbo: 0 }, col: null } },
       events: {},                      /* id -> {stars, best} */
       best: {},                        /* modus/strecke -> Bestwert */
       daily: {},                       /* datum -> score */
       stats: { races: 0, wins: 0, km: 0, drift: 0, nearMiss: 0, topSpeed: 0, playtime: 0 },
-      settings: { sound: true, steer: 'pad', autoGas: true, quality: 'auto', assist: true, rubber: true },
+      settings: { sound: true, steer: 'pad', autoGas: true, quality: 'auto', assist: true, rubber: true, aiBoost: 0 },
       seenIntro: false
     };
   },

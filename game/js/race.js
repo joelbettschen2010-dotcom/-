@@ -19,6 +19,11 @@ const STEP = 1 / 60;
 const UNITS_PER_KM = 144000;
 HR.UNITS_PER_KM = UNITS_PER_KM;
 
+/* Wagenmasse für die Trefferprüfung – identisch mit der gezeichneten Breite
+   (Art.car gibt worldW zurück) und einer Wagenlänge in Welteinheiten. */
+const PLAYER_W = 0.285;
+const CAR_LEN = 520;
+
 /* Senkrechte Bildmitte (Horizont) als Anteil der Bildhöhe.
    Im Hochformat wird sie nach oben gezogen, sonst steht das eigene Auto
    hinter den Bedienflächen. */
@@ -223,10 +228,13 @@ const Race = HR.Race = {
     const rng = HR.RNG(T.seed + '-cars');
     this.cars = [];
 
-    /* Adaptive Gegnerstärke: Können des Spielers + Eventschwierigkeit */
-    const skill = U.clamp(S.skill / 100, 0, 1);
+    /* Adaptive Gegnerstärke: Können des Spielers + Eventschwierigkeit.
+       Die Zahl ist der Anteil am Höchsttempo des Spielerwagens – unter etwa
+       0.85 ist kein Rennen mehr zu gewinnen, darum liegt der Boden hoch. */
+    const boost = S.settings.aiBoost || 0;
+    const skill = U.clamp((S.skill + boost) / 100, 0, 1.25);
     const evd = cfg.difficulty == null ? 0.4 : cfg.difficulty;
-    const strength = U.clamp(0.40 + skill * 0.52 + evd * 0.20, 0.35, 1.06);
+    const strength = U.clamp(0.78 + skill * 0.26 + evd * 0.12, 0.76, 1.14);
     this.aiStrength = strength;
 
     const n = cfg.rivalCount || 0;
@@ -237,7 +245,7 @@ const Race = HR.Race = {
       const rowZ = 620 + Math.floor(i / 2) * 460;
       const col = RIVAL_COLS[i % RIVAL_COLS.length];
       const body = rng.pick(['coupe', 'super', 'muscle', 'rally', 'proto']);
-      const s = strength * (1 + (i - n / 2) * 0.016) * rng.range(0.985, 1.015);
+      const s = strength * (1 + (i - n / 2) * 0.024) * rng.range(0.985, 1.015);
       this.cars.push({
         rival: true, name: names[i], col: col,
         sprite: Art.car(col, body, 0, false),
@@ -346,6 +354,16 @@ const Race = HR.Race = {
     const slipRaw = U.clamp(want - this.stats.grip * 0.42 + Math.abs(this.steerSmooth) * speedPct * 0.16 - 0.10, 0, 1);
     this.slip = U.lerp(this.slip, slipRaw, 0.16);
 
+    /* Kurvengrenze: über dem Grip schiebt der Wagen nach aussen und die
+       Reifen radieren Tempo weg. Genau deshalb muss man vor der Kurve
+       bremsen statt einfach durchzuhalten. */
+    if (this.slip > 0.24) {
+      const over = this.slip - 0.24;
+      this.speed -= this.maxSpeed * over * 0.62 * dt;
+      this.playerX -= Math.sign(playerSeg.curve) * over * dt * 1.5;
+      if (this.slip > 0.55) this.shake = Math.max(this.shake, (this.slip - 0.55) * 0.9);
+    }
+
     /* --- Gas / Bremse --- */
     const autoGas = S.settings.autoGas;
     const braking = !!this.input.brake;
@@ -355,14 +373,19 @@ const Race = HR.Race = {
 
     const boost = nosReady ? 1 + 0.20 * this.stats.nos : 1;
     const vmax = this.maxSpeed * boost;
+    const vRel = this.speed / this.maxSpeed;
     if (braking) {
-      this.speed -= this.maxSpeed * 1.15 * dt;
+      /* Verzögerung als feste Rate, nicht als Anteil des Tempos: aus 250 km/h
+         dauert eine Vollbremsung rund 3,5 s. Guter Grip bremst kürzer. */
+      const brake = (1500 + this.stats.grip * 1100) * (S.settings.assist ? 1.15 : 1);
+      this.speed -= brake * dt;
     } else if (gas) {
       const p = U.clamp(this.speed / vmax, 0, 1);
-      const a = (this.maxSpeed / (2.35 + 4.6 * (1 - this.stats.acc))) * (1 - Math.pow(p, 2.4)) * (nosReady ? 2.0 : 1);
+      const a = (this.maxSpeed / (4.6 + 7.0 * (1 - this.stats.acc))) * (1 - Math.pow(p, 2.4)) * (nosReady ? 1.55 : 1);
       this.speed += a * dt;
     } else {
-      this.speed -= this.maxSpeed * 0.16 * dt;
+      /* Ausrollen: Rollwiderstand plus quadratischer Luftwiderstand */
+      this.speed -= (this.maxSpeed * 0.035 + this.maxSpeed * 0.075 * vRel * vRel) * dt;
     }
 
     /* Nebenstrecke */
@@ -554,25 +577,28 @@ const Race = HR.Race = {
   },
 
   checkCollisions(playerSeg, dt) {
-    const carW = 0.34 * 2;          /* Wagenbreite in Fahrbahn-Einheiten (grob) */
-    const segs = [playerSeg, this.track.segments[(playerSeg.index + 1) % this.track.total]];
-    for (const seg of segs) {
+    /* Die Trefferfläche entspricht der wirklich gezeichneten Wagenbreite,
+       damit knappes Vorbeiziehen auch wirklich vorbeigeht. */
+    const T = this.track, myZ = this.position + PLAYER_Z;
+    for (let k = -1; k <= 3; k++) {
+      const seg = T.segments[((playerSeg.index + k) % T.total + T.total) % T.total];
       for (const c of seg.cars) {
-        const dz = c.z - (this.position + PLAYER_Z);
-        if (dz > 900 || dz < -500) continue;
+        const half = (c.sprite.worldW + PLAYER_W) * 0.5;      /* Berührung ab hier */
+        let dz = c.z - myZ;
+        if (dz < -T.trackLength / 2) dz += T.trackLength;      /* Rundenschluss */
+        else if (dz > T.trackLength / 2) dz -= T.trackLength;
+        if (dz > CAR_LEN * 1.7 || dz < -CAR_LEN) continue;
         const dxo = Math.abs(this.playerX - c.offset);
-        if (dxo < carW * 0.55 && this.speed > c.speed) {
-          if (dz > -260) {
-            /* Aufprall */
-            this.speed = Math.max(c.speed * 0.72, this.maxSpeed * 0.18);
-            this.playerX += (this.playerX > c.offset ? 1 : -1) * 0.25;
-            this.shake = 1; this.combo = 0;
-            HR.Audio.crash(); HR.buzz(45);
-            this.pop('RUMMS!', '#ff3b5c');
-            c.speed *= 0.9;
-          }
-        } else if (dxo < carW * 1.15 && dz > -420 && dz < 240 && this.speed > c.speed * 1.12 && !c._nm) {
-          /* Beinahe-Berührung */
+        if (dxo < half * 0.94 && dz < CAR_LEN && dz > -CAR_LEN * 0.5 && this.speed > c.speed) {
+          /* Aufprall */
+          this.speed = Math.max(c.speed * 0.72, this.maxSpeed * 0.18);
+          this.playerX += (this.playerX > c.offset ? 1 : -1) * 0.22;
+          this.shake = 1; this.combo = 0;
+          HR.Audio.crash(); HR.buzz(45);
+          this.pop('RUMMS!', '#ff3b5c');
+          c.speed *= 0.9;
+        } else if (dxo < half * 2.1 && dz < CAR_LEN * 1.6 && dz > -CAR_LEN && this.speed > c.speed * 1.06 && !c._nm) {
+          /* Beinahe-Berührung – knapper Vorbeizug lädt NOS */
           c._nm = true;
           this.combo++;
           this.comboT = 3.5;
@@ -591,7 +617,7 @@ const Race = HR.Race = {
         const a = sp.offset, b = sp.offset + (sp.offset > 0 ? w : -w);
         const lo = Math.min(a, b), hi = Math.max(a, b);
         if (this.playerX + 0.2 > lo && this.playerX - 0.2 < hi) {
-          this.speed = this.maxSpeed * 0.14;
+          this.speed = this.maxSpeed * 0.28;
           this.shake = 1.2; this.combo = 0;
           HR.Audio.crash(); HR.buzz(70);
           this.pop('AUA!', '#ff3b5c');
@@ -683,28 +709,72 @@ const Race = HR.Race = {
     this.drawMini();
   },
 
+  /* Vorausschau statt Gesamtkarte: die nächsten rund 180 Segmente, immer
+     nach oben ausgerichtet, eingefärbt nach Kurvenschärfe.
+     Das entspricht bei Vollgas etwa der Strecke einer Vollbremsung. */
   drawMini() {
     const g = this.miniG; if (!g) return;
     const c = this.miniCv, w = c.width, h = c.height;
+    const T = this.track, base = T.findSegment(this.position + PLAYER_Z).index;
+    const STEP = 3, N = 60, K = 0.0062;
     g.clearRect(0, 0, w, h);
-    const pts = this.track.mini, pad = 10;
-    const X = p => pad + p[0] * (w - pad * 2), Y = p => pad + p[1] * (h - pad * 2);
-    g.lineWidth = 5; g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineJoin = 'round';
-    g.beginPath(); g.moveTo(X(pts[0]), Y(pts[0]));
-    for (let i = 1; i < pts.length; i++) g.lineTo(X(pts[i]), Y(pts[i]));
-    g.stroke();
-    g.lineWidth = 2.4; g.strokeStyle = 'rgba(255,255,255,.62)'; g.stroke();
 
-    const idx = i => Math.min(pts.length - 1, Math.floor((i / this.track.total) * pts.length));
-    for (const car of this.cars) {
-      if (!car.rival) continue;
-      const p = pts[idx(car.seg ? car.seg.index : 0)];
-      g.fillStyle = car.col; g.beginPath(); g.arc(X(p), Y(p), 3, 0, Math.PI * 2); g.fill();
+    const P = [[0, 0, 0]];
+    let head = 0, x = 0, y = 0;
+    for (let k = 0; k < N; k++) {
+      let cmax = 0;
+      for (let j = 0; j < STEP; j++) {
+        const s = T.segments[(base + k * STEP + j) % T.total];
+        head += s.curve * K; x += Math.sin(head); y += Math.cos(head);
+        if (Math.abs(s.curve) > cmax) cmax = Math.abs(s.curve);
+      }
+      P.push([x, y, cmax]);
     }
-    const ps = this.track.findSegment(this.position + PLAYER_Z);
-    const p = pts[idx(ps.index)];
-    g.fillStyle = '#ff6a1f'; g.strokeStyle = '#fff'; g.lineWidth = 2;
-    g.beginPath(); g.arc(X(p), Y(p), 5, 0, Math.PI * 2); g.fill(); g.stroke();
+    const pad = 13, sc = (h - pad * 2) / (N * STEP);
+    const X = i => w / 2 + P[i][0] * sc, Y = i => h - pad - P[i][1] * sc;
+
+    /* dunkler Unterzug */
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    g.lineWidth = 11; g.strokeStyle = 'rgba(0,0,0,.5)';
+    g.beginPath(); g.moveTo(X(0), Y(0));
+    for (let i = 1; i <= N; i++) g.lineTo(X(i), Y(i));
+    g.stroke();
+
+    /* Fahrbahn, in Läufen gleicher Schärfe gezeichnet */
+    const colOf = cv => cv > 4.6 ? '#ff3b5c' : cv > 2.6 ? '#ffcc33' : 'rgba(255,255,255,.82)';
+    g.lineWidth = 6.5;
+    let i = 1;
+    while (i <= N) {
+      const col = colOf(P[i][2]);
+      g.strokeStyle = col;
+      g.beginPath(); g.moveTo(X(i - 1), Y(i - 1));
+      while (i <= N && colOf(P[i][2]) === col) { g.lineTo(X(i), Y(i)); i++; }
+      g.stroke();
+    }
+
+    /* Fahrzeuge in Reichweite */
+    for (const car of this.cars) {
+      if (!car.rival && !car.big) continue;
+      const di = (((car.seg ? car.seg.index : 0) - base) % T.total + T.total) % T.total;
+      if (di > N * STEP) continue;
+      const k = Math.round(di / STEP);
+      g.fillStyle = car.rival ? car.col : 'rgba(190,196,214,.9)';
+      g.beginPath(); g.arc(X(k), Y(k), car.rival ? 3.4 : 2.6, 0, Math.PI * 2); g.fill();
+    }
+
+    /* Ferne ausblenden – gibt der Vorausschau Tiefe */
+    g.globalCompositeOperation = 'destination-out';
+    const fade = g.createLinearGradient(0, 0, 0, h * 0.42);
+    fade.addColorStop(0, 'rgba(0,0,0,.8)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = fade; g.fillRect(0, 0, w, h * 0.42);
+    g.globalCompositeOperation = 'source-over';
+
+    /* eigener Wagen als Pfeil am unteren Rand */
+    const px = X(0), py = Y(0);
+    g.fillStyle = '#ff6a1f'; g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 1.6;
+    g.beginPath();
+    g.moveTo(px, py - 7); g.lineTo(px + 5.2, py + 4); g.lineTo(px, py + 1.6); g.lineTo(px - 5.2, py + 4);
+    g.closePath(); g.fill(); g.stroke();
   },
 
   /* ---------------------------------------------------------- Rendern */
