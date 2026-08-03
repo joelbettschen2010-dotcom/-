@@ -1,6 +1,10 @@
 /* Service Worker – Velo Navi Schweiz
    App-Shell offline verfügbar machen. Karten/Routing brauchen weiterhin Internet. */
-const CACHE = 'velonavi-v4';
+/* Auf github.io teilen sich alle Projekte dieses Kontos denselben Ursprung.
+   Deshalb beim Aufraeumen nur den eigenen Vorrat anfassen (Praefix), sonst
+   loescht diese App der Spiel-App unter /game/ ihren Offline-Bestand. */
+const PREFIX = 'velonavi-';
+const CACHE = PREFIX + 'v4';
 const SHELL = [
   './', './index.html', './style.css', './app.js', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png',
@@ -14,7 +18,10 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k.indexOf(PREFIX) === 0 && k !== CACHE).map(k => caches.delete(k))
+      ))
       .then(() => self.clients.claim())
   );
 });

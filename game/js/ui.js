@@ -188,6 +188,10 @@ const UI = HR.UI = {
       '<button class="btn" data-a="daily"><span class="ico">📅</span><span class="txt">Tagesroute<small>Jeden Tag dieselbe Strecke für alle · ' + dailyLabel() + '</small></span><span class="arrow">›</span></button>' +
       '<button class="btn" data-a="garage"><span class="ico">🔧</span><span class="txt">Garage<small>' + car.name + ' · LI ' + HR.perfIndex(d.car) + '</small></span><span class="arrow">›</span></button>' +
       '<button class="btn ghost small" data-a="settings"><span class="ico">⚙️</span><span class="txt">Einstellungen</span></button>' +
+      (HR.updateReady
+        ? '<button class="btn violet small" data-a="reloadApp"><span class="ico">🔄</span><span class="txt">Neue Fassung laden<small>Eine Aktualisierung liegt bereit</small></span></button>'
+        : '') +
+      '<div id="offState" class="hint center"></div>' +
       (HR.Save.available ? '' :
         '<p class="hint warn center">⚠️ Dieses Fenster kann keinen Spielstand speichern. ' +
         'Unter <b>Einstellungen → Spielstand sichern</b> gibt es einen Code zum Mitnehmen.</p>') +
@@ -195,6 +199,7 @@ const UI = HR.UI = {
         '<p class="hint center">📲 Tipp: In Safari auf <b>Teilen</b> → <b>Zum Home-Bildschirm</b>. ' +
         'Dann läuft Horizon Rush im Vollbild wie eine App – auch ohne Internet, mit dauerhaftem Spielstand.</p>')
     );
+    offlineStatus(document.getElementById('offState'));
   },
 
   /* ------------------------------------------------ Karriere */
@@ -576,12 +581,27 @@ const UI = HR.UI = {
         const p = v.split(':');
         /* Zahlenwerte auch als Zahl ablegen, sonst rechnet die KI mit Text */
         s[p[0]] = /^-?\d+$/.test(p[1]) ? parseInt(p[1], 10) : p[1];
+        /* Neigung braucht die Erlaubnis des Geräts – und die gibt es nur
+           direkt aus dieser Berührung heraus. */
+        if (p[0] === 'steer' && p[1] === 'tilt') {
+          HR.Save.save();
+          HR.Race.enableTilt(true).then(ok => {
+            if (!ok) {
+              s.steer = 'pad'; HR.Save.save();
+              this.tiltMsg = 'Das Gerät hat die Bewegungsdaten nicht freigegeben. ' +
+                'In iOS unter Einstellungen → Safari → Bewegung erlauben, dann noch einmal versuchen.';
+            } else this.tiltMsg = null;
+            this.settings();
+          });
+          return;
+        }
       } else s[v] = !s[v];
       HR.Save.save();
-      if (s.sound) HR.Audio.setMuted(false); else HR.Audio.setMuted(true);
+      HR.Audio.setMuted(!s.sound);
       HR.Race.resize();
       this.settings();
     },
+    reloadApp() { location.reload(); },
     reset() {
       if (confirm('Profil wirklich löschen? Alle Fahrzeuge, Sterne und Bestwerte gehen verloren.')) {
         HR.Save.reset(); this.home();
@@ -639,6 +659,53 @@ function pips(n) { let s = ''; for (let i = 0; i < HR.MAX_UP; i++) s += '<i clas
 function row(k, v) { return '<div class="rline"><span>' + k + '</span><b>' + v + '</b></div>'; }
 function rline(k, v, cls) { return '<div class="rline"><span>' + k + '</span><b class="' + (cls || '') + '">' + v + '</b></div>'; }
 function dailyKey() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
+/* Zeigt im Menü an, ob das Spiel wirklich offline lauffähig ist – also ob der
+   Service Worker seinen Vorrat vollständig angelegt hat. */
+function offlineStatus(el) {
+  if (!el) return;
+  const say = (t, ok) => { el.innerHTML = t; el.style.color = ok ? 'var(--ok)' : ''; };
+
+  if (location.protocol === 'file:') {
+    say('✅ <b>Läuft offline</b> – Einzeldatei, braucht ohnehin kein Internet.', true);
+    return;
+  }
+  if (!('serviceWorker' in navigator) || !('caches' in window)) { el.innerHTML = ''; return; }
+
+  let n = 0;
+  const pruefen = () => Promise.all([
+    navigator.serviceWorker.getRegistration().catch(() => null),
+    caches.keys()
+  ]).then(([reg, keys]) => {
+    const eigene = keys.filter(k => k.indexOf('horizon-rush-') === 0).sort();
+    if (eigene.length) {
+      return caches.open(eigene[eigene.length - 1]).then(c => c.keys()).then(list => {
+        if (list.length >= 10) {
+          say('✅ <b>Offline bereit</b> – ' + list.length + ' Dateien gesichert, läuft ohne Internet.', true);
+          return true;
+        }
+        say('⏳ Offline-Vorrat wird angelegt … (' + list.length + '/12)');
+        return false;
+      });
+    }
+    /* Kein Service Worker in Sicht (z. B. eingebettete Vorschau): nicht ewig
+       "wird angelegt" behaupten, sondern sagen, was Sache ist. */
+    if (!reg && n >= 3) {
+      say('ℹ️ Diese Ansicht speichert nichts für den Offline-Betrieb. ' +
+        'Dafür die installierte Fassung oder die Einzeldatei verwenden.');
+      return true;
+    }
+    say('⏳ Offline-Vorrat wird angelegt …');
+    return false;
+  }).catch(() => { el.innerHTML = ''; return true; });
+
+  /* Beim allerersten Aufruf entsteht der Vorrat gerade erst – kurz nachfassen */
+  const tick = () => pruefen().then(fertig => {
+    if (fertig || ++n > 8 || !document.body.contains(el)) return;
+    setTimeout(tick, 1200);
+  });
+  tick();
+}
 function dailyLabel() {
   const k = dailyKey(), b = S().daily[k];
   return b ? ('heute schon gefahren · ' + U.fmtNum(b) + ' Pkt') : 'heute noch offen';

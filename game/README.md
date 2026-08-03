@@ -20,6 +20,28 @@ läuft – ohne Server, ohne Internet. Erzeugt aus den Quelldateien mit
 | Native iOS-App | ❌ Braucht Mac + Xcode + Entwicklerkonto |
 | **Web-App (PWA)** | ✅ Läuft sofort, Home-Bildschirm-Icon, Vollbild, offline |
 
+## Offline spielen
+
+Es gibt zwei Wege, beide brauchen kein Internet:
+
+1. **Installierte Fassung.** Beim ersten Aufruf legt ein Service Worker alle
+   12 Dateien des Spiels im Gerät ab. Danach läuft alles ohne Netz – Menü,
+   Karriere, Garage, Rennen. Das Menü zeigt den Stand selbst an:
+   *„✅ Offline bereit – 12 Dateien gesichert"*. Kommt später eine neue
+   Fassung, erscheint ein Knopf **„Neue Fassung laden"** – es wird nie
+   mitten im Rennen neu geladen.
+2. **Einzeldatei.** `Horizon-Rush.html` enthält ohnehin alles und braucht
+   nie ein Netz.
+
+Beide Apps in diesem Repo teilen sich auf `github.io` denselben Ursprung.
+Deshalb räumt **jeder Service Worker nur seinen eigenen Vorrat auf**
+(Präfix `horizon-rush-` bzw. `velonavi-`) – sonst hätten sie sich beim
+gegenseitigen Aufrufen den Offline-Bestand gelöscht.
+
+Nachgewiesen, indem der Webserver im Test wirklich abgeschaltet wurde:
+Neuladen, ein komplettes Rennen mit 60 fps, Spielstand speichern und ein
+frisch geöffneter Tab funktionieren ohne laufenden Server.
+
 Leistungsmässig reicht das locker: gerendert wird mit Canvas 2D, gemessen
 60 fps bei 230 Segmenten Sichtweite – und das schon im reinen
 Software-Renderer ohne Grafikbeschleunigung.

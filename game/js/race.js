@@ -125,19 +125,50 @@ const Race = HR.Race = {
     window.addEventListener('keydown', e => key(e, true));
     window.addEventListener('keyup', e => key(e, false));
 
-    /* Neigungssteuerung */
+    /* Neigungssteuerung – Nullpunkt ist die Haltung beim Rennstart */
     window.addEventListener('deviceorientation', e => {
       if (!I.useTilt) return;
-      const port = Math.abs(window.orientation || 0) !== 90;
-      let g = port ? (e.gamma || 0) : -(e.beta || 0) * (window.orientation === -90 ? -1 : 1);
-      I.tilt = U.clamp(g / 26, -1, 1);
+      const angle = (window.screen && window.screen.orientation && window.screen.orientation.angle != null)
+        ? window.screen.orientation.angle : (window.orientation || 0);
+      const quer = Math.abs(angle) === 90;
+      const g = quer ? (angle === 90 ? -(e.beta || 0) : (e.beta || 0)) : (e.gamma || 0);
+      if (this.tiltZero == null) this.tiltZero = g;
+      I.tilt = U.clamp((g - this.tiltZero) / 24, -1, 1);
     });
   },
+
+  /* iOS gibt Bewegungsdaten erst nach ausdrücklicher Erlaubnis heraus, und
+     die darf nur aus einer Berührung heraus erfragt werden. Liefert, ob die
+     Neigungssteuerung nun wirklich benutzbar ist. */
   enableTilt(on) {
-    this.input.useTilt = on;
-    if (on && window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      DeviceOrientationEvent.requestPermission().catch(() => { });
+    if (!on) { this.input.useTilt = false; return Promise.resolve(true); }
+    const DOE = window.DeviceOrientationEvent;
+    if (DOE && typeof DOE.requestPermission === 'function') {
+      return DOE.requestPermission().then(r => {
+        const ok = r === 'granted';
+        this.tiltOk = ok; this.input.useTilt = ok; this.tiltZero = null;
+        return ok;
+      }).catch(() => { this.tiltOk = false; this.input.useTilt = false; return false; });
     }
+    if (!DOE) { this.tiltOk = false; this.input.useTilt = false; return Promise.resolve(false); }
+    this.tiltOk = true; this.input.useTilt = true; this.tiltZero = null;
+    return Promise.resolve(true);
+  },
+
+  /* Einstellung aufs Rennen anwenden; fällt auf das Lenkfeld zurück,
+     wenn die Erlaubnis fehlt. */
+  applyTiltSetting() {
+    const S = HR.Save.data;
+    const will = S.settings.steer === 'tilt';
+    const fertig = ok => {
+      this.input.useTilt = !!ok;
+      this.tiltZero = null;
+      this.dom.steerPad.style.opacity = ok ? 0.35 : 1;
+      if (will && !ok) { S.settings.steer = 'pad'; HR.Save.save(); }
+    };
+    if (!will) { fertig(false); return; }
+    if (this.tiltOk === true) { fertig(true); return; }
+    this.enableTilt(true).then(fertig);
   },
 
   /* ---------------------------------------------------------- Rennen starten */
@@ -180,8 +211,7 @@ const Race = HR.Race = {
     this.dom.chipPos.hidden = !(cfg.rivalCount > 0);
     this.dom.chipLap.hidden = !(cfg.laps > 1) || cfg.mode === 'marathon';
     this.dom.chipExtra.hidden = !(cfg.mode === 'marathon' || cfg.mode === 'trap');
-    this.input.useTilt = S.settings.steer === 'tilt';
-    this.dom.steerPad.style.opacity = this.input.useTilt ? 0.35 : 1;
+    this.applyTiltSetting();
 
     HR.Audio.init();
     HR.Audio.setMuted(!S.settings.sound);

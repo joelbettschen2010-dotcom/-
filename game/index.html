@@ -72,8 +72,15 @@
 <script src="js/ui.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
+    // War schon eine Fassung aktiv? Dann ist ein Wechsel eine echte Aktualisierung.
+    var hatteWorker = !!navigator.serviceWorker.controller;
     window.addEventListener('load', function () {
       navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      // Nicht selbst neu laden – das würde ein laufendes Rennen abwürgen.
+      // Stattdessen bietet das Menü einen Knopf an.
+      if (hatteWorker && window.HR) { window.HR.updateReady = true; }
     });
   }
 </script>
