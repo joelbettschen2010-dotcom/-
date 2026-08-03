@@ -143,6 +143,13 @@ HR.perfIndex = function (carId) {
 const SAVE_KEY = 'horizonRush.save.v1';
 const Save = HR.Save = {
   data: null,
+  /* Manche Umgebungen (privater Modus, eingebettete Rahmen, lokale Dateien)
+     sperren den Speicher. Dann laeuft das Spiel weiter, warnt aber und
+     bietet die Sicherung per Code an. */
+  available: (function () {
+    try { localStorage.setItem('hr.t', '1'); localStorage.removeItem('hr.t'); return true; }
+    catch (e) { return false; }
+  })(),
   fresh() {
     return {
       seed: (Math.random() * 1e9) | 0,
@@ -179,9 +186,38 @@ const Save = HR.Save = {
     return this.data;
   },
   save() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); } catch (e) { }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); this.available = true; }
+    catch (e) { this.available = false; }
   },
   reset() { this.data = this.fresh(); this.save(); },
+
+  /* ---- Sicherung als Text-Code, geraeteunabhaengig ---- */
+  exportCode() {
+    const json = JSON.stringify(this.data);
+    return 'HR1.' + btoa(unescape(encodeURIComponent(json)));
+  },
+  importCode(code) {
+    code = String(code || '').trim().replace(/\s+/g, '');
+    if (code.indexOf('HR1.') !== 0) return 'Das ist kein Horizon-Rush-Code (er beginnt mit HR1.).';
+    let obj;
+    try { obj = JSON.parse(decodeURIComponent(escape(atob(code.slice(4))))); }
+    catch (e) { return 'Der Code ist unvollständig oder beschädigt.'; }
+    if (!obj || typeof obj !== 'object' || !obj.cars || typeof obj.credits !== 'number')
+      return 'Der Code enthält keinen gültigen Spielstand.';
+    this.data = obj;
+    /* fehlende Felder aus dem Standard ergaenzen */
+    const f = this.fresh();
+    const merge = (dst, src) => {
+      for (const k in src) {
+        if (dst[k] === undefined || dst[k] === null) dst[k] = src[k];
+        else if (typeof src[k] === 'object' && !Array.isArray(src[k]) && typeof dst[k] === 'object') merge(dst[k], src[k]);
+      }
+    };
+    merge(this.data, f);
+    if (!this.data.cars[this.data.car]) this.data.car = 'v88';
+    this.save();
+    return null;
+  },
 
   addCredits(n) { this.data.credits = Math.max(0, Math.round(this.data.credits + n)); this.save(); },
   /* gibt zurück, wie viele Stufen aufgestiegen wurde */
@@ -306,5 +342,11 @@ const Audio2 = HR.Audio = {
 HR.buzz = function (ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { } };
 
 Save.load();
+
+/* Zusätzlich sichern, sobald die App in den Hintergrund geht oder geschlossen
+   wird – iOS beendet Safari-Tabs gerne ohne Vorwarnung. */
+document.addEventListener('visibilitychange', () => { if (document.hidden) Save.save(); });
+window.addEventListener('pagehide', () => Save.save());
+window.addEventListener('blur', () => Save.save());
 
 })(window.HR);

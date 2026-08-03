@@ -7,6 +7,11 @@ funktioniert.
 
 **Spielen:** <https://joelbettschen2010-dotcom.github.io/-/game/>
 
+**Herunterladen:** [`Horizon-Rush.html`](Horizon-Rush.html) – das ganze Spiel in
+einer einzigen Datei (182 KB, Icon und alles eingebettet). Speichern, antippen,
+läuft – ohne Server, ohne Internet. Erzeugt aus den Quelldateien mit
+`node build-single.js`.
+
 ## Warum Web und nicht APK oder App Store
 
 | Weg | Geht ohne PC? |
@@ -92,12 +97,31 @@ immer nach oben ausgerichtet und nach Kurvenschärfe eingefärbt:
 weiss = schnell, gelb = anbremsen, rot = scharf. Gegner in Reichweite
 erscheinen als farbige Punkte.
 
-## Fortschritt
+## Fortschritt und Spielstand
 
 10 Fahrzeuge in 6 Klassen (D bis X), vier Ausbaustufen (Motor, Getriebe,
 Reifen, Lachgas) mit je 5 Stufen, freie Lackfarbe, Stufenaufstieg mit
-Erfahrungspunkten und Sterne pro Event. Alles liegt in `localStorage` –
-**keine Konten, keine Server, keine Werbung, keine Datenübertragung.**
+Erfahrungspunkten und Sterne pro Event.
+
+Gespeichert wird in `localStorage` – **keine Konten, keine Server, keine
+Werbung, keine Datenübertragung.** Gesichert wird nach jedem Rennen, jedem
+Kauf und zusätzlich beim Wegschalten oder Schliessen der App
+(`visibilitychange`, `pagehide`, `blur`), weil iOS Safari-Tabs ohne Vorwarnung
+beendet.
+
+Damit trotzdem nichts verloren geht:
+
+- **Einstellungen → Spielstand sichern** erzeugt einen Text-Code (`HR1.…`,
+  rund 700 Zeichen), der den kompletten Stand enthält. Kopieren, als Datei
+  sichern oder sich selbst mailen.
+- **Wiederherstellen** setzt ihn auf jedem Gerät und in jeder Version wieder
+  ein. Ungültige Codes werden mit einer klaren Meldung abgewiesen.
+- Kann eine Umgebung gar nicht speichern (privater Modus, eingebettete
+  Ansicht, lokal geöffnete Datei), erkennt das Spiel das und **warnt im Menü**,
+  statt den Fortschritt still zu verlieren.
+
+Am zuverlässigsten speichert die über *Zum Home-Bildschirm* installierte
+Version – die hat einen eigenen, dauerhaften Speicherbereich.
 
 ## Landschaftszonen
 
@@ -117,6 +141,7 @@ Bergsilhouette, Bewuchs, Fahrbahnfarben, Nebelton und Wetterneigung
 | `js/race.js` | Pseudo-3D-Renderer, Fahrphysik, Gegner-KI, HUD |
 | `js/ui.js` | Menüs, Karriere, Garage, Ergebnisse |
 | `sw.js` | Service Worker für den Offline-Betrieb |
+| `build-single.js` | baut daraus die Einzeldatei `Horizon-Rush.html` |
 
 Gerendert wird nach dem klassischen Verfahren projizierter Strassensegmente:
 Jedes Segment hat zwei Punkte in Weltkoordinaten, die pro Bild in

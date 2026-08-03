@@ -188,9 +188,12 @@ const UI = HR.UI = {
       '<button class="btn" data-a="daily"><span class="ico">📅</span><span class="txt">Tagesroute<small>Jeden Tag dieselbe Strecke für alle · ' + dailyLabel() + '</small></span><span class="arrow">›</span></button>' +
       '<button class="btn" data-a="garage"><span class="ico">🔧</span><span class="txt">Garage<small>' + car.name + ' · LI ' + HR.perfIndex(d.car) + '</small></span><span class="arrow">›</span></button>' +
       '<button class="btn ghost small" data-a="settings"><span class="ico">⚙️</span><span class="txt">Einstellungen</span></button>' +
+      (HR.Save.available ? '' :
+        '<p class="hint warn center">⚠️ Dieses Fenster kann keinen Spielstand speichern. ' +
+        'Unter <b>Einstellungen → Spielstand sichern</b> gibt es einen Code zum Mitnehmen.</p>') +
       (standalone ? '' :
         '<p class="hint center">📲 Tipp: In Safari auf <b>Teilen</b> → <b>Zum Home-Bildschirm</b>. ' +
-        'Dann läuft Horizon Rush im Vollbild wie eine App – auch ohne Internet.</p>')
+        'Dann läuft Horizon Rush im Vollbild wie eine App – auch ohne Internet, mit dauerhaftem Spielstand.</p>')
     );
   },
 
@@ -333,8 +336,50 @@ const UI = HR.UI = {
       row('Knappe Überholmanöver', S().stats.nearMiss) +
       row('Adaptive KI-Stufe', Math.round(S().skill) + ' / 100') +
       '</div>' +
+      '<div class="card"><div class="sect" style="margin-top:0">Spielstand</div>' +
+      (HR.Save.available
+        ? '<p class="hint" style="margin-top:0">✅ Wird automatisch auf diesem Gerät gespeichert – nach jedem Rennen, jedem Kauf und beim Schliessen der App.</p>'
+        : '<p class="hint warn" style="margin-top:0">⚠️ Dieses Fenster darf nicht speichern (privater Modus oder eingebettete Ansicht). Dein Fortschritt geht beim Schliessen verloren – sichere ihn mit einem Code oder spiele über die installierte App.</p>') +
+      '<button class="btn small" data-a="backup" style="margin-top:10px"><span class="ico">📤</span><span class="txt">Spielstand sichern<small>Code zum Mitnehmen auf ein anderes Gerät</small></span><span class="arrow">›</span></button>' +
+      '<button class="btn small" data-a="restore" style="margin-bottom:0"><span class="ico">📥</span><span class="txt">Spielstand wiederherstellen<small>Code von vorher einsetzen</small></span><span class="arrow">›</span></button>' +
+      '</div>' +
       '<button class="btn ghost small" data-a="reset"><span class="ico">🗑️</span><span class="txt">Profil zurücksetzen</span></button>' +
       '<p class="hint center">Horizon Rush läuft vollständig auf deinem Gerät. Keine Konten, keine Server, keine Werbung.</p>'
+    );
+  },
+
+  /* ------------------------------------------------ Spielstand sichern */
+  backup() {
+    const d = S();
+    const code = HR.Save.exportCode();
+    this.paint(
+      '<div class="topbar"><button class="back" data-a="settings">‹</button><h2>Spielstand sichern</h2></div>' +
+      '<div class="card">' +
+      row('Stufe', d.level) + row('Guthaben', U.fmtNum(d.credits) + ' ₡') +
+      row('Fahrzeuge', Object.keys(d.cars).length) + row('Sterne', totalStars()) +
+      row('Rennen', d.stats.races) +
+      '</div>' +
+      '<p class="hint">Diesen Code irgendwo sichern – Notizen, E-Mail an dich selbst, egal. ' +
+      'Damit holst du den Stand auf jedem Gerät und in jeder Version zurück.</p>' +
+      '<textarea id="bkCode" readonly style="width:100%;height:120px;margin:10px 0;padding:12px;' +
+      'border-radius:14px;border:1px solid var(--line);background:#0d1020;color:var(--dim);' +
+      'font-family:ui-monospace,Menlo,monospace;font-size:11px;-webkit-user-select:all;user-select:all">' + code + '</textarea>' +
+      '<button class="btn primary" data-a="copyCode"><span class="ico">📋</span><span class="txt">Code kopieren</span></button>' +
+      '<button class="btn small" data-a="downloadCode"><span class="ico">💾</span><span class="txt">Als Datei sichern<small>horizon-rush-spielstand.txt</small></span></button>' +
+      '<button class="btn ghost small" data-a="settings"><span class="ico">‹</span><span class="txt">Zurück</span></button>'
+    );
+  },
+
+  restore() {
+    this.paint(
+      '<div class="topbar"><button class="back" data-a="settings">‹</button><h2>Wiederherstellen</h2></div>' +
+      '<p class="hint">Gesicherten Code hier einsetzen. Der aktuelle Stand auf diesem Gerät wird dabei überschrieben.</p>' +
+      '<textarea id="rsCode" placeholder="HR1...." style="width:100%;height:120px;margin:10px 0;padding:12px;' +
+      'border-radius:14px;border:1px solid var(--line);background:#0d1020;color:var(--txt);' +
+      'font-family:ui-monospace,Menlo,monospace;font-size:11px"></textarea>' +
+      '<div id="rsMsg"></div>' +
+      '<button class="btn primary" data-a="doRestore"><span class="ico">📥</span><span class="txt">Stand übernehmen</span></button>' +
+      '<button class="btn ghost small" data-a="settings"><span class="ico">‹</span><span class="txt">Abbrechen</span></button>'
     );
   },
 
@@ -541,6 +586,42 @@ const UI = HR.UI = {
       if (confirm('Profil wirklich löschen? Alle Fahrzeuge, Sterne und Bestwerte gehen verloren.')) {
         HR.Save.reset(); this.home();
       }
+    },
+
+    backup() { this.backup(); },
+    restore() { this.restore(); },
+    copyCode() {
+      const t = document.getElementById('bkCode');
+      if (!t) return;
+      t.focus(); t.select(); t.setSelectionRange(0, 999999);
+      const done = () => { const b = this.root.querySelector('[data-a="copyCode"] .txt'); if (b) b.textContent = '✓ Kopiert'; };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(t.value).then(done, () => { try { document.execCommand('copy'); done(); } catch (e) { } });
+      } else { try { document.execCommand('copy'); done(); } catch (e) { } }
+    },
+    downloadCode() {
+      const t = document.getElementById('bkCode');
+      if (!t) return;
+      try {
+        const blob = new Blob([t.value], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'horizon-rush-spielstand.txt';
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+      } catch (e) {
+        const b = this.root.querySelector('[data-a="downloadCode"] .txt');
+        if (b) b.innerHTML = 'Hier nicht möglich<small>Code stattdessen kopieren</small>';
+      }
+    },
+    doRestore() {
+      const t = document.getElementById('rsCode'), msg = document.getElementById('rsMsg');
+      if (!t) return;
+      const err = HR.Save.importCode(t.value);
+      if (err) { msg.innerHTML = '<p class="hint warn">✕ ' + err + '</p>'; return; }
+      HR.Audio.ok();
+      msg.innerHTML = '<p class="hint" style="color:var(--ok)">✓ Spielstand übernommen.</p>';
+      setTimeout(() => this.home(), 700);
     }
   }
 };
