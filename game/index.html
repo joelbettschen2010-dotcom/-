@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Horizon Rush</title>
+<meta name="theme-color" content="#0a0b12">
+<meta name="description" content="Horizon Rush – prozedural erzeugtes Arcade-Rennspiel fürs iPhone. Endlos neue Strecken, adaptive Gegner-KI, Karriere, Garage und Endlos-Marathon.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Horizon Rush">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ================= Spielfläche ================= -->
+  <canvas id="cv"></canvas>
+
+  <!-- ================= HUD ================= -->
+  <div id="hud" hidden>
+    <div class="hud-top">
+      <button id="btnPause" class="icon-btn" aria-label="Pause">❚❚</button>
+      <div class="chips">
+        <div class="chip" id="chipPos" hidden><span class="k">Pos</span><span class="v"><b>1</b>/6</span></div>
+        <div class="chip" id="chipLap" hidden><span class="k">Runde</span><span class="v"><b>1</b>/3</span></div>
+        <div class="chip" id="chipTime"><span class="k">Zeit</span><span class="v">0:00.0</span></div>
+        <div class="chip" id="chipExtra" hidden><span class="k">Distanz</span><span class="v">0.0 km</span></div>
+      </div>
+      <canvas id="mini" width="132" height="132" aria-hidden="true"></canvas>
+    </div>
+
+    <div id="popups"></div>
+    <div id="bigMsg"></div>
+
+    <div class="hud-bottom">
+      <div class="nos-wrap">
+        <span class="nos-lbl">NOS</span>
+        <div class="nos"><i id="nosFill"></i></div>
+      </div>
+      <div class="rev"><i id="revFill"></i></div>
+      <div class="kmh"><b id="kmh">0</b><i>km/h</i></div>
+    </div>
+  </div>
+
+  <!-- ================= Steuerung ================= -->
+  <div id="controls" hidden>
+    <div id="steerPad">
+      <div id="steerKnob"></div>
+      <div class="pad-hint">◀ &nbsp;LENKEN&nbsp; ▶</div>
+    </div>
+    <div id="pedalPad">
+      <button id="btnNos" class="pedal p-nos">NOS</button>
+      <button id="btnBrake" class="pedal p-brake">BREMSE</button>
+      <button id="btnGas" class="pedal p-gas" hidden>GAS</button>
+    </div>
+  </div>
+
+  <!-- ================= Menü-Ebenen ================= -->
+  <div id="screens"></div>
+
+  <div id="rotateHint" hidden>↻ Quer halten für die volle Breite</div>
+</div>
+
+<script src="js/core.js"></script>
+<script src="js/art.js"></script>
+<script src="js/track.js"></script>
+<script src="js/race.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+</script>
+</body>
+</html>
