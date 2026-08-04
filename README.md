@@ -72,3 +72,16 @@ Internet­verbindung nötig (Kacheln, Routing, Suche).
 - Der öffentliche BRouter-Server hat eine Fair-Use-Begrenzung.
 - Die berechnete Zeit ist eine Schätzung ohne Pausen; mit Feedback wird sie genauer.
 - E-Bike-Reichweite/Akku wird (noch) nicht modelliert.
+
+---
+
+## Ebenfalls in diesem Repo
+
+### 🏁 [Horizon Rush](game/) – Arcade-Rennspiel fürs iPhone
+
+Prozedural erzeugte Strecken, adaptive Gegner-KI, Karriere, Garage und
+Endlos-Marathon. Läuft im Browser, lässt sich über *Teilen → Zum
+Home-Bildschirm* als Vollbild-App installieren und funktioniert offline.
+
+**Spielen:** <https://joelbettschen2010-dotcom.github.io/-/game/>
+· [Details](game/README.md)
