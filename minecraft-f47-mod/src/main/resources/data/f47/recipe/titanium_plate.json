@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "##"
+  ],
+  "key": {
+    "#": {
+      "item": "f47:titanium_ingot"
+    }
+  },
+  "result": {
+    "id": "f47:titanium_plate",
+    "count": 3
+  }
+}

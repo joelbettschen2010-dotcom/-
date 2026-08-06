@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": [
+    {
+      "item": "f47:f47_aircraft"
+    },
+    {
+      "item": "f47:avionics_module"
+    },
+    {
+      "item": "minecraft:redstone_block"
+    }
+  ],
+  "result": {
+    "id": "f47:f47_autonomous",
+    "count": 1
+  }
+}

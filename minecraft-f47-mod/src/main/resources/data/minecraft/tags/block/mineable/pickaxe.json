@@ -1,0 +1,18 @@
+{
+  "replace": false,
+  "values": [
+    "f47:runway",
+    "f47:runway_centerline",
+    "f47:runway_threshold",
+    "f47:runway_light",
+    "f47:hangar_door",
+    "f47:hangar_wall",
+    "f47:radar",
+    "f47:iron_dome",
+    "f47:rearm_pad",
+    "f47:barracks",
+    "f47:titanium_ore",
+    "f47:deepslate_titanium_ore",
+    "f47:titanium_block"
+  ]
+}

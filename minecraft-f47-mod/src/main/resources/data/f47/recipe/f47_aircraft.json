@@ -1,0 +1,33 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "SAS",
+    "CEC",
+    "PJP"
+  ],
+  "key": {
+    "S": {
+      "item": "f47:stealth_coating"
+    },
+    "A": {
+      "item": "f47:avionics_module"
+    },
+    "C": {
+      "item": "f47:composite_plate"
+    },
+    "E": {
+      "item": "f47:energy_cell"
+    },
+    "P": {
+      "item": "f47:titanium_plate"
+    },
+    "J": {
+      "item": "f47:jet_engine"
+    }
+  },
+  "result": {
+    "id": "f47:f47_aircraft",
+    "count": 1
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " A ",
+    "PEP",
+    "III"
+  ],
+  "key": {
+    "A": {
+      "item": "f47:avionics_module"
+    },
+    "P": {
+      "item": "f47:titanium_plate"
+    },
+    "E": {
+      "item": "f47:energy_cell"
+    },
+    "I": {
+      "item": "minecraft:iron_block"
+    }
+  },
+  "result": {
+    "id": "f47:radar",
+    "count": 1
+  }
+}

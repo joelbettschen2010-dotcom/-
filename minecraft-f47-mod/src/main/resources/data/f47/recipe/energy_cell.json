@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " P ",
+    "RAR",
+    " P "
+  ],
+  "key": {
+    "P": {
+      "item": "f47:titanium_plate"
+    },
+    "R": {
+      "item": "minecraft:redstone"
+    },
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    }
+  },
+  "result": {
+    "id": "f47:energy_cell",
+    "count": 1
+  }
+}

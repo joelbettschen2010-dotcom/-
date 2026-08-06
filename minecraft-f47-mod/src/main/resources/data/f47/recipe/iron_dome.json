@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "MMM",
+    "PAP",
+    "III"
+  ],
+  "key": {
+    "M": {
+      "item": "f47:interceptor_missile"
+    },
+    "P": {
+      "item": "f47:titanium_plate"
+    },
+    "A": {
+      "item": "f47:avionics_module"
+    },
+    "I": {
+      "item": "minecraft:iron_block"
+    }
+  },
+  "result": {
+    "id": "f47:iron_dome",
+    "count": 1
+  }
+}

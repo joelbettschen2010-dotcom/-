@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "f47",
+  "version": "${version}",
+  "name": "F-47 Air Force",
+  "description": "Fliegbare F-47 Kampfjets mit Waffen und Stealth, autonome KI-Jets mit Bot-Piloten, Startbahnen und Hangars, Luftraumradar, Iron-Dome-Abwehrsystem, Laserwaffen und Bodentruppen - eine komplette Militaerbasis fuer den Singleplayer.",
+  "authors": [
+    "Claude Code"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/f47/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.f47mod.F47Mod"
+    ],
+    "client": [
+      "com.f47mod.client.F47ModClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

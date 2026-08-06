@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "CCA",
+    "PEP",
+    "P  "
+  ],
+  "key": {
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "P": {
+      "item": "f47:titanium_plate"
+    },
+    "E": {
+      "item": "f47:energy_cell"
+    }
+  },
+  "result": {
+    "id": "f47:railgun",
+    "count": 1
+  }
+}

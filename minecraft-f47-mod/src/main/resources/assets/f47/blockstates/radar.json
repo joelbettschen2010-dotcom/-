@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "active=true": {
+      "model": "f47:block/radar"
+    },
+    "active=false": {
+      "model": "f47:block/radar"
+    }
+  }
+}

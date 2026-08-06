@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "open=false,powered=false": {
+      "model": "f47:block/hangar_door"
+    },
+    "open=false,powered=true": {
+      "model": "f47:block/hangar_door"
+    },
+    "open=true,powered=false": {
+      "model": "f47:block/hangar_door_open"
+    },
+    "open=true,powered=true": {
+      "model": "f47:block/hangar_door_open"
+    }
+  }
+}
