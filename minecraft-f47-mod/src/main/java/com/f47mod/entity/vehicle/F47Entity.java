@@ -7,6 +7,8 @@ import com.f47mod.entity.projectile.BombEntity;
 import com.f47mod.entity.projectile.BulletEntity;
 import com.f47mod.entity.projectile.MissileEntity;
 import com.f47mod.util.Iff;
+import com.f47mod.util.Team;
+import com.f47mod.util.TeamMember;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
@@ -42,7 +44,7 @@ import java.util.List;
  * schickt die Position ueber das normale Fahrzeug-Paket an den Server. Ohne
  * Pilot - also bei den autonomen Jets - rechnet der Server.
  */
-public class F47Entity extends Entity {
+public class F47Entity extends Entity implements TeamMember {
 	protected static final TrackedData<Float> THROTTLE =
 			DataTracker.registerData(F47Entity.class, TrackedDataHandlerRegistry.FLOAT);
 	protected static final TrackedData<Float> STRUCTURE =
@@ -66,6 +68,8 @@ public class F47Entity extends Entity {
 	protected static final TrackedData<Integer> LOCKED_TARGET =
 			DataTracker.registerData(F47Entity.class, TrackedDataHandlerRegistry.INTEGER);
 	protected static final TrackedData<Integer> STEALTH_BREAK =
+			DataTracker.registerData(F47Entity.class, TrackedDataHandlerRegistry.INTEGER);
+	protected static final TrackedData<Integer> TEAM =
 			DataTracker.registerData(F47Entity.class, TrackedDataHandlerRegistry.INTEGER);
 
 	public static final int MAX_MISSILES = 8;
@@ -106,6 +110,7 @@ public class F47Entity extends Entity {
 		builder.add(WEAPON, 0);
 		builder.add(LOCKED_TARGET, -1);
 		builder.add(STEALTH_BREAK, 0);
+		builder.add(TEAM, Team.BLUE.ordinal());
 	}
 
 	@Override
@@ -118,6 +123,7 @@ public class F47Entity extends Entity {
 		dataTracker.set(CANNON_AMMO, nbt.contains("Cannon") ? nbt.getInt("Cannon") : MAX_CANNON);
 		dataTracker.set(BOMB_AMMO, nbt.contains("Bombs") ? nbt.getInt("Bombs") : MAX_BOMBS);
 		dataTracker.set(WEAPON, nbt.getInt("Weapon"));
+		setTeam(Team.byOrdinal(nbt.getInt("Team")));
 	}
 
 	@Override
@@ -130,6 +136,17 @@ public class F47Entity extends Entity {
 		nbt.putInt("Cannon", getCannonAmmo());
 		nbt.putInt("Bombs", getBombAmmo());
 		nbt.putInt("Weapon", dataTracker.get(WEAPON));
+		nbt.putInt("Team", getTeam().ordinal());
+	}
+
+	@Override
+	public Team getTeam() {
+		return Team.byOrdinal(dataTracker.get(TEAM));
+	}
+
+	@Override
+	public void setTeam(Team team) {
+		dataTracker.set(TEAM, team.ordinal());
 	}
 
 	public float getThrottle() {
@@ -347,8 +364,8 @@ public class F47Entity extends Entity {
 			discard();
 			return true;
 		}
-		// Eigene Geschosse beschaedigen den eigenen Jet nicht.
-		if (source.getSource() != null && Iff.isFriendly(source.getSource()) && !(source.getAttacker() instanceof PlayerEntity)) {
+		// Geschosse der eigenen Partei beschaedigen den Jet nicht.
+		if (source.getSource() != null && Iff.isAlly(this, source.getSource())) {
 			return false;
 		}
 		setStructure(getStructure() - amount);
@@ -455,7 +472,7 @@ public class F47Entity extends Entity {
 		Entity best = null;
 		double bestScore = -1.0;
 		Box box = getBoundingBox().expand(config.missileLockRange);
-		for (Entity candidate : getWorld().getOtherEntities(this, box, Iff::isThreat)) {
+		for (Entity candidate : getWorld().getOtherEntities(this, box, candidate -> Iff.isEnemy(this, candidate))) {
 			Vec3d toTarget = candidate.getPos().add(0, candidate.getHeight() * 0.5, 0).subtract(origin);
 			double distance = toTarget.length();
 			if (distance < 3.0 || distance > config.missileLockRange) {
@@ -678,6 +695,7 @@ public class F47Entity extends Entity {
 		Vec3d forward = getForwardVector();
 		Vec3d nose = getPos().add(forward.multiply(2.4)).add(0, 0.1, 0);
 		BulletEntity bullet = new BulletEntity(getWorld(), this, F47Config.get().cannonDamage);
+		bullet.setTeam(getTeam());
 		bullet.setPosition(nose.x, nose.y, nose.z);
 		bullet.setVelocity(forward.x, forward.y, forward.z, 5.2f, 1.6f);
 		bullet.addVelocity(getVelocity().x, getVelocity().y, getVelocity().z);
@@ -694,6 +712,7 @@ public class F47Entity extends Entity {
 		Vec3d origin = getPos().add(wing).add(forward.multiply(0.8));
 
 		MissileEntity missile = new MissileEntity(getWorld(), this, MissileEntity.Kind.AIR_TO_AIR);
+		missile.setTeam(getTeam());
 		missile.setPosition(origin.x, origin.y, origin.z);
 		missile.setVelocity(forward.multiply(1.4).add(getVelocity()));
 		missile.setTarget(getLockedTarget());
@@ -704,6 +723,7 @@ public class F47Entity extends Entity {
 	protected void dropBomb() {
 		dataTracker.set(BOMB_AMMO, Math.max(0, getBombAmmo() - 1));
 		BombEntity bomb = new BombEntity(getWorld(), this);
+		bomb.setTeam(getTeam());
 		bomb.setPosition(getX(), getY() - 0.4, getZ());
 		bomb.setVelocity(getVelocity().multiply(0.9));
 		getWorld().spawnEntity(bomb);
@@ -744,7 +764,7 @@ public class F47Entity extends Entity {
 	public EntityHitResult findEntityOnRay(Vec3d start, Vec3d end, double margin) {
 		Box searchBox = new Box(start, end).expand(margin + 1.0);
 		List<Entity> candidates = getWorld().getOtherEntities(this, searchBox,
-				entity -> entity.canHit() && !Iff.isFriendly(entity) && entity != this);
+				entity -> entity.canHit() && Iff.isEnemy(this, entity));
 		return candidates.stream()
 				.map(entity -> {
 					Box box = entity.getBoundingBox().expand(margin);

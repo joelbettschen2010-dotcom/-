@@ -4,6 +4,8 @@ import com.f47mod.entity.mob.SoldierEntity;
 import com.f47mod.entity.mob.SoldierRole;
 import com.f47mod.registry.ModBlockEntities;
 import com.f47mod.registry.ModEntities;
+import com.f47mod.util.Team;
+import com.f47mod.util.TeamMember;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.SpawnReason;
@@ -26,7 +28,7 @@ import java.util.UUID;
  * Ausbildungsbetrieb der Kaserne: verbraucht Nachschub und stellt in festen
  * Abstaenden neue Soldaten auf, solange der Trupp noch nicht voll ist.
  */
-public class BarracksBlockEntity extends BlockEntity {
+public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 	public static final int MAX_SUPPLIES = 64;
 	public static final int MAX_SQUAD = 12;
 	/** Ticks pro Ausbildung (etwa 30 Sekunden). */
@@ -39,6 +41,7 @@ public class BarracksBlockEntity extends BlockEntity {
 	private SoldierRole trainingRole = SoldierRole.RIFLEMAN;
 	@Nullable
 	private UUID ownerUuid;
+	private Team team = Team.BLUE;
 
 	public BarracksBlockEntity(BlockPos pos, BlockState state) {
 		super(ModBlockEntities.BARRACKS, pos, state);
@@ -75,6 +78,7 @@ public class BarracksBlockEntity extends BlockEntity {
 		BlockPos spawn = pos.up();
 		soldier.refreshPositionAndAngles(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5,
 				world.getRandom().nextFloat() * 360.0f, 0.0f);
+		soldier.setTeam(team);
 		soldier.setRole(trainingRole);
 		soldier.setStance(SoldierEntity.Stance.PATROL);
 		soldier.setGuardPost(pos);
@@ -95,7 +99,18 @@ public class BarracksBlockEntity extends BlockEntity {
 	/** Wie viele eigene Soldaten stehen schon im Umkreis? */
 	private int countSquad(World world, BlockPos pos) {
 		Box box = new Box(pos).expand(48.0);
-		return world.getEntitiesByClass(SoldierEntity.class, box, soldier -> true).size();
+		return world.getEntitiesByClass(SoldierEntity.class, box, soldier -> soldier.getTeam() == team).size();
+	}
+
+	@Override
+	public Team getTeam() {
+		return team;
+	}
+
+	@Override
+	public void setTeam(Team team) {
+		this.team = team;
+		markDirty();
 	}
 
 	public int addSupplies(int count) {
@@ -138,6 +153,7 @@ public class BarracksBlockEntity extends BlockEntity {
 		nbt.putInt("Supplies", supplies);
 		nbt.putInt("Progress", progress);
 		nbt.putInt("Role", trainingRole.ordinal());
+		nbt.putInt("Team", team.ordinal());
 		if (ownerUuid != null) {
 			nbt.putUuid("Owner", ownerUuid);
 		}
@@ -149,6 +165,7 @@ public class BarracksBlockEntity extends BlockEntity {
 		supplies = nbt.getInt("Supplies");
 		progress = nbt.getInt("Progress");
 		trainingRole = SoldierRole.byOrdinal(nbt.getInt("Role"));
+		team = Team.byOrdinal(nbt.getInt("Team"));
 		if (nbt.containsUuid("Owner")) {
 			ownerUuid = nbt.getUuid("Owner");
 		}

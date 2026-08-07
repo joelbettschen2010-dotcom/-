@@ -1,9 +1,8 @@
 package com.f47mod.util;
 
 import com.f47mod.F47Config;
-import com.f47mod.entity.mob.EnemyDroneEntity;
+import com.f47mod.entity.mob.CombatDroneEntity;
 import com.f47mod.entity.mob.SoldierEntity;
-import com.f47mod.entity.projectile.MissileEntity;
 import com.f47mod.entity.vehicle.F47Entity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
@@ -15,87 +14,121 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.ExplosiveProjectileEntity;
 import net.minecraft.entity.projectile.PersistentProjectileEntity;
 import net.minecraft.util.math.Vec3d;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * IFF - "Identification Friend or Foe". Zentrale Stelle, die entscheidet, wen
- * die eigenen Einheiten (Jets, Iron Dome, Soldaten) angreifen duerfen und wen
- * nicht. Ohne das schiesst die Flugabwehr auf die eigenen Flugzeuge.
+ * IFF - "Identification Friend or Foe". Entscheidet, wen eine Einheit angreifen
+ * darf und wen nicht.
+ *
+ * <p>Die Regeln sind bewusst einfach gehalten:
+ * <ul>
+ *   <li>Gleiche Partei - nie ein Ziel, auch nicht versehentlich.</li>
+ *   <li>Andere Partei - gegnerisch.</li>
+ *   <li>Monster der Welt (Zombies, Ghasts, ...) - Gegner beider Parteien.
+ *       Deshalb funktioniert der Mod auch dann, wenn nur eine Partei
+ *       aufgestellt wird.</li>
+ *   <li>Tiere und Spieler ohne Beteiligung - kein Ziel.</li>
+ * </ul>
  */
 public final class Iff {
 	private Iff() {
 	}
 
-	/** Gehoert die Entity zur eigenen Seite? Wird niemals beschossen. */
-	public static boolean isFriendly(Entity entity) {
-		if (entity instanceof PlayerEntity) {
-			return true;
+	/** Partei einer Entity, oder null bei allem, was zu keiner Partei gehoert. */
+	@Nullable
+	public static Team teamOf(@Nullable Entity entity) {
+		if (entity instanceof TeamMember member) {
+			return member.getTeam();
 		}
-		if (entity instanceof F47Entity) {
-			return true;
+		if (entity instanceof PlayerEntity player) {
+			return TeamState.teamOf(player);
 		}
-		if (entity instanceof SoldierEntity) {
-			return true;
-		}
-		if (entity instanceof MissileEntity missile) {
-			return !missile.isHostile();
-		}
-		// Tiere und Dekoration gehoeren nicht zum Verband - sie werden von der
-		// Zielerfassung ignoriert, sind aber auch nicht besonders geschuetzt.
-		return false;
+		return null;
 	}
 
-	/** Feindliche Einheit, die von eigenen Truppen bekaempft werden darf. */
-	public static boolean isThreat(Entity entity) {
-		if (entity == null || !entity.isAlive() || isFriendly(entity)) {
-			return false;
-		}
-		if (entity instanceof EnemyDroneEntity) {
-			return true;
-		}
-		if (entity instanceof MissileEntity missile) {
-			return missile.isHostile();
-		}
-		return entity instanceof HostileEntity;
+	/** Gehoeren beide zur selben Partei? */
+	public static boolean sameTeam(@Nullable Entity a, @Nullable Entity b) {
+		Team teamA = teamOf(a);
+		return teamA != null && teamA == teamOf(b);
+	}
+
+	/** Verbuendeter des Betrachters - wird nie beschossen. */
+	public static boolean isAlly(@Nullable Team viewer, @Nullable Entity candidate) {
+		return viewer != null && teamOf(candidate) == viewer;
+	}
+
+	public static boolean isAlly(@Nullable Entity viewer, @Nullable Entity candidate) {
+		return isAlly(teamOf(viewer), candidate);
 	}
 
 	/**
-	 * Luftziel - alles, worauf die Flugabwehr (Iron Dome) und die Jets
-	 * ansetzen. Dazu zaehlen auch anfliegende Geschosse wie Ghast-Feuerbaelle.
+	 * Gueltiges Ziel fuer den Betrachter: die Gegenpartei oder ein Monster der
+	 * Welt. Tiere, Dorfbewohner und Unbeteiligte bleiben aussen vor.
 	 */
-	public static boolean isAirThreat(Entity entity) {
-		if (entity == null || !entity.isAlive() || isFriendly(entity)) {
+	public static boolean isEnemy(@Nullable Team viewer, @Nullable Entity candidate) {
+		if (candidate == null || !candidate.isAlive()) {
 			return false;
 		}
-		if (entity instanceof EnemyDroneEntity) {
-			return true;
+		Team other = teamOf(candidate);
+		if (other != null) {
+			return viewer != null && other != viewer;
 		}
-		if (entity instanceof MissileEntity missile) {
-			return missile.isHostile();
+		// Ohne Partei: nur die feindlichen Kreaturen der Welt sind Ziele.
+		return candidate instanceof HostileEntity || isHostileProjectile(candidate);
+	}
+
+	public static boolean isEnemy(@Nullable Entity viewer, @Nullable Entity candidate) {
+		if (viewer == candidate) {
+			return false;
 		}
+		return isEnemy(teamOf(viewer), candidate);
+	}
+
+	/** Geschosse, die niemandem aus dem Mod gehoeren - etwa Ghast-Feuerbaelle. */
+	private static boolean isHostileProjectile(Entity entity) {
 		if (entity instanceof ExplosiveProjectileEntity projectile) {
-			// Ghast-Feuerbaelle, Witherschaedel - klassische Iron-Dome-Ziele.
 			return !(projectile.getOwner() instanceof PlayerEntity);
 		}
 		if (entity instanceof PersistentProjectileEntity arrow) {
 			return !(arrow.getOwner() instanceof PlayerEntity) && !(arrow.getOwner() instanceof SoldierEntity);
 		}
-		if (entity instanceof FlyingEntity || entity instanceof PhantomEntity) {
+		return false;
+	}
+
+	/**
+	 * Luftziel - alles, worauf Flugabwehr und Abfangjaeger ansetzen: gegnerische
+	 * Raketen und Drohnen, Ghast-Feuerbaelle, fliegende Monster.
+	 */
+	public static boolean isAirThreat(@Nullable Team viewer, @Nullable Entity candidate) {
+		if (!isEnemy(viewer, candidate)) {
+			return false;
+		}
+		if (candidate instanceof CombatDroneEntity
+				|| candidate instanceof com.f47mod.entity.projectile.MissileEntity
+				|| candidate instanceof ExplosiveProjectileEntity
+				|| candidate instanceof PersistentProjectileEntity
+				|| candidate instanceof FlyingEntity
+				|| candidate instanceof PhantomEntity
+				|| candidate instanceof F47Entity) {
 			return true;
 		}
-		// Fliegende oder gerade springende Monster in der Luft.
-		return entity instanceof HostileEntity && !entity.isOnGround();
+		// Bodenmonster zaehlen nur, solange sie sich in der Luft befinden.
+		return !candidate.isOnGround();
 	}
 
 	/** Bedrohungsbewertung - hoehere Werte werden zuerst abgefangen. */
 	public static int threatPriority(Entity entity) {
-		if (entity instanceof MissileEntity) {
+		if (entity instanceof com.f47mod.entity.projectile.MissileEntity) {
 			return 100;
 		}
 		if (entity instanceof ExplosiveProjectileEntity) {
 			return 90;
 		}
-		if (entity instanceof EnemyDroneEntity) {
+		if (entity instanceof CombatDroneEntity) {
 			return 70;
+		}
+		if (entity instanceof F47Entity) {
+			return 65;
 		}
 		if (entity instanceof CreeperEntity) {
 			return 60;
@@ -117,17 +150,20 @@ public final class Iff {
 		return baseRange;
 	}
 
-	/** Kann {@code observer} das Ziel auf diese Entfernung ueberhaupt erfassen? */
+	/** Laesst sich das Ziel aus dieser Entfernung ueberhaupt erfassen? */
 	public static boolean canDetect(Entity target, Vec3d observerPos, double baseRange) {
 		double range = detectionRange(target, baseRange);
 		return target.squaredDistanceTo(observerPos) <= range * range;
 	}
 
-	/** Lebende Ziele, die geheilt werden duerfen (Sanitaeter). */
-	public static boolean isHealTarget(Entity entity) {
-		return entity instanceof LivingEntity living
-				&& living.isAlive()
-				&& (living instanceof SoldierEntity || living instanceof PlayerEntity)
-				&& living.getHealth() < living.getMaxHealth();
+	/** Verwundete Verbuendete, die ein Sanitaeter versorgen darf. */
+	public static boolean isHealTarget(@Nullable Team viewer, Entity entity) {
+		if (!(entity instanceof LivingEntity living) || !living.isAlive()) {
+			return false;
+		}
+		if (!(living instanceof SoldierEntity || living instanceof PlayerEntity)) {
+			return false;
+		}
+		return isAlly(viewer, living) && living.getHealth() < living.getMaxHealth();
 	}
 }

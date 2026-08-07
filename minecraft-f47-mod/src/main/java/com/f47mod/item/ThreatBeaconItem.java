@@ -1,7 +1,8 @@
 package com.f47mod.item;
 
 import com.f47mod.F47Config;
-import com.f47mod.entity.mob.EnemyDroneEntity;
+import com.f47mod.entity.mob.CombatDroneEntity;
+import com.f47mod.util.TeamState;
 import com.f47mod.registry.ModEntities;
 import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.player.PlayerEntity;
@@ -42,7 +43,7 @@ public class ThreatBeaconItem extends Item {
 		int count = F47Config.get().raidDroneCount;
 		int spawned = 0;
 		for (int i = 0; i < count; i++) {
-			EnemyDroneEntity drone = ModEntities.ENEMY_DRONE.create(world);
+			CombatDroneEntity drone = ModEntities.COMBAT_DRONE.create(world);
 			if (drone == null) {
 				continue;
 			}
@@ -55,6 +56,7 @@ public class ThreatBeaconItem extends Item {
 
 			drone.refreshPositionAndAngles(x, y, z, world.getRandom().nextFloat() * 360.0f, 0.0f);
 			drone.initialize(server, world.getLocalDifficulty(drone.getBlockPos()), SpawnReason.EVENT, null);
+			drone.setTeam(TeamState.teamOf(player).opposite());
 			drone.setTarget(player);
 			world.spawnEntity(drone);
 			spawned++;

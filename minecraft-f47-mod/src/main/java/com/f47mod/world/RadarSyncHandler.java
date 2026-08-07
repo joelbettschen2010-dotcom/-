@@ -7,6 +7,8 @@ import com.f47mod.net.ModNetworking;
 import com.f47mod.net.RadarContact;
 import com.f47mod.registry.ModItems;
 import com.f47mod.util.Iff;
+import com.f47mod.util.Team;
+import com.f47mod.util.TeamState;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.entity.Entity;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -38,7 +40,7 @@ public final class RadarSyncHandler {
 				for (ServerPlayerEntity player : world.getPlayers()) {
 					List<RadarContact> contacts = collect(player);
 					if (contacts != null) {
-						ModNetworking.sendRadar(player, contacts);
+						ModNetworking.sendRadar(player, contacts, TeamState.teamOf(player));
 					}
 				}
 			}
@@ -57,11 +59,12 @@ public final class RadarSyncHandler {
 
 		List<RadarContact> contacts = new ArrayList<>();
 		Vec3d origin = player.getPos();
+		Team team = TeamState.teamOf(player);
 
 		if (inJet) {
 			// Bordradar: eigener Umkreis um das Flugzeug.
 			int range = F47Config.get().jetRadarRange;
-			collectAround(player, origin, range, contacts);
+			collectAround(player, origin, range, contacts, team);
 		}
 
 		if (hasTablet) {
@@ -80,24 +83,22 @@ public final class RadarSyncHandler {
 	}
 
 	private static void collectAround(ServerPlayerEntity player, Vec3d origin, int range,
-			List<RadarContact> contacts) {
+			List<RadarContact> contacts, Team team) {
 		Box box = player.getBoundingBox().expand(range);
-		for (Entity entity : player.getWorld().getOtherEntities(player, box, RadarSyncHandler::isInteresting)) {
+		for (Entity entity : player.getWorld().getOtherEntities(player, box,
+				entity -> isInteresting(team, entity))) {
 			if (entity == player.getVehicle()) {
 				continue;
 			}
 			if (!Iff.canDetect(entity, origin, range)) {
 				continue;
 			}
-			contacts.add(RadarContact.of(entity));
+			contacts.add(RadarContact.of(entity, team));
 		}
 	}
 
-	private static boolean isInteresting(Entity entity) {
-		if (Iff.isThreat(entity)) {
-			return true;
-		}
-		// Eigene Flugzeuge zeigt der Schirm als befreundete Kontakte.
-		return entity instanceof F47Entity;
+	private static boolean isInteresting(Team viewer, Entity entity) {
+		// Gegner und die eigenen Flugzeuge kommen auf den Schirm.
+		return Iff.isEnemy(viewer, entity) || entity instanceof F47Entity;
 	}
 }

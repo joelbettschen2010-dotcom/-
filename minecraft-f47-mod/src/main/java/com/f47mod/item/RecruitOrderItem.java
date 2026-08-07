@@ -3,6 +3,7 @@ package com.f47mod.item;
 import com.f47mod.entity.mob.SoldierEntity;
 import com.f47mod.entity.mob.SoldierRole;
 import com.f47mod.registry.ModEntities;
+import com.f47mod.util.TeamState;
 import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
@@ -48,6 +49,9 @@ public class RecruitOrderItem extends Item {
 			soldier.initialize(server, world.getLocalDifficulty(pos), SpawnReason.TRIGGERED, null);
 		}
 		// Rolle nach der Initialisierung setzen, damit Werte und Ausruestung stimmen.
+		if (player != null) {
+			soldier.setTeam(TeamState.teamOf(player));
+		}
 		soldier.setRole(role);
 		soldier.setOwner(player);
 		soldier.setStance(SoldierEntity.Stance.FOLLOW);

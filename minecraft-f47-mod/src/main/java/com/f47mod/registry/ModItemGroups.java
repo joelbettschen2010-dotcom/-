@@ -29,6 +29,7 @@ public final class ModItemGroups {
 
 					// Fuehrung und Truppen
 					entries.add(ModItems.COMMAND_TABLET);
+					entries.add(ModItems.TEAM_BADGE);
 					entries.add(ModItems.RECRUIT_RIFLEMAN);
 					entries.add(ModItems.RECRUIT_HEAVY);
 					entries.add(ModItems.RECRUIT_MEDIC);

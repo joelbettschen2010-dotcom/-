@@ -1,11 +1,8 @@
 package com.f47mod.entity.projectile;
 
 import com.f47mod.registry.ModEntities;
-import com.f47mod.util.Iff;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
-import net.minecraft.entity.data.DataTracker;
-import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.entity.projectile.ProjectileUtil;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.particle.ParticleTypes;
@@ -22,7 +19,7 @@ import net.minecraft.world.World;
  * Kinetisches Geschoss - Bordkanone der F-47 und Sturmgewehre der Bodentruppen.
  * Fliegt sehr schnell, macht wenig Einzelschaden und wirkt erst in Salven.
  */
-public class BulletEntity extends ProjectileEntity {
+public class BulletEntity extends TeamProjectileEntity {
 	private float damage = 4.0f;
 	private int life;
 	private static final int MAX_AGE = 50;
@@ -35,11 +32,6 @@ public class BulletEntity extends ProjectileEntity {
 		this(ModEntities.BULLET, world);
 		setOwner(owner);
 		this.damage = damage;
-	}
-
-	@Override
-	protected void initDataTracker(DataTracker.Builder builder) {
-		// Geschosse brauchen keine synchronisierten Daten.
 	}
 
 	@Override
@@ -85,15 +77,7 @@ public class BulletEntity extends ProjectileEntity {
 
 	@Override
 	protected boolean canHit(Entity entity) {
-		if (entity == getOwner()) {
-			return false;
-		}
-		// Kein Beschuss der eigenen Seite.
-		boolean ownerIsFriendly = getOwner() == null || Iff.isFriendly(getOwner());
-		if (ownerIsFriendly && Iff.isFriendly(entity)) {
-			return false;
-		}
-		return super.canHit(entity);
+		return isValidHit(entity) && super.canHit(entity);
 	}
 
 	@Override

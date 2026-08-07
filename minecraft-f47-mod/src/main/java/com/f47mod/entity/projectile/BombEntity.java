@@ -2,11 +2,8 @@ package com.f47mod.entity.projectile;
 
 import com.f47mod.F47Config;
 import com.f47mod.registry.ModEntities;
-import com.f47mod.util.Iff;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
-import net.minecraft.entity.data.DataTracker;
-import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.entity.projectile.ProjectileUtil;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.particle.ParticleTypes;
@@ -19,7 +16,7 @@ import net.minecraft.world.World;
  * Ungelenkte Freifallbombe. Faellt ballistisch und detoniert beim Aufschlag -
  * gedacht fuer Angriffe im Tiefflug auf Bodenziele.
  */
-public class BombEntity extends ProjectileEntity {
+public class BombEntity extends TeamProjectileEntity {
 	private int life;
 
 	public BombEntity(EntityType<? extends BombEntity> type, World world) {
@@ -29,10 +26,6 @@ public class BombEntity extends ProjectileEntity {
 	public BombEntity(World world, Entity owner) {
 		this(ModEntities.BOMB, world);
 		setOwner(owner);
-	}
-
-	@Override
-	protected void initDataTracker(DataTracker.Builder builder) {
 	}
 
 	@Override
@@ -74,7 +67,7 @@ public class BombEntity extends ProjectileEntity {
 
 	@Override
 	protected boolean canHit(Entity entity) {
-		return entity != getOwner() && !Iff.isFriendly(entity) && super.canHit(entity);
+		return isValidHit(entity) && super.canHit(entity);
 	}
 
 	@Override

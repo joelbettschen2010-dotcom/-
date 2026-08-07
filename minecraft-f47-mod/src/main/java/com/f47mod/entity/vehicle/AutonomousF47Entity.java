@@ -137,7 +137,7 @@ public class AutonomousF47Entity extends F47Entity {
 		dataTracker.set(CALLSIGN, callsign);
 		// Das Rufzeichen schwebt als Namensschild ueber der Maschine, damit man
 		// im Verband erkennt, welcher Jet gerade welchen Auftrag hat.
-		setCustomName(Text.literal(callsign));
+		setCustomName(Text.literal(callsign).formatted(getTeam().formatting()));
 		setCustomNameVisible(true);
 	}
 
@@ -347,7 +347,7 @@ public class AutonomousF47Entity extends F47Entity {
 		}
 		double range = F47Config.get().jetRadarRange;
 		Box box = getBoundingBox().expand(range);
-		List<Entity> threats = getWorld().getOtherEntities(this, box, Iff::isThreat);
+		List<Entity> threats = getWorld().getOtherEntities(this, box, candidate -> Iff.isEnemy(this, candidate));
 		Entity best = null;
 		double bestDistance = Double.MAX_VALUE;
 		for (Entity threat : threats) {
@@ -356,7 +356,7 @@ public class AutonomousF47Entity extends F47Entity {
 			}
 			double distance = threat.squaredDistanceTo(this);
 			// Luftziele haben Vorrang vor Bodenzielen.
-			if (Iff.isAirThreat(threat)) {
+			if (Iff.isAirThreat(getTeam(), threat)) {
 				distance *= 0.4;
 			}
 			if (distance < bestDistance) {

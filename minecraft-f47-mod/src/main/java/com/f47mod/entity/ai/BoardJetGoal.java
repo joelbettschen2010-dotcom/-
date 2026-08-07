@@ -101,7 +101,9 @@ public class BoardJetGoal extends Goal {
 	private AutonomousF47Entity findJet() {
 		Box box = pilot.getBoundingBox().expand(SEARCH_RANGE);
 		List<AutonomousF47Entity> candidates = pilot.getWorld().getEntitiesByClass(
-				AutonomousF47Entity.class, box, candidate -> !candidate.hasPilot() && candidate.isAlive());
+				AutonomousF47Entity.class, box,
+				candidate -> !candidate.hasPilot() && candidate.isAlive()
+						&& com.f47mod.util.Iff.sameTeam(pilot, candidate));
 		return candidates.stream()
 				.min(Comparator.comparingDouble(pilot::squaredDistanceTo))
 				.orElse(null);

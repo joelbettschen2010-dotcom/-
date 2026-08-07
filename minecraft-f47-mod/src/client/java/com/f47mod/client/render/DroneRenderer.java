@@ -1,7 +1,8 @@
 package com.f47mod.client.render;
 
 import com.f47mod.F47Mod;
-import com.f47mod.entity.mob.EnemyDroneEntity;
+import com.f47mod.entity.mob.CombatDroneEntity;
+import com.f47mod.util.Team;
 import net.minecraft.client.model.Dilation;
 import net.minecraft.client.model.ModelData;
 import net.minecraft.client.model.ModelPart;
@@ -18,20 +19,21 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 
 /** Feindliche Drohne: flacher Rumpf mit vier Rotorarmen. */
-public class DroneRenderer extends MobEntityRenderer<EnemyDroneEntity, DroneRenderer.DroneModel> {
-	private static final Identifier TEXTURE = F47Mod.id("textures/entity/enemy_drone.png");
+public class DroneRenderer extends MobEntityRenderer<CombatDroneEntity, DroneRenderer.DroneModel> {
+	private static final Identifier BLUE = F47Mod.id("textures/entity/combat_drone_blue.png");
+	private static final Identifier RED = F47Mod.id("textures/entity/combat_drone_red.png");
 
 	public DroneRenderer(EntityRendererFactory.Context context) {
 		super(context, new DroneModel(context.getPart(DroneModel.LAYER)), 0.6f);
 	}
 
 	@Override
-	public Identifier getTexture(EnemyDroneEntity entity) {
-		return TEXTURE;
+	public Identifier getTexture(CombatDroneEntity entity) {
+		return entity.getTeam() == Team.BLUE ? BLUE : RED;
 	}
 
-	public static class DroneModel extends EntityModel<EnemyDroneEntity> {
-		public static final EntityModelLayer LAYER = new EntityModelLayer(F47Mod.id("enemy_drone"), "main");
+	public static class DroneModel extends EntityModel<CombatDroneEntity> {
+		public static final EntityModelLayer LAYER = new EntityModelLayer(F47Mod.id("combat_drone"), "main");
 
 		private final ModelPart root;
 		private final ModelPart rotorA;
@@ -61,7 +63,7 @@ public class DroneRenderer extends MobEntityRenderer<EnemyDroneEntity, DroneRend
 		}
 
 		@Override
-		public void setAngles(EnemyDroneEntity entity, float limbAngle, float limbDistance,
+		public void setAngles(CombatDroneEntity entity, float limbAngle, float limbDistance,
 				float animationProgress, float headYaw, float headPitch) {
 			// Rotoren drehen sichtbar durch.
 			rotorA.yaw = animationProgress * 1.4f;

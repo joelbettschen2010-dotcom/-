@@ -9,7 +9,6 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
-import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.entity.projectile.ProjectileUtil;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.particle.ParticleTypes;
@@ -31,7 +30,7 @@ import java.util.List;
  * Luft-Luft-Rakete der F-47, Abfangrakete des Iron Dome und feindliche
  * Angriffsrakete - unterschiedlich sind nur Zielwahl, Tempo und Sprengkraft.
  */
-public class MissileEntity extends ProjectileEntity {
+public class MissileEntity extends TeamProjectileEntity {
 	private static final TrackedData<Integer> KIND =
 			DataTracker.registerData(MissileEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
@@ -40,8 +39,8 @@ public class MissileEntity extends ProjectileEntity {
 		AIR_TO_AIR(1.9, 0.16, 3.0, 200),
 		/** Abfangrakete des Iron Dome - sehr wendig, kleiner Sprengkopf. */
 		INTERCEPTOR(2.4, 0.30, 2.0, 140),
-		/** Rakete feindlicher Drohnen. */
-		ENEMY(1.5, 0.11, 3.0, 240);
+		/** Schwere Rakete der Kampfdrohnen - langsamer und traeger. */
+		HEAVY(1.5, 0.11, 3.0, 240);
 
 		public final double speed;
 		public final double turnRate;
@@ -73,6 +72,7 @@ public class MissileEntity extends ProjectileEntity {
 
 	@Override
 	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
 		builder.add(KIND, Kind.AIR_TO_AIR.ordinal());
 	}
 
@@ -80,10 +80,6 @@ public class MissileEntity extends ProjectileEntity {
 		int ordinal = dataTracker.get(KIND);
 		Kind[] values = Kind.values();
 		return ordinal >= 0 && ordinal < values.length ? values[ordinal] : Kind.AIR_TO_AIR;
-	}
-
-	public boolean isHostile() {
-		return getKind() == Kind.ENEMY;
 	}
 
 	public void setTarget(@Nullable Entity target) {
@@ -191,29 +187,20 @@ public class MissileEntity extends ProjectileEntity {
 		if (entity == getOwner() || !entity.isAlive()) {
 			return false;
 		}
-		return switch (getKind()) {
-			case ENEMY -> Iff.isFriendly(entity) && !(entity instanceof MissileEntity);
-			case INTERCEPTOR -> Iff.isAirThreat(entity);
-			case AIR_TO_AIR -> Iff.isThreat(entity);
-		};
+		// Abfangraketen nehmen nur Luftziele, alles andere jedes gegnerische Ziel.
+		return getKind() == Kind.INTERCEPTOR
+				? Iff.isAirThreat(getTeam(), entity)
+				: Iff.isEnemy(getTeam(), entity);
 	}
 
 	@Override
 	protected boolean canHit(Entity entity) {
-		if (entity == getOwner() || entity instanceof MissileEntity) {
+		// Kurz nach dem Start und gegenueber anderen Raketen bleibt sie blind,
+		// damit sie nicht am eigenen Traeger oder Schwarm haengen bleibt.
+		if (armingDelay > 0 || entity instanceof MissileEntity) {
 			return false;
 		}
-		if (armingDelay > 0) {
-			return false;
-		}
-		// Eigene Raketen fliegen durch eigene Einheiten hindurch.
-		if (!isHostile() && Iff.isFriendly(entity)) {
-			return false;
-		}
-		if (isHostile() && !Iff.isFriendly(entity)) {
-			return false;
-		}
-		return super.canHit(entity);
+		return isValidHit(entity) && super.canHit(entity);
 	}
 
 	@Override
@@ -270,12 +257,6 @@ public class MissileEntity extends ProjectileEntity {
 	@Override
 	public boolean shouldRender(double distance) {
 		return distance < 16384.0;
-	}
-
-	/** Raketen brennen nicht und ertrinken nicht - sie explodieren. */
-	@Override
-	public boolean isFireImmune() {
-		return true;
 	}
 
 	/** Hilfsfunktion fuer Startgeschwindigkeit in eine Richtung. */

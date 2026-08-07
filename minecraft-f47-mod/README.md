@@ -5,6 +5,10 @@ fliegbare F-47 mit Waffen und Tarnkappenmodus, autonome Jets mit Bot-Piloten,
 Start- und Landebahnen mit Hangar, Luftraumradar, ein Iron-Dome-Abwehrsystem,
 Energiewaffen und Bodenpersonal.
 
+**Zwei Parteien** können vollautomatisch gegeneinander Krieg führen — und du
+kannst jederzeit selbst einsteigen und für eine Seite mitfliegen und mitkämpfen.
+Wer lieber nur eine Basis aufbaut, merkt vom Team-System nichts.
+
 Gebaut für den **Einzelspielermodus**.
 
 ---
@@ -66,7 +70,65 @@ Im Kreativmodus, damit du sofort losfliegen kannst:
 
 ---
 
-## 3. Steuerung im Cockpit
+## 3. Die zwei Parteien
+
+Jede Einheit — Jet, Soldat, Drohne, Radarstation, Iron Dome, Kaserne — gehört
+genau **einer Partei** an: der **blauen** oder der **roten**. Die Regeln sind
+kurz:
+
+- **Gleiche Partei:** wird nie beschossen, auch nicht versehentlich.
+- **Andere Partei:** gültiges Ziel für alles — Jets, Flugabwehr, Bodentruppen.
+- **Monster der Welt** (Zombies, Ghasts, …): Gegner **beider** Parteien.
+
+Der letzte Punkt ist der Grund, warum der Mod auch dann funktioniert, wenn du
+nur eine Partei aufstellst: Dann gibt es schlicht keine Gegenseite, und es
+bleibt beim Kampf gegen die Kreaturen der Welt und gegen die Drohnenangriffe.
+**Du musst dich um Parteien also nur kümmern, wenn du willst** — ohne Zutun ist
+alles blau.
+
+### Zwei Parteien aufstellen
+
+Dafür gibt es genau einen Gegenstand: das **Truppenabzeichen**.
+
+| Aktion | Wirkung |
+|---|---|
+| Rechtsklick in die Luft | Du wechselst selbst die Seite (blau ↔ rot) |
+| Rechtsklick auf eine Einheit | Diese Einheit läuft zu **deiner** Partei über |
+| Rechtsklick auf Radar/Iron Dome/Kaserne | Die Anlage wechselt die Seite |
+
+**Alles, was du aufstellst, gehört automatisch zu der Partei, für die du gerade
+kämpfst.** Ein typischer Ablauf für einen Zweifrontenkrieg:
+
+1. Blaue Basis bauen: Startbahn, Hangar, Radar, Iron Dome, Kaserne, ein paar
+   `F-47 Drohnenjäger` und `Marschbefehl: Pilot`.
+2. Truppenabzeichen rechtsklicken → **du kämpfst jetzt für Rot**.
+3. Ein Stück entfernt die rote Basis genauso aufbauen.
+4. Truppenabzeichen erneut rechtsklicken → zurück zu **Blau**.
+5. Beiden Seiten mit dem Kommando-Tablet den Auftrag `Angriff` geben.
+
+Ab hier läuft der Krieg von allein: Die Bot-Piloten starten, suchen sich Ziele,
+schießen Lenkwaffen ab; die Iron-Dome-Stellungen fangen die Raketen der
+Gegenseite ab; die Bodentruppen schießen aufeinander.
+
+### Selbst mitkämpfen
+
+Du gehörst immer einer der beiden Parteien an (Standard: blau). Steigst du in
+eine F-47 deiner Partei, kämpfst du für diese Seite:
+
+- Der **Radarschirm** zeigt eigene Einheiten grün, gegnerische rot — bewertet
+  aus Sicht deiner Partei.
+- Oben rechts am Radar steht, für welche Partei du gerade fliegst.
+- **Die Gegenseite greift dich aktiv an:** Gegnerische Jets schalten auf dich
+  auf, ihr Iron Dome fängt deine Raketen ab, ihre Soldaten schießen auf dich.
+- Der **Tarnkappenmodus** wirkt gegen die gegnerische Ortung — genau hier zahlt
+  er sich aus.
+
+Mit dem Truppenabzeichen kannst du mitten im Gefecht die Seite wechseln; die
+Einheiten, die du danach aufstellst, gehören der neuen Partei.
+
+---
+
+## 4. Steuerung im Cockpit
 
 | Taste | Wirkung |
 |---|---|
@@ -96,7 +158,7 @@ aussteigt — der Nachbrenner liegt deshalb auf `C`.
 
 ---
 
-## 4. Die Systeme im Einzelnen
+## 5. Die Systeme im Einzelnen
 
 ### F-47 Kampfjet
 
@@ -174,20 +236,25 @@ Zahl der erfolgreichen Abfänge.
 Sie brauchen keine Munition: Die Haltbarkeitsleiste ist der **Ladestand der
 Energiezelle**, der sich im Inventar von selbst wieder auflädt.
 
-### Gegner
+### Kampfdrohnen
 
-Damit die Luftverteidigung etwas zu tun hat, greifen **feindliche Drohnen** an.
-Sie fliegen Angriffe auf dich und deine Truppen und verschießen dabei Raketen —
-genau die Ziele, für die der Iron Dome gebaut ist.
+Kampfdrohnen gehören ebenfalls einer Partei an — **beide Seiten können sie
+einsetzen**. Sie fliegen Angriffe auf gegnerische Truppen und Flugzeuge und
+verschießen dabei Raketen: genau die Ziele, für die der Iron Dome gebaut ist.
+Getarnte Jets erfassen sie erst sehr spät.
+
+Damit auch bei nur einer Partei etwas los ist, greifen Drohnen der Gegenseite
+von selbst an:
 
 - **Zufällige Angriffe:** nachts, wenn eine Radarstation in der Nähe steht
-  (etwa alle 20 Minuten, abschaltbar).
+  (etwa alle 20 Minuten, abschaltbar). Die Angreifer gehören immer der Partei
+  an, gegen die du kämpfst.
 - **Auf Kommando:** Der `Übungsalarm` ruft sofort eine Welle herbei — praktisch,
   um die Abwehr zu testen.
 
 ---
 
-## 5. Basis bauen (Vorschlag)
+## 6. Basis bauen (Vorschlag)
 
 ```
      ══════════════════════════════════  ← Startbahn (≥40 Blöcke)
@@ -209,7 +276,7 @@ genau die Ziele, für die der Iron Dome gebaut ist.
 
 ---
 
-## 6. Im Überlebensmodus spielen
+## 7. Im Überlebensmodus spielen
 
 Der Mod bringt einen eigenen Rohstoff mit: **Titanerz** kommt zwischen Y = −32
 und Y = 64 vor (etwas seltener als Eisen) und braucht mindestens eine
@@ -232,7 +299,7 @@ Alle Rezepte findest du im Spiel über das **Rezeptbuch**.
 
 ---
 
-## 7. Einstellungen
+## 8. Einstellungen
 
 Beim ersten Start entsteht die Datei `config/f47.json` im Minecraft-Ordner.
 Dort lässt sich vieles anpassen, ohne den Mod neu zu bauen:
@@ -252,7 +319,7 @@ Dort lässt sich vieles anpassen, ohne den Mod neu zu bauen:
 
 ---
 
-## 8. Aufbau des Projekts
+## 9. Aufbau des Projekts
 
 ```
 minecraft-f47-mod/
@@ -280,7 +347,7 @@ python3 tools/gen_lang.py     # Sprachdateien (Deutsch + Englisch)
 
 ---
 
-## 9. Wenn etwas nicht funktioniert
+## 10. Wenn etwas nicht funktioniert
 
 | Problem | Lösung |
 |---|---|
@@ -290,6 +357,8 @@ python3 tools/gen_lang.py     # Sprachdateien (Deutsch + Englisch)
 | Autonomer Jet bleibt stehen | Er braucht einen Piloten (`Marschbefehl: Pilot` daneben benutzen) |
 | Iron Dome schießt nicht | Mit `Abfangrakete`n laden (Rechtsklick) |
 | Soldaten greifen nicht an | Schwierigkeitsgrad steht auf „Friedlich" |
+| Meine Einheiten kämpfen nicht gegeneinander | Beide gehören derselben Partei — mit dem Truppenabzeichen umstellen |
+| Einheit wechselt die Seite nicht | Truppenabzeichen direkt auf die Einheit rechtsklicken, nicht daneben |
 
 ---
 

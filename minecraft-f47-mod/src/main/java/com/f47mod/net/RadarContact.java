@@ -1,10 +1,11 @@
 package com.f47mod.net;
 
-import com.f47mod.entity.mob.EnemyDroneEntity;
+import com.f47mod.entity.mob.CombatDroneEntity;
 import com.f47mod.entity.projectile.MissileEntity;
 import com.f47mod.entity.vehicle.AutonomousF47Entity;
 import com.f47mod.entity.vehicle.F47Entity;
 import com.f47mod.util.Iff;
+import com.f47mod.util.Team;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -50,11 +51,12 @@ public record RadarContact(int entityId, double x, double y, double z, boolean h
 		buf.writeVarInt(type.ordinal());
 	}
 
-	public static RadarContact of(Entity entity) {
+	/** Kontakt aus Sicht einer bestimmten Partei bewerten. */
+	public static RadarContact of(Entity entity, @org.jetbrains.annotations.Nullable Team viewer) {
 		return new RadarContact(
 				entity.getId(),
 				entity.getX(), entity.getY(), entity.getZ(),
-				Iff.isThreat(entity),
+				Iff.isEnemy(viewer, entity),
 				classify(entity));
 	}
 
@@ -62,7 +64,7 @@ public record RadarContact(int entityId, double x, double y, double z, boolean h
 		if (entity instanceof MissileEntity) {
 			return ContactType.MISSILE;
 		}
-		if (entity instanceof EnemyDroneEntity) {
+		if (entity instanceof CombatDroneEntity) {
 			return ContactType.DRONE;
 		}
 		if (entity instanceof F47Entity || entity instanceof AutonomousF47Entity) {

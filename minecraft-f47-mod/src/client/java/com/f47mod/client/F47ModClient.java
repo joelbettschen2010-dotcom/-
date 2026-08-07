@@ -52,7 +52,8 @@ public class F47ModClient implements ClientModInitializer {
 		// Radarbild vom Server entgegennehmen.
 		ClientPlayNetworking.registerGlobalReceiver(ModNetworking.RadarUpdatePayload.ID,
 				(payload, context) -> context.client().execute(() ->
-						ClientRadarState.update(payload.contacts())));
+						ClientRadarState.update(payload.contacts(),
+								com.f47mod.util.Team.byOrdinal(payload.viewerTeam()))));
 	}
 
 	private void registerModels() {
@@ -70,7 +71,7 @@ public class F47ModClient implements ClientModInitializer {
 		EntityRendererRegistry.register(ModEntities.F47, F47Renderer::new);
 		EntityRendererRegistry.register(ModEntities.AUTONOMOUS_F47, F47Renderer::new);
 		EntityRendererRegistry.register(ModEntities.SOLDIER, SoldierRenderer::new);
-		EntityRendererRegistry.register(ModEntities.ENEMY_DRONE, DroneRenderer::new);
+		EntityRendererRegistry.register(ModEntities.COMBAT_DRONE, DroneRenderer::new);
 		EntityRendererRegistry.register(ModEntities.MISSILE, ProjectileRenderers.MissileRenderer::new);
 		EntityRendererRegistry.register(ModEntities.BOMB, ProjectileRenderers.BombRenderer::new);
 		EntityRendererRegistry.register(ModEntities.BULLET, ProjectileRenderers.bullet());

@@ -59,11 +59,26 @@ ENTRIES = {
     "item.f47.recruit_engineer": ("Marschbefehl: Techniker", "Deployment Order: Engineer"),
     "item.f47.recruit_pilot": ("Marschbefehl: Pilot", "Deployment Order: Pilot"),
 
+    # --- Parteien ---
+    "team.f47.blue": ("Blaue Partei", "Blue Force"),
+    "team.f47.red": ("Rote Partei", "Red Force"),
+    "item.f47.team_badge": ("Truppenabzeichen", "Team Badge"),
+    "message.f47.team_switched": ("Du kaempfst jetzt fuer die %s",
+                                  "You are now fighting for the %s"),
+    "message.f47.unit_assigned": ("%s laeuft zur %s ueber", "%s defects to the %s"),
+    "message.f47.building_assigned": ("%s gehoert jetzt zur %s", "%s now belongs to the %s"),
+    "tooltip.f47.badge_1": ("Rechtsklick: eigene Partei wechseln",
+                            "Right-click: switch your own side"),
+    "tooltip.f47.badge_2": ("Auf eine Einheit: sie laeuft zu dir ueber",
+                            "On a unit: it defects to your side"),
+    "tooltip.f47.badge_3": ("Auf Radar/Iron Dome/Kaserne: Anlage uebernehmen",
+                            "On radar/iron dome/barracks: take over the building"),
+
     # --- Entities ---
     "entity.f47.f47": ("F-47", "F-47"),
     "entity.f47.autonomous_f47": ("F-47 (autonom)", "F-47 (Autonomous)"),
     "entity.f47.soldier": ("Soldat", "Soldier"),
-    "entity.f47.enemy_drone": ("Feindliche Drohne", "Enemy Drone"),
+    "entity.f47.combat_drone": ("Kampfdrohne", "Combat Drone"),
     "entity.f47.missile": ("Lenkwaffe", "Missile"),
     "entity.f47.bullet": ("Geschoss", "Bullet"),
     "entity.f47.bomb": ("Bombe", "Bomb"),

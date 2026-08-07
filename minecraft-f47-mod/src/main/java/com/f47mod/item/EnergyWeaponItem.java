@@ -134,6 +134,7 @@ public class EnergyWeaponItem extends Item {
 					F47Config.get().railgunDamage * charge, true);
 			case PLASMA -> {
 				PlasmaBoltEntity bolt = new PlasmaBoltEntity(world, player);
+					bolt.setTeam(com.f47mod.util.TeamState.teamOf(player));
 				bolt.setPosition(start.x, start.y - 0.15, start.z);
 				bolt.setVelocity(direction.x, direction.y, direction.z, 1.6f, 1.0f);
 				world.spawnEntity(bolt);
@@ -180,7 +181,7 @@ public class EnergyWeaponItem extends Item {
 	/** Alle Treffer entlang des Strahls, sortiert nach Entfernung. */
 	private List<EntityHitResult> raycastEntities(World world, PlayerEntity player, Vec3d start, Vec3d end) {
 		Box box = new Box(start, end).expand(1.0);
-		return world.getOtherEntities(player, box, entity -> entity.canHit() && !Iff.isFriendly(entity))
+		return world.getOtherEntities(player, box, entity -> entity.canHit() && Iff.isEnemy(player, entity))
 				.stream()
 				.map(entity -> entity.getBoundingBox().expand(0.35).raycast(start, end)
 						.map(pos -> new EntityHitResult(entity, pos)).orElse(null))

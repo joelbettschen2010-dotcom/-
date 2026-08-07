@@ -41,6 +41,17 @@ public class BarracksBlock extends BlockWithEntity {
 		return BlockRenderType.MODEL;
 	}
 
+	@Override
+	public void onPlaced(World world, BlockPos pos, BlockState state,
+			@Nullable net.minecraft.entity.LivingEntity placer, net.minecraft.item.ItemStack stack) {
+		super.onPlaced(world, pos, state, placer, stack);
+		// Die Anlage gehoert der Partei dessen, der sie aufstellt.
+		if (!world.isClient && placer instanceof PlayerEntity player
+				&& world.getBlockEntity(pos) instanceof com.f47mod.util.TeamMember member) {
+			member.setTeam(com.f47mod.util.TeamState.teamOf(player));
+		}
+	}
+
 	@Nullable
 	@Override
 	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {

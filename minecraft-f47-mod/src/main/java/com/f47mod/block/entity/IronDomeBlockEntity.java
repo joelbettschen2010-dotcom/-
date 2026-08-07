@@ -4,6 +4,8 @@ import com.f47mod.F47Config;
 import com.f47mod.entity.projectile.MissileEntity;
 import com.f47mod.registry.ModBlockEntities;
 import com.f47mod.util.Iff;
+import com.f47mod.util.Team;
+import com.f47mod.util.TeamMember;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.Entity;
@@ -29,7 +31,7 @@ import java.util.Set;
  * ueberhaupt gefaehrlich werden, und nur dann eine Abfangrakete starten. Auf
  * bereits bekaempfte Ziele wird kein zweites Mal geschossen.
  */
-public class IronDomeBlockEntity extends BlockEntity {
+public class IronDomeBlockEntity extends BlockEntity implements TeamMember {
 	public static final int MAX_AMMO = 32;
 	/** Ticks zwischen zwei Starts. */
 	private static final int RELOAD_TICKS = 25;
@@ -39,6 +41,7 @@ public class IronDomeBlockEntity extends BlockEntity {
 	private int cooldown;
 	private int scanTimer;
 	private int interceptCount;
+	private Team team = Team.BLUE;
 	/** Ziele, auf die bereits eine Abfangrakete unterwegs ist. */
 	private final Set<Integer> engaged = new HashSet<>();
 
@@ -76,7 +79,7 @@ public class IronDomeBlockEntity extends BlockEntity {
 
 		Vec3d origin = Vec3d.ofCenter(pos).add(0, 0.8, 0);
 		Box box = new Box(pos).expand(range);
-		List<Entity> threats = world.getOtherEntities(null, box, Iff::isAirThreat);
+		List<Entity> threats = world.getOtherEntities(null, box, entity -> Iff.isAirThreat(team, entity));
 
 		Entity best = null;
 		int bestPriority = Integer.MIN_VALUE;
@@ -126,6 +129,7 @@ public class IronDomeBlockEntity extends BlockEntity {
 		markDirty();
 
 		MissileEntity interceptor = new MissileEntity(world, null, MissileEntity.Kind.INTERCEPTOR);
+		interceptor.setTeam(team);
 		interceptor.setPosition(origin.x, origin.y + 0.6, origin.z);
 		interceptor.setTarget(target);
 		// Erst senkrecht heraus, dann dreht der Suchkopf auf das Ziel.
@@ -156,6 +160,17 @@ public class IronDomeBlockEntity extends BlockEntity {
 		return loaded;
 	}
 
+	@Override
+	public Team getTeam() {
+		return team;
+	}
+
+	@Override
+	public void setTeam(Team team) {
+		this.team = team;
+		markDirty();
+	}
+
 	public int getAmmo() {
 		return ammo;
 	}
@@ -170,6 +185,7 @@ public class IronDomeBlockEntity extends BlockEntity {
 		nbt.putInt("Ammo", ammo);
 		nbt.putInt("Cooldown", cooldown);
 		nbt.putInt("Intercepts", interceptCount);
+		nbt.putInt("Team", team.ordinal());
 	}
 
 	@Override
@@ -178,5 +194,6 @@ public class IronDomeBlockEntity extends BlockEntity {
 		ammo = nbt.getInt("Ammo");
 		cooldown = nbt.getInt("Cooldown");
 		interceptCount = nbt.getInt("Intercepts");
+		team = Team.byOrdinal(nbt.getInt("Team"));
 	}
 }

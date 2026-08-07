@@ -6,6 +6,7 @@ import com.f47mod.item.CommandTabletItem;
 import com.f47mod.item.EnergyWeaponItem;
 import com.f47mod.item.JetSpawnItem;
 import com.f47mod.item.RecruitOrderItem;
+import com.f47mod.item.TeamBadgeItem;
 import com.f47mod.item.ThreatBeaconItem;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
@@ -51,6 +52,8 @@ public final class ModItems {
 	// --- Fuehrung ---------------------------------------------------------
 	public static final Item COMMAND_TABLET =
 			register("command_tablet", new CommandTabletItem(new Item.Settings().maxCount(1)));
+	public static final Item TEAM_BADGE =
+			register("team_badge", new TeamBadgeItem(new Item.Settings().maxCount(1)));
 	public static final Item THREAT_BEACON =
 			register("threat_beacon", new ThreatBeaconItem(new Item.Settings().maxCount(8)));
 

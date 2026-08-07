@@ -75,8 +75,8 @@ public final class ProjectileRenderers {
 	}
 
 	public static class MissileRenderer extends OrientedRenderer<MissileEntity> {
-		private static final Identifier TEXTURE = F47Mod.id("textures/entity/missile.png");
-		private static final Identifier ENEMY_TEXTURE = F47Mod.id("textures/entity/missile_enemy.png");
+		private static final Identifier BLUE = F47Mod.id("textures/entity/missile_blue.png");
+		private static final Identifier RED = F47Mod.id("textures/entity/missile_red.png");
 
 		public MissileRenderer(EntityRendererFactory.Context context) {
 			super(context, context.getPart(MISSILE_LAYER), 0.1f);
@@ -84,7 +84,7 @@ public final class ProjectileRenderers {
 
 		@Override
 		public Identifier getTexture(MissileEntity entity) {
-			return entity.isHostile() ? ENEMY_TEXTURE : TEXTURE;
+			return entity.getTeam() == com.f47mod.util.Team.BLUE ? BLUE : RED;
 		}
 	}
 
@@ -106,7 +106,7 @@ public final class ProjectileRenderers {
 	 * ueber Partikel dargestellt und brauchen keine eigene Geometrie.
 	 */
 	public static class InvisibleRenderer<T extends Entity> extends EntityRenderer<T> {
-		private static final Identifier TEXTURE = F47Mod.id("textures/entity/missile.png");
+		private static final Identifier TEXTURE = F47Mod.id("textures/entity/missile_blue.png");
 
 		public InvisibleRenderer(EntityRendererFactory.Context context) {
 			super(context);

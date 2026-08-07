@@ -491,6 +491,25 @@ ORDER_ART = [
     "................",
 ]
 
+BADGE_ART = [
+    "................",
+    "................",
+    "....111111......",
+    "...12222221.....",
+    "..1233333321....",
+    "..1234444321....",
+    "..1234554321....",
+    "..1234444321....",
+    "..1233333321....",
+    "...12222221.....",
+    "....111111......",
+    "....1.11.1......",
+    "...11..11.......",
+    "...1....1.......",
+    "................",
+    "................",
+]
+
 BEACON_ART = [
     "................",
     "................",
@@ -532,7 +551,7 @@ def metal_palette(base, outline=(28, 28, 32, 255), accent=None):
 # Entity-Texturen
 # ---------------------------------------------------------------------------
 
-def tex_aircraft(base, seed, insignia=True):
+def tex_aircraft(base, seed, insignia=True, stripe=None):
     """Flugzeughaut: Paneelraster mit Nieten, dazu Kennzeichen."""
     rng = random.Random(seed)
     image = blank(128, 128, (0, 0, 0, 0))
@@ -554,6 +573,12 @@ def tex_aircraft(base, seed, insignia=True):
     # Kante oben heller - wirkt wie Streiflicht.
     for x in range(128):
         image[0][x] = shade(base, 26)
+
+    if stripe:
+        # Kennstreifen der Partei ueber die Flaeche.
+        for y in range(6, 10):
+            for x in range(128):
+                image[y][x] = stripe
 
     if insignia:
         # Vereinfachtes Hoheitszeichen (Stern im Kreis) an zwei Stellen.
@@ -621,15 +646,15 @@ def tex_soldier(uniform, vest, helmet, accent=None):
     return image
 
 
-def tex_drone():
+def tex_drone(body=(58, 46, 46, 255), eye=DANGER_RED):
     rng = random.Random(77)
     image = blank(64, 64, (0, 0, 0, 0))
     for y in range(40):
         for x in range(64):
-            image[y][x] = shade((58, 46, 46, 255), rng.randint(-8, 8))
-    # Sensorauge in Rot.
+            image[y][x] = shade(body, rng.randint(-8, 8))
+    # Sensorauge in der Parteifarbe.
     rect(image, 2, 18, 10, 26, (26, 22, 22, 255))
-    rect(image, 4, 20, 8, 24, DANGER_RED)
+    rect(image, 4, 20, 8, 24, eye)
     # Rotorblaetter dunkler.
     rect(image, 0, 24, 64, 32, (34, 30, 30, 255))
     return image
@@ -833,6 +858,7 @@ ITEM_ICONS = {
     "f47_aircraft": (JET_ART, metal_palette(JET_GREY, accent=AMBER)),
     "f47_autonomous": (JET_ART, metal_palette(STEALTH_BLACK, accent=LASER_CYAN)),
     "threat_beacon": (BEACON_ART, metal_palette(STEEL_DARK, accent=DANGER_RED)),
+    "team_badge": (BADGE_ART, metal_palette((186, 176, 150, 255), accent=(58, 96, 168, 255))),
     "recruit_rifleman": (ORDER_ART, metal_palette((222, 216, 196, 255), accent=OLIVE)),
     "recruit_heavy": (ORDER_ART, metal_palette((222, 216, 196, 255), accent=DANGER_RED)),
     "recruit_medic": (ORDER_ART, metal_palette((222, 216, 196, 255), accent=(226, 232, 236, 255))),
@@ -847,22 +873,55 @@ def gen_item_textures():
         write_png(os.path.join(out, name + ".png"), icon(art, palette))
 
 
+# Uniformen je Rolle: (Uniform, Weste, Helm, Akzent). Die Partei faerbt
+# anschliessend Weste und Helm ein, damit man Freund und Feind auf einen
+# Blick auseinanderhaelt.
+SOLDIER_ROLES = {
+    "rifleman": (OLIVE, OLIVE_DARK, OLIVE_DARK, None),
+    "heavy": (OLIVE_DARK, (44, 46, 40, 255), (40, 42, 38, 255), DANGER_RED),
+    "medic": (OLIVE, (226, 228, 226, 255), (226, 228, 226, 255), DANGER_RED),
+    "engineer": (KHAKI, (162, 118, 44, 255), AMBER, (60, 60, 64, 255)),
+    "pilot": ((62, 68, 76, 255), (48, 52, 60, 255), (70, 76, 86, 255), VISOR),
+}
+
+TEAM_TINT = {
+    "blue": (58, 96, 168, 255),
+    "red": (150, 52, 48, 255),
+}
+
+
+def blend(colour, tint, amount):
+    """Mischt eine Farbe in Richtung der Parteifarbe."""
+    return (
+        int(colour[0] + (tint[0] - colour[0]) * amount),
+        int(colour[1] + (tint[1] - colour[1]) * amount),
+        int(colour[2] + (tint[2] - colour[2]) * amount),
+        255,
+    )
+
+
 def gen_entity_textures():
     out = os.path.join(ASSETS, "textures", "entity")
-    write_png(os.path.join(out, "f47.png"), tex_aircraft(JET_GREY, 101))
+
+    # Flugzeuge: blaue und rote Partei, dazu die Tarnkappenlackierung.
+    write_png(os.path.join(out, "f47_blue.png"), tex_aircraft(JET_GREY, 101))
+    write_png(os.path.join(out, "f47_red.png"),
+              tex_aircraft((88, 66, 62, 255), 103, insignia=False, stripe=DANGER_RED))
     write_png(os.path.join(out, "f47_stealth.png"), tex_aircraft(STEALTH_BLACK, 102, insignia=False))
-    write_png(os.path.join(out, "soldier_rifleman.png"), tex_soldier(OLIVE, OLIVE_DARK, OLIVE_DARK))
-    write_png(os.path.join(out, "soldier_heavy.png"),
-              tex_soldier(OLIVE_DARK, (44, 46, 40, 255), (40, 42, 38, 255), accent=DANGER_RED))
-    write_png(os.path.join(out, "soldier_medic.png"),
-              tex_soldier(OLIVE, (226, 228, 226, 255), (226, 228, 226, 255), accent=DANGER_RED))
-    write_png(os.path.join(out, "soldier_engineer.png"),
-              tex_soldier(KHAKI, (162, 118, 44, 255), AMBER, accent=(60, 60, 64, 255)))
-    write_png(os.path.join(out, "soldier_pilot.png"),
-              tex_soldier((62, 68, 76, 255), (48, 52, 60, 255), (70, 76, 86, 255), accent=VISOR))
-    write_png(os.path.join(out, "enemy_drone.png"), tex_drone())
-    write_png(os.path.join(out, "missile.png"), tex_missile(TITANIUM_DARK, DANGER_RED))
-    write_png(os.path.join(out, "missile_enemy.png"), tex_missile((70, 52, 52, 255), AMBER))
+
+    # Soldaten: jede Rolle in beiden Parteifarben.
+    for role, (uniform, vest, helmet, accent) in SOLDIER_ROLES.items():
+        for team, tint in TEAM_TINT.items():
+            write_png(os.path.join(out, f"soldier_{role}_{team}.png"),
+                      tex_soldier(uniform,
+                                  blend(vest, tint, 0.55),
+                                  blend(helmet, tint, 0.35),
+                                  accent=accent))
+
+    write_png(os.path.join(out, "combat_drone_blue.png"), tex_drone((46, 58, 78, 255), LASER_CYAN))
+    write_png(os.path.join(out, "combat_drone_red.png"), tex_drone((58, 46, 46, 255), DANGER_RED))
+    write_png(os.path.join(out, "missile_blue.png"), tex_missile(TITANIUM_DARK, (86, 132, 220, 255)))
+    write_png(os.path.join(out, "missile_red.png"), tex_missile((70, 52, 52, 255), DANGER_RED))
     write_png(os.path.join(out, "bomb.png"), tex_missile(OLIVE_DARK, AMBER))
     write_png(os.path.join(out, "radar_dish.png"), tex_radar_dish())
     write_png(os.path.join(ASSETS, "icon.png"), tex_icon_128())

@@ -2,6 +2,7 @@ package com.f47mod.client.render;
 
 import com.f47mod.F47Mod;
 import com.f47mod.entity.vehicle.F47Entity;
+import com.f47mod.util.Team;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -18,8 +19,9 @@ import net.minecraft.util.math.RotationAxis;
  * dem Nachbrennerleuchten am Heck.
  */
 public class F47Renderer extends EntityRenderer<F47Entity> {
-	private static final Identifier TEXTURE = F47Mod.id("textures/entity/f47.png");
-	private static final Identifier STEALTH_TEXTURE = F47Mod.id("textures/entity/f47_stealth.png");
+	private static final Identifier BLUE = F47Mod.id("textures/entity/f47_blue.png");
+	private static final Identifier RED = F47Mod.id("textures/entity/f47_red.png");
+	private static final Identifier STEALTH = F47Mod.id("textures/entity/f47_stealth.png");
 
 	private final F47Model model;
 
@@ -43,7 +45,7 @@ public class F47Renderer extends EntityRenderer<F47Entity> {
 		matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(180.0f));
 		matrices.scale(0.1f, 0.1f, 0.1f);
 
-		Identifier texture = entity.isStealthOn() ? STEALTH_TEXTURE : TEXTURE;
+		Identifier texture = getTexture(entity);
 		model.setAngles(entity, 0.0f, 0.0f, entity.age + tickDelta, 0.0f, entity.getPitch());
 
 		if (entity.isStealthEffective()) {
@@ -61,7 +63,10 @@ public class F47Renderer extends EntityRenderer<F47Entity> {
 
 	@Override
 	public Identifier getTexture(F47Entity entity) {
-		return entity.isStealthOn() ? STEALTH_TEXTURE : TEXTURE;
+		if (entity.isStealthOn()) {
+			return STEALTH;
+		}
+		return entity.getTeam() == Team.BLUE ? BLUE : RED;
 	}
 
 }

@@ -2,7 +2,8 @@ package com.f47mod.world;
 
 import com.f47mod.F47Config;
 import com.f47mod.block.entity.RadarBlockEntity;
-import com.f47mod.entity.mob.EnemyDroneEntity;
+import com.f47mod.entity.mob.CombatDroneEntity;
+import com.f47mod.util.TeamState;
 import com.f47mod.registry.ModEntities;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.entity.SpawnReason;
@@ -63,7 +64,7 @@ public final class RaidScheduler {
 
 		int spawned = 0;
 		for (int i = 0; i < config.raidDroneCount; i++) {
-			EnemyDroneEntity drone = ModEntities.ENEMY_DRONE.create(world);
+			CombatDroneEntity drone = ModEntities.COMBAT_DRONE.create(world);
 			if (drone == null) {
 				continue;
 			}
@@ -75,6 +76,8 @@ public final class RaidScheduler {
 
 			drone.refreshPositionAndAngles(x, y, z, world.getRandom().nextFloat() * 360.0f, 0.0f);
 			drone.initialize(world, world.getLocalDifficulty(drone.getBlockPos()), SpawnReason.EVENT, null);
+			// Der Angriff kommt immer von der Gegenseite des Spielers.
+			drone.setTeam(TeamState.teamOf(player).opposite());
 			world.spawnEntity(drone);
 			spawned++;
 		}

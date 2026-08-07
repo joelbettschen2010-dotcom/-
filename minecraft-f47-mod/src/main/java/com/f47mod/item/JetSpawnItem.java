@@ -3,6 +3,8 @@ package com.f47mod.item;
 import com.f47mod.entity.vehicle.AutonomousF47Entity;
 import com.f47mod.entity.vehicle.F47Entity;
 import com.f47mod.registry.ModEntities;
+import com.f47mod.util.Team;
+import com.f47mod.util.TeamState;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
@@ -54,13 +56,20 @@ public class JetSpawnItem extends Item {
 			}
 			autoJet.setOwner(player);
 			autoJet.setHomeBase(pos);
-			autoJet.randomiseCallsign();
 			jet = autoJet;
 		} else {
 			jet = ModEntities.F47.create(world);
 			if (jet == null) {
 				return ActionResult.FAIL;
 			}
+		}
+
+		// Die Maschine gehoert der Partei, fuer die der Spieler gerade kaempft.
+		if (player != null) {
+			jet.setTeam(TeamState.teamOf(player));
+		}
+		if (jet instanceof AutonomousF47Entity autonomous) {
+			autonomous.randomiseCallsign();
 		}
 
 		float yaw = player == null ? 0.0f : player.getYaw();

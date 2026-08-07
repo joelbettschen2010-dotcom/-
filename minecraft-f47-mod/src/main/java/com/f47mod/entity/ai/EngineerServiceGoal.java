@@ -93,7 +93,9 @@ public class EngineerServiceGoal extends Goal {
 
 	private boolean needsService(F47Entity candidate) {
 		F47Config config = F47Config.get();
-		return candidate.isOnGround()
+		// Nur Maschinen der eigenen Partei werden gewartet.
+		return com.f47mod.util.Iff.sameTeam(engineer, candidate)
+				&& candidate.isOnGround()
 				&& (candidate.getStructure() < config.jetMaxHealth || candidate.getFuel() < config.maxFuel * 0.9f);
 	}
 

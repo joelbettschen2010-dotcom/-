@@ -221,6 +221,12 @@ public final class JetHud {
 		int threats = (int) ClientRadarState.getContacts().stream().filter(RadarContact::hostile).count();
 		context.drawText(font, Text.translatable("hud.f47.radar", threats),
 				cx - radius, cy - radius - 10, threats > 0 ? HUD_RED : HUD_DIM, false);
+
+		// Eigene Partei - wichtig, sobald zwei Seiten im Spiel sind.
+		var team = ClientRadarState.getViewerTeam();
+		Text label = Text.translatable(team.translationKey());
+		context.drawText(font, label, cx + radius - font.getWidth(label), cy - radius - 10,
+				team.colour(), false);
 	}
 
 	/** Warnhinweise: Ueberziehen, Treibstoff, Bodenannaeherung. */

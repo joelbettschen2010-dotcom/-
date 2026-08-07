@@ -1,7 +1,7 @@
 package com.f47mod.registry;
 
 import com.f47mod.F47Mod;
-import com.f47mod.entity.mob.EnemyDroneEntity;
+import com.f47mod.entity.mob.CombatDroneEntity;
 import com.f47mod.entity.mob.SoldierEntity;
 import com.f47mod.entity.projectile.BombEntity;
 import com.f47mod.entity.projectile.BulletEntity;
@@ -38,8 +38,8 @@ public final class ModEntities {
 					.dimensions(0.6f, 1.95f)
 					.maxTrackingRange(10));
 
-	public static final EntityType<EnemyDroneEntity> ENEMY_DRONE = register("enemy_drone",
-			EntityType.Builder.create(EnemyDroneEntity::new, SpawnGroup.MONSTER)
+	public static final EntityType<CombatDroneEntity> COMBAT_DRONE = register("combat_drone",
+			EntityType.Builder.create(CombatDroneEntity::new, SpawnGroup.MONSTER)
 					.dimensions(1.4f, 0.7f)
 					.maxTrackingRange(12));
 
@@ -75,7 +75,7 @@ public final class ModEntities {
 	/** Attribute der lebenden Entities anmelden. */
 	public static void registerAttributes() {
 		FabricDefaultAttributeRegistry.register(SOLDIER, SoldierEntity.createSoldierAttributes());
-		FabricDefaultAttributeRegistry.register(ENEMY_DRONE, EnemyDroneEntity.createDroneAttributes());
+		FabricDefaultAttributeRegistry.register(COMBAT_DRONE, CombatDroneEntity.createDroneAttributes());
 	}
 
 	public static void init() {

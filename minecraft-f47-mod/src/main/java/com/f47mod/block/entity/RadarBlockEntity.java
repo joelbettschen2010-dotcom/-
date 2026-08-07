@@ -5,6 +5,8 @@ import com.f47mod.block.RadarBlock;
 import com.f47mod.net.RadarContact;
 import com.f47mod.registry.ModBlockEntities;
 import com.f47mod.util.Iff;
+import com.f47mod.util.Team;
+import com.f47mod.util.TeamMember;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.Entity;
@@ -28,12 +30,13 @@ import java.util.List;
  * Rechenteil der Radarstation. Taste den Luftraum in festen Abstaenden ab,
  * haelt die aktuellen Kontakte vor und stellt sie anderen Systemen bereit.
  */
-public class RadarBlockEntity extends BlockEntity {
+public class RadarBlockEntity extends BlockEntity implements TeamMember {
 	/** Abstand zwischen zwei Radarumlaeufen in Ticks. */
 	private static final int SCAN_INTERVAL = 20;
 
 	private final List<RadarContact> contacts = new ArrayList<>();
 	private int scanTimer;
+	private Team team = Team.BLUE;
 	/** Winkel der Antenne fuer die Darstellung. */
 	private float sweepAngle;
 	private float previousSweepAngle;
@@ -75,8 +78,8 @@ public class RadarBlockEntity extends BlockEntity {
 		boolean newThreat = false;
 
 		for (Entity entity : world.getOtherEntities(null, box, entity -> !(entity instanceof PlayerEntity))) {
-			boolean threat = Iff.isThreat(entity);
-			boolean friendly = Iff.isFriendly(entity);
+			boolean threat = Iff.isEnemy(team, entity);
+			boolean friendly = Iff.isAlly(team, entity);
 			if (!threat && !friendly) {
 				continue;
 			}
@@ -85,10 +88,10 @@ public class RadarBlockEntity extends BlockEntity {
 				continue;
 			}
 			// Bodenmobs ohne Flugbezug interessieren das Luftraumradar nicht.
-			if (threat && !Iff.isAirThreat(entity) && entity.squaredDistanceTo(center) > 90.0 * 90.0) {
+			if (threat && !Iff.isAirThreat(team, entity) && entity.squaredDistanceTo(center) > 90.0 * 90.0) {
 				continue;
 			}
-			found.add(RadarContact.of(entity));
+			found.add(RadarContact.of(entity, team));
 			if (threat && !containsId(entity.getId())) {
 				newThreat = true;
 			}
@@ -113,6 +116,17 @@ public class RadarBlockEntity extends BlockEntity {
 			}
 		}
 		return false;
+	}
+
+	@Override
+	public Team getTeam() {
+		return team;
+	}
+
+	@Override
+	public void setTeam(Team team) {
+		this.team = team;
+		markDirty();
 	}
 
 	public List<RadarContact> getContacts() {
@@ -161,11 +175,13 @@ public class RadarBlockEntity extends BlockEntity {
 	protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		super.writeNbt(nbt, registries);
 		nbt.putInt("ScanTimer", scanTimer);
+		nbt.putInt("Team", team.ordinal());
 	}
 
 	@Override
 	protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		super.readNbt(nbt, registries);
 		scanTimer = nbt.getInt("ScanTimer");
+		team = Team.byOrdinal(nbt.getInt("Team"));
 	}
 }

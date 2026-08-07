@@ -10,6 +10,8 @@ import com.f47mod.entity.projectile.BulletEntity;
 import com.f47mod.entity.projectile.MissileEntity;
 import com.f47mod.registry.ModItems;
 import com.f47mod.util.Iff;
+import com.f47mod.util.Team;
+import com.f47mod.util.TeamMember;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
@@ -25,7 +27,6 @@ import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
-import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.PathAwareEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -49,10 +50,12 @@ import java.util.UUID;
  * immer einem Spieler, folgen ihm oder halten eine Stellung und bekaempfen
  * feindliche Einheiten selbstaendig.
  */
-public class SoldierEntity extends PathAwareEntity implements RangedAttackMob {
+public class SoldierEntity extends PathAwareEntity implements RangedAttackMob, TeamMember {
 	private static final TrackedData<Integer> ROLE =
 			DataTracker.registerData(SoldierEntity.class, TrackedDataHandlerRegistry.INTEGER);
 	private static final TrackedData<Integer> STANCE =
+			DataTracker.registerData(SoldierEntity.class, TrackedDataHandlerRegistry.INTEGER);
+	private static final TrackedData<Integer> TEAM =
 			DataTracker.registerData(SoldierEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
 	public enum Stance {
@@ -96,10 +99,10 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob {
 		goalSelector.add(8, new LookAroundGoal(this));
 
 		targetSelector.add(1, new RevengeGoal(this));
-		targetSelector.add(2, new ActiveTargetGoal<>(this, HostileEntity.class, 10, true, false,
-				living -> F47Config.get().soldiersEngageAutomatically && Iff.isThreat(living)));
-		targetSelector.add(3, new ActiveTargetGoal<>(this, EnemyDroneEntity.class, 10, true, false,
-				living -> F47Config.get().soldiersEngageAutomatically));
+		// Ein einziges Ziel-Goal reicht: Gegner ist alles der anderen Partei
+		// und jedes Monster der Welt.
+		targetSelector.add(2, new ActiveTargetGoal<>(this, LivingEntity.class, 10, true, false,
+				living -> F47Config.get().soldiersEngageAutomatically && Iff.isEnemy(this, living)));
 	}
 
 	@Override
@@ -107,6 +110,7 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob {
 		super.initDataTracker(builder);
 		builder.add(ROLE, SoldierRole.RIFLEMAN.ordinal());
 		builder.add(STANCE, Stance.FOLLOW.ordinal());
+		builder.add(TEAM, Team.BLUE.ordinal());
 	}
 
 	// ------------------------------------------------------------------
@@ -141,6 +145,16 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob {
 		};
 		equipStack(EquipmentSlot.MAINHAND, weapon);
 		setEquipmentDropChance(EquipmentSlot.MAINHAND, 0.0f);
+	}
+
+	@Override
+	public Team getTeam() {
+		return Team.byOrdinal(dataTracker.get(TEAM));
+	}
+
+	@Override
+	public void setTeam(Team team) {
+		dataTracker.set(TEAM, team.ordinal());
 	}
 
 	public Stance getStance() {
@@ -228,6 +242,7 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob {
 
 		if (role == SoldierRole.HEAVY) {
 			MissileEntity missile = new MissileEntity(getWorld(), this, MissileEntity.Kind.AIR_TO_AIR);
+			missile.setTeam(getTeam());
 			missile.setPosition(origin.x, origin.y, origin.z);
 			missile.setTarget(target);
 			missile.launch(aim);
@@ -242,6 +257,7 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob {
 		int shots = role == SoldierRole.RIFLEMAN ? 3 : 1;
 		for (int i = 0; i < shots; i++) {
 			BulletEntity bullet = new BulletEntity(getWorld(), this, damage);
+			bullet.setTeam(getTeam());
 			bullet.setPosition(origin.x, origin.y, origin.z);
 			bullet.setVelocity(aim.x, aim.y, aim.z, 3.2f, 3.0f);
 			getWorld().spawnEntity(bullet);
@@ -251,7 +267,7 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob {
 
 	@Override
 	public boolean canTarget(LivingEntity target) {
-		return Iff.isThreat(target) && super.canTarget(target);
+		return Iff.isEnemy(this, target) && super.canTarget(target);
 	}
 
 	@Override
@@ -294,6 +310,7 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob {
 		super.writeCustomDataToNbt(nbt);
 		nbt.putInt("Role", dataTracker.get(ROLE));
 		nbt.putInt("Stance", dataTracker.get(STANCE));
+		nbt.putInt("Team", getTeam().ordinal());
 		if (ownerUuid != null) {
 			nbt.putUuid("Owner", ownerUuid);
 		}
@@ -307,6 +324,7 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob {
 		super.readCustomDataFromNbt(nbt);
 		dataTracker.set(ROLE, nbt.getInt("Role"));
 		dataTracker.set(STANCE, nbt.getInt("Stance"));
+		setTeam(Team.byOrdinal(nbt.getInt("Team")));
 		if (nbt.containsUuid("Owner")) {
 			ownerUuid = nbt.getUuid("Owner");
 		}
@@ -320,6 +338,6 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob {
 		if (hasCustomName()) {
 			return super.getName();
 		}
-		return Text.translatable(getRole().translationKey());
+		return Text.translatable(getRole().translationKey()).formatted(getTeam().formatting());
 	}
 }

@@ -86,7 +86,7 @@ public class MedicGoal extends Goal {
 	private LivingEntity findPatient() {
 		Box box = medic.getBoundingBox().expand(SEARCH_RANGE);
 		List<LivingEntity> candidates = medic.getWorld().getEntitiesByClass(
-				LivingEntity.class, box, entity -> entity != medic && Iff.isHealTarget(entity));
+				LivingEntity.class, box, entity -> entity != medic && Iff.isHealTarget(medic.getTeam(), entity));
 		return candidates.stream()
 				.min(Comparator.comparingDouble(entity -> entity.getHealth() / entity.getMaxHealth()))
 				.orElse(null);
