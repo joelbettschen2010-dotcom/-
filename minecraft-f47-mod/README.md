@@ -55,16 +55,40 @@ cd minecraft-f47-mod
 
 Im Kreativmodus, damit du sofort losfliegen kannst:
 
-1. **Bahn bauen:** ein paar Dutzend `Startbahnbelag` in einer geraden Linie legen
-   (mindestens ~40 Blöcke lang, damit die Maschine Fahrt aufnimmt).
-2. **Jet abstellen:** `F-47 Kampfjet` in die Hand nehmen und auf die Bahn rechtsklicken.
-3. **Einsteigen:** Rechtsklick auf den Jet.
-4. **Starten:** `W` gedrückt halten (Schub hoch), Maus leicht nach oben ziehen,
+1. **Basis aufstellen:** `Basis-Bausatz` in die Hand nehmen, in die Richtung
+   schauen, in die die Startbahn zeigen soll, und **auf den Boden rechtsklicken**.
+   Der ganze Stützpunkt entsteht in einem Rutsch — du musst nichts von Hand bauen.
+2. **Einsteigen:** Rechtsklick auf die F-47 am Anfang der Bahn.
+3. **Starten:** `W` gedrückt halten (Schub hoch), Maus leicht nach oben ziehen,
    sobald die Anzeige links über ~85 km/h zeigt — die F-47 hebt ab.
-5. **Fliegen:** Die Maus steuert. Der Jet folgt deiner Blickrichtung.
-6. **Schießen:** `Leertaste`. Mit `X` schaltest du zwischen Bordkanone, Lenkwaffe,
-   Bombe und Laser um.
-7. **Aussteigen:** `Linke Umschalttaste` (am besten am Boden).
+4. **Fliegen:** Die Maus steuert. Der Jet folgt deiner Blickrichtung.
+5. **Schießen:** **Linke Maustaste**. Mit `X` schaltest du zwischen Bordkanone,
+   Lenkwaffe, Bombe und Laser um.
+6. **Aussteigen:** `Linke Umschalttaste` (am besten am Boden).
+
+### Was der Basis-Bausatz hinstellt
+
+Rund 6300 Blöcke in einem Zug, ausgerichtet nach deiner Blickrichtung:
+
+| Teil | Beschreibung |
+|---|---|
+| **Startbahn** | 60 Blöcke lang, 7 breit, mit Mittellinie, Schwellen und Befeuerung |
+| **Hangar** | 9 × 9 × 5 mit Rolltor zur Bahn |
+| **Wartungsfeld** | im Hangar — betankt, repariert und bewaffnet abgestellte Jets |
+| **Radarstation** | erhöht, mit freiem Rundblick |
+| **2 × Iron Dome** | bereits voll mit Abfangraketen geladen |
+| **Kaserne** | mit 32 Eisenbarren Nachschub, bildet sofort Soldaten aus |
+| **Einheiten** | 1 F-47 für dich, 1 Drohnenjäger, 1 Pilot, 1 Techniker, 2 Schützen |
+
+Das Gelände wird dabei planiert: Bewuchs kommt weg, Senken werden aufgefüllt.
+Auf **Superflach** sieht es am saubersten aus.
+
+> **Kein Bausatz zur Hand?** Der Befehl `/f47 base` baut dasselbe an deiner
+> Position. Mit `/f47 base <x> <y> <z>` auch woanders.
+
+> **Der Pilot steigt selbst ein:** Kurz nach dem Bau läuft er zum Drohnenjäger
+> und übernimmt ihn — danach trägt die Maschine sein Rufzeichen und ist
+> startklar. Aufträge gibst du mit dem Kommando-Tablet.
 
 > **Wichtig:** Ohne Schub fällt die Maschine wie ein Stein — genau wie ein echtes
 > Flugzeug braucht die F-47 Fahrt, um zu fliegen. Die Warnung
@@ -134,9 +158,9 @@ Einheiten, die du danach aufstellst, gehören der neuen Partei.
 
 | Taste | Wirkung |
 |---|---|
-| `W` / `S` | Schub erhöhen / verringern |
+| `W` / `S` | Schub erhöhen / verringern (Minecrafts normale Lauftasten) |
 | `Maus` | Fliegen (der Jet folgt der Blickrichtung) |
-| `Leertaste` | Gewählte Waffe abfeuern |
+| `Linke Maustaste` | Gewählte Waffe abfeuern |
 | `R` | Lenkwaffe abfeuern (unabhängig von der Waffenwahl) |
 | `X` | Waffe wechseln |
 | `V` | Tarnkappenmodus an/aus |
@@ -146,8 +170,13 @@ Einheiten, die du danach aufstellst, gehören der neuen Partei.
 | `J` | Joystick und Schubhebel zuordnen (siehe Kapitel 5) |
 
 Alle Tasten lassen sich in den **Einstellungen → Steuerung → „F-47 Cockpit"** ändern.
-Die Umschalttaste bleibt frei, weil man damit in Minecraft aus einem Fahrzeug
-aussteigt — der Nachbrenner liegt deshalb auf `C`.
+
+**Warum Schub und Feuern keine eigenen Tasten haben:** Minecraft erlaubt pro
+Taste nur *eine* Belegung — ein Mod auf `W` würde also das Laufen abschalten.
+Deshalb liest der Mod im Cockpit einfach Minecrafts eigene Vorwärts-,
+Rückwärts- und Angriffstaste mit. Außerhalb des Jets bleibt alles wie gewohnt.
+Auch die Umschalttaste bleibt frei, weil man damit aus Fahrzeugen aussteigt —
+der Nachbrenner liegt deshalb auf `C`.
 
 ### Die Cockpitanzeige
 
@@ -428,6 +457,7 @@ python3 tools/gen_lang.py     # Sprachdateien (Deutsch + Englisch)
 | Soldaten greifen nicht an | Schwierigkeitsgrad steht auf „Friedlich" |
 | Meine Einheiten kämpfen nicht gegeneinander | Beide gehören derselben Partei — mit dem Truppenabzeichen umstellen |
 | Einheit wechselt die Seite nicht | Truppenabzeichen direkt auf die Einheit rechtsklicken, nicht daneben |
+| Startbahn zu bauen ist mühsam | `Basis-Bausatz` benutzen oder `/f47 base` eingeben |
 | Joystick wird nicht gefunden | Vor dem Spielstart anschließen, dann `J` drücken — oben steht die Geräteliste |
 | Achse läuft verkehrt herum | Im Zuordnungs-Bildschirm auf `Umkehren` klicken |
 | Schubhebel geht nur halb | `Schubhebel vermessen` und den Hebel einmal ganz durchschieben |

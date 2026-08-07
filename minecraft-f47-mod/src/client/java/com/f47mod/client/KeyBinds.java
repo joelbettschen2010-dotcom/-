@@ -6,17 +6,21 @@ import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * Cockpit-Belegung. Bewusst auf Tasten gelegt, die beim Fliegen frei sind.
+ * Cockpit-Belegung.
  *
- * <p>Die Umschalttaste bleibt absichtlich unbelegt: Damit steigt man in
- * Minecraft aus einem Fahrzeug aus - der Nachbrenner liegt deshalb auf C.
+ * <p><b>Wichtig:</b> Minecraft haelt je Taste nur <em>eine</em> Belegung
+ * ({@code KeyBinding.KEY_TO_BINDINGS} ist eine Map von Taste auf Belegung).
+ * Wer hier eine Taste doppelt belegt, macht die Vanilla-Funktion damit kaputt -
+ * ein Mod auf W wuerde also das Laufen abschalten.
+ *
+ * <p>Deshalb sind hier nur Tasten belegt, die Minecraft selbst frei laesst.
+ * Schub und Feuer benutzen bewusst <em>keine</em> eigene Belegung, sondern
+ * lesen im Cockpit direkt Minecrafts Vorwaerts-, Rueckwaerts- und
+ * Angriffstaste aus - siehe {@link JetController}.
  */
 public final class KeyBinds {
 	private static final String CATEGORY = "category.f47.jet";
 
-	public static KeyBinding throttleUp;
-	public static KeyBinding throttleDown;
-	public static KeyBinding fire;
 	public static KeyBinding fireMissile;
 	public static KeyBinding cycleWeapon;
 	public static KeyBinding stealth;
@@ -28,9 +32,7 @@ public final class KeyBinds {
 	}
 
 	public static void register() {
-		throttleUp = register("key.f47.throttle_up", GLFW.GLFW_KEY_W);
-		throttleDown = register("key.f47.throttle_down", GLFW.GLFW_KEY_S);
-		fire = register("key.f47.fire", GLFW.GLFW_KEY_SPACE);
+		// Alle folgenden Tasten sind in Minecraft standardmaessig unbelegt.
 		fireMissile = register("key.f47.fire_missile", GLFW.GLFW_KEY_R);
 		cycleWeapon = register("key.f47.cycle_weapon", GLFW.GLFW_KEY_X);
 		stealth = register("key.f47.stealth", GLFW.GLFW_KEY_V);

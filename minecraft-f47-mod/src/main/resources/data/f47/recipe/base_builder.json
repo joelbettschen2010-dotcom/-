@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "RRR",
+    "PAP",
+    "III"
+  ],
+  "key": {
+    "R": {
+      "item": "f47:runway"
+    },
+    "P": {
+      "item": "f47:titanium_plate"
+    },
+    "A": {
+      "item": "f47:avionics_module"
+    },
+    "I": {
+      "item": "minecraft:iron_block"
+    }
+  },
+  "result": {
+    "id": "f47:base_builder",
+    "count": 1
+  }
+}

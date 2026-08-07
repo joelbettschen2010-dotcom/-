@@ -87,9 +87,9 @@ public final class JetController {
 		JoystickSettings.AxisBinding throttleAxis = settings.axis(JoystickSettings.Axis.THROTTLE);
 		if (throttleAxis.isBound()) {
 			throttle = MathHelper.clamp(throttleAxis.unipolar(), 0.0f, 1.0f);
-		} else if (KeyBinds.throttleUp.isPressed()) {
+		} else if (client.options.forwardKey.isPressed()) {
 			throttle = Math.min(1.0f, throttle + THROTTLE_STEP);
-		} else if (KeyBinds.throttleDown.isPressed()) {
+		} else if (client.options.backKey.isPressed()) {
 			throttle = Math.max(0.0f, throttle - THROTTLE_STEP);
 		}
 
@@ -136,9 +136,11 @@ public final class JetController {
 		// Ohne Knueppel folgt der Jet der Blickrichtung.
 		jet.setControlAxes(0.0f, 0.0f, 0.0f, false);
 
-		if (KeyBinds.throttleUp.isPressed()) {
+		// Minecrafts eigene Bewegungstasten - keine eigene Belegung, damit das
+		// Laufen ausserhalb des Cockpits unangetastet bleibt.
+		if (client.options.forwardKey.isPressed()) {
 			throttle = Math.min(1.0f, throttle + THROTTLE_STEP);
-		} else if (KeyBinds.throttleDown.isPressed()) {
+		} else if (client.options.backKey.isPressed()) {
 			throttle = Math.max(0.0f, throttle - THROTTLE_STEP);
 		}
 		jet.setThrottle(throttle);
@@ -188,7 +190,9 @@ public final class JetController {
 			return;
 		}
 
-		boolean fire = KeyBinds.fire.isPressed()
+		// Angriffstaste (Standard: linke Maustaste) - die Leertaste bleibt frei,
+		// sonst waere das Springen kaputt.
+		boolean fire = client.options.attackKey.isPressed()
 				|| settings.button(JoystickSettings.Button.FIRE).pressed();
 		boolean missile = KeyBinds.fireMissile.isPressed()
 				|| settings.button(JoystickSettings.Button.MISSILE).pressed();

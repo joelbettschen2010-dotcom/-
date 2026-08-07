@@ -2,6 +2,7 @@ package com.f47mod.registry;
 
 import com.f47mod.F47Mod;
 import com.f47mod.entity.mob.SoldierRole;
+import com.f47mod.item.BaseBuilderItem;
 import com.f47mod.item.CommandTabletItem;
 import com.f47mod.item.EnergyWeaponItem;
 import com.f47mod.item.JetSpawnItem;
@@ -52,6 +53,8 @@ public final class ModItems {
 	// --- Fuehrung ---------------------------------------------------------
 	public static final Item COMMAND_TABLET =
 			register("command_tablet", new CommandTabletItem(new Item.Settings().maxCount(1)));
+	public static final Item BASE_BUILDER =
+			register("base_builder", new BaseBuilderItem(new Item.Settings().maxCount(4)));
 	public static final Item TEAM_BADGE =
 			register("team_badge", new TeamBadgeItem(new Item.Settings().maxCount(1)));
 	public static final Item THREAT_BEACON =

@@ -491,6 +491,25 @@ ORDER_ART = [
     "................",
 ]
 
+KIT_ART = [
+    "................",
+    "................",
+    "..111111111111..",
+    "..122222222221..",
+    "..123333333321..",
+    "..124444444421..",
+    "..123333333321..",
+    "..12455555 421..",
+    "..123333333321..",
+    "..124444444421..",
+    "..123333333321..",
+    "..122222222221..",
+    "..111111111111..",
+    "................",
+    "................",
+    "................",
+]
+
 BADGE_ART = [
     "................",
     "................",
@@ -859,6 +878,7 @@ ITEM_ICONS = {
     "f47_autonomous": (JET_ART, metal_palette(STEALTH_BLACK, accent=LASER_CYAN)),
     "threat_beacon": (BEACON_ART, metal_palette(STEEL_DARK, accent=DANGER_RED)),
     "team_badge": (BADGE_ART, metal_palette((186, 176, 150, 255), accent=(58, 96, 168, 255))),
+    "base_builder": (KIT_ART, metal_palette(OLIVE, accent=MARKING)),
     "recruit_rifleman": (ORDER_ART, metal_palette((222, 216, 196, 255), accent=OLIVE)),
     "recruit_heavy": (ORDER_ART, metal_palette((222, 216, 196, 255), accent=DANGER_RED)),
     "recruit_medic": (ORDER_ART, metal_palette((222, 216, 196, 255), accent=(226, 232, 236, 255))),
@@ -1125,6 +1145,12 @@ def gen_recipes():
     shaped("command_tablet", ["CCC", "CAC", "CEC"],
            {"C": C, "A": f"{MOD}:avionics_module", "E": E},
            f"{MOD}:command_tablet", category="equipment")
+    # Basis-Bausatz: teuer, aber dafuer steht die ganze Anlage.
+    shaped("base_builder", ["RRR", "PAP", "III"],
+           {"R": f"{MOD}:runway", "P": P, "A": f"{MOD}:avionics_module",
+            "I": "minecraft:iron_block"},
+           f"{MOD}:base_builder", category="building")
+
     shaped("threat_beacon", [" R ", "RGR", " R "],
            {"R": "minecraft:redstone", "G": "minecraft:gunpowder"},
            f"{MOD}:threat_beacon", count=2)

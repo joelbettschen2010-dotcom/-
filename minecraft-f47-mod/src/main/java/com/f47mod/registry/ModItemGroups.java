@@ -23,6 +23,9 @@ public final class ModItemGroups {
 				.displayName(Text.translatable("itemgroup.f47.general"))
 				.icon(() -> new ItemStack(ModItems.F47_AIRCRAFT))
 				.entries((context, entries) -> {
+					// Basisbausatz zuerst - damit faengt man an.
+					entries.add(ModItems.BASE_BUILDER);
+
 					// Flugzeuge
 					entries.add(ModItems.F47_AIRCRAFT);
 					entries.add(ModItems.F47_AUTONOMOUS);

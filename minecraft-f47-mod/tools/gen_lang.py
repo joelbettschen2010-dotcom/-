@@ -59,6 +59,17 @@ ENTRIES = {
     "item.f47.recruit_engineer": ("Marschbefehl: Techniker", "Deployment Order: Engineer"),
     "item.f47.recruit_pilot": ("Marschbefehl: Pilot", "Deployment Order: Pilot"),
 
+    # --- Basis-Bausatz ---
+    "item.f47.base_builder": ("Basis-Bausatz", "Base Construction Kit"),
+    "message.f47.base_built": ("Stuetzpunkt errichtet - %s Bloecke gesetzt, Partei: %s",
+                               "Base established - %s blocks placed, side: %s"),
+    "tooltip.f47.base_builder_1": ("Rechtsklick auf den Boden: baut den ganzen Stuetzpunkt",
+                                   "Right-click the ground: builds the entire base"),
+    "tooltip.f47.base_builder_2": ("Bahn, Hangar, Radar, Iron Dome, Kaserne und erste Einheiten",
+                                   "Runway, hangar, radar, iron dome, barracks and first units"),
+    "tooltip.f47.base_builder_3": ("Richtet sich nach deiner Blickrichtung aus",
+                                   "Lines up with the direction you are facing"),
+
     # --- Parteien ---
     "team.f47.blue": ("Blaue Partei", "Blue Force"),
     "team.f47.red": ("Rote Partei", "Red Force"),
@@ -104,9 +115,6 @@ ENTRIES = {
 
     # --- Tastenbelegung ---
     "category.f47.jet": ("F-47 Cockpit", "F-47 Cockpit"),
-    "key.f47.throttle_up": ("Schub erhoehen", "Throttle Up"),
-    "key.f47.throttle_down": ("Schub verringern", "Throttle Down"),
-    "key.f47.fire": ("Feuern", "Fire"),
     "key.f47.fire_missile": ("Lenkwaffe starten", "Launch Missile"),
     "key.f47.cycle_weapon": ("Waffe wechseln", "Cycle Weapon"),
     "key.f47.stealth": ("Tarnkappe schalten", "Toggle Stealth"),
