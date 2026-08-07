@@ -1,5 +1,7 @@
 package com.f47mod.client;
 
+import com.f47mod.client.input.JoystickManager;
+import com.f47mod.client.input.JoystickSettings;
 import com.f47mod.entity.vehicle.F47Entity;
 import com.f47mod.entity.vehicle.WeaponType;
 import com.f47mod.net.ModNetworking;
@@ -13,12 +15,20 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Cockpit-Steuerung auf dem Client.
  *
- * <p>Hier werden die Tasteneingaben in Schub, Tarnung und Waffeneinsatz
- * uebersetzt. Der Client rechnet die Flugbewegung selbst und schickt den
- * Zustand an den Server, der die Munition verwaltet und die Schuesse ausloest.
+ * <p>Es gibt zwei Betriebsarten:
+ * <ul>
+ *   <li><b>Maus:</b> Der Jet folgt der Blickrichtung, der Schub liegt auf
+ *       W und S. Einfach zu lernen.</li>
+ *   <li><b>Joystick:</b> Knueppel und Schubhebel steuern Hoehen-, Quer- und
+ *       Seitenruder unmittelbar, der Schubhebel gibt den Schub absolut vor.
+ *       Wird automatisch benutzt, sobald eine Belegung eingerichtet ist.</li>
+ * </ul>
+ *
+ * <p>Der Client rechnet die Flugbewegung selbst und meldet dem Server nur den
+ * Zustand der Bedienelemente - das haelt die Steuerung reaktionsschnell.
  */
 public final class JetController {
-	/** Wie schnell der Schubhebel auf Tastendruck reagiert. */
+	/** Wie schnell der Schubhebel auf Tastendruck reagiert (Mausbetrieb). */
 	private static final float THROTTLE_STEP = 0.035f;
 
 	private static boolean stealthOn;
@@ -28,11 +38,17 @@ public final class JetController {
 	private static boolean cycleWasDown;
 	private static float throttle;
 	private static int fireCooldown;
+	/** Zuletzt benutzte Betriebsart - nur fuer die Anzeige. */
+	private static boolean joystickActive;
 
 	private JetController() {
 	}
 
 	public static void tick(MinecraftClient client) {
+		// Eingabegeraete immer abfragen, damit der Zuordnungs-Bildschirm und
+		// die Erkennung neuer Geraete auch ausserhalb des Cockpits laufen.
+		JoystickManager.poll();
+
 		F47Entity jet = getJet(client);
 		if (jet == null) {
 			reset();
@@ -42,32 +58,94 @@ public final class JetController {
 			fireCooldown--;
 		}
 
-		updateThrottle(client, jet);
-		updateSwitches(client, jet);
-		updateWeapons(client, jet);
+		JoystickSettings settings = JoystickSettings.get();
+		joystickActive = settings.isUsable();
 
-		// Der Server bekommt den Zustand der Bedienelemente.
+		if (joystickActive) {
+			updateFromJoystick(client, jet, settings);
+		} else {
+			updateFromKeyboard(client, jet);
+		}
+		updateWeapons(client, jet, settings);
+
 		ClientPlayNetworking.send(new ModNetworking.JetControlPayload(
 				throttle, jet.getRoll(), stealthOn, afterburnerOn));
 	}
 
-	private static void updateThrottle(MinecraftClient client, F47Entity jet) {
+	// ------------------------------------------------------------------
+	// Joystick
+	// ------------------------------------------------------------------
+
+	private static void updateFromJoystick(MinecraftClient client, F47Entity jet,
+			JoystickSettings settings) {
+		float pitch = settings.shaped(JoystickSettings.Axis.PITCH);
+		float roll = settings.shaped(JoystickSettings.Axis.ROLL);
+		float yaw = settings.shaped(JoystickSettings.Axis.YAW);
+		jet.setControlAxes(pitch, roll, yaw, true);
+
+		// Schubhebel gibt den Schub unmittelbar vor - kein Hochtippen noetig.
+		JoystickSettings.AxisBinding throttleAxis = settings.axis(JoystickSettings.Axis.THROTTLE);
+		if (throttleAxis.isBound()) {
+			throttle = MathHelper.clamp(throttleAxis.unipolar(), 0.0f, 1.0f);
+		} else if (KeyBinds.throttleUp.isPressed()) {
+			throttle = Math.min(1.0f, throttle + THROTTLE_STEP);
+		} else if (KeyBinds.throttleDown.isPressed()) {
+			throttle = Math.max(0.0f, throttle - THROTTLE_STEP);
+		}
+
+		// Bremse auf dem Boden.
+		if (settings.button(JoystickSettings.Button.BRAKE).pressed() && jet.isOnGround()) {
+			throttle = 0.0f;
+			jet.setVelocity(jet.getVelocity().multiply(0.82, 1.0, 0.82));
+		}
+		jet.setThrottle(throttle);
+
+		toggleFromJoystick(client, jet, settings);
+
+		// Die Sicht folgt der Maschine, sonst schaut man beim Rollen ins Leere.
+		if (client.player != null) {
+			client.player.setYaw(jet.getYaw());
+			client.player.setPitch(jet.getPitch());
+		}
+	}
+
+	private static void toggleFromJoystick(MinecraftClient client, F47Entity jet,
+			JoystickSettings settings) {
+		boolean stealthDown = settings.button(JoystickSettings.Button.STEALTH).pressed()
+				|| KeyBinds.stealth.isPressed();
+		if (stealthDown && !stealthWasDown) {
+			setStealth(client, jet, !stealthOn);
+		}
+		stealthWasDown = stealthDown;
+
+		boolean afterburnerDown = settings.button(JoystickSettings.Button.AFTERBURNER).pressed()
+				|| KeyBinds.afterburner.isPressed();
+		if (afterburnerDown && !afterburnerWasDown) {
+			afterburnerOn = !afterburnerOn;
+			jet.setAfterburner(afterburnerOn);
+			playClick(client, afterburnerOn ? 1.9f : 1.0f);
+		}
+		afterburnerWasDown = afterburnerDown;
+	}
+
+	// ------------------------------------------------------------------
+	// Maus und Tastatur
+	// ------------------------------------------------------------------
+
+	private static void updateFromKeyboard(MinecraftClient client, F47Entity jet) {
+		// Ohne Knueppel folgt der Jet der Blickrichtung.
+		jet.setControlAxes(0.0f, 0.0f, 0.0f, false);
+
 		if (KeyBinds.throttleUp.isPressed()) {
 			throttle = Math.min(1.0f, throttle + THROTTLE_STEP);
 		} else if (KeyBinds.throttleDown.isPressed()) {
 			throttle = Math.max(0.0f, throttle - THROTTLE_STEP);
 		}
 		jet.setThrottle(throttle);
-	}
 
-	private static void updateSwitches(MinecraftClient client, F47Entity jet) {
 		boolean stealthDown = KeyBinds.stealth.isPressed();
 		if (stealthDown && !stealthWasDown) {
-			stealthOn = !stealthOn;
-			jet.setStealth(stealthOn);
-			message(client, Text.translatable(stealthOn
-					? "message.f47.stealth_on" : "message.f47.stealth_off"));
-			playClick(client, stealthOn ? 1.6f : 0.9f);
+			setStealth(client, jet, !stealthOn);
 		}
 		stealthWasDown = stealthDown;
 
@@ -85,8 +163,21 @@ public final class JetController {
 		}
 	}
 
-	private static void updateWeapons(MinecraftClient client, F47Entity jet) {
-		boolean cycleDown = KeyBinds.cycleWeapon.isPressed();
+	private static void setStealth(MinecraftClient client, F47Entity jet, boolean on) {
+		stealthOn = on;
+		jet.setStealth(on);
+		message(client, Text.translatable(on ? "message.f47.stealth_on" : "message.f47.stealth_off"));
+		playClick(client, on ? 1.6f : 0.9f);
+	}
+
+	// ------------------------------------------------------------------
+	// Waffen
+	// ------------------------------------------------------------------
+
+	private static void updateWeapons(MinecraftClient client, F47Entity jet,
+			JoystickSettings settings) {
+		boolean cycleDown = KeyBinds.cycleWeapon.isPressed()
+				|| settings.button(JoystickSettings.Button.CYCLE_WEAPON).pressed();
 		if (cycleDown && !cycleWasDown) {
 			ClientPlayNetworking.send(new ModNetworking.CycleWeaponPayload());
 			playClick(client, 1.3f);
@@ -97,18 +188,25 @@ public final class JetController {
 			return;
 		}
 
-		if (KeyBinds.fire.isPressed()) {
+		boolean fire = KeyBinds.fire.isPressed()
+				|| settings.button(JoystickSettings.Button.FIRE).pressed();
+		boolean missile = KeyBinds.fireMissile.isPressed()
+				|| settings.button(JoystickSettings.Button.MISSILE).pressed();
+
+		if (fire) {
 			WeaponType weapon = jet.getWeapon();
 			ClientPlayNetworking.send(new ModNetworking.FireWeaponPayload(weapon.ordinal()));
 			fireCooldown = Math.max(1, weapon.cooldownTicks());
-		} else if (KeyBinds.fireMissile.isPressed()) {
-			// Zweite Taste feuert direkt eine Lenkwaffe, egal was gewaehlt ist.
+		} else if (missile) {
+			// Eigener Knopf fuer die Lenkwaffe, egal was gerade gewaehlt ist.
 			ClientPlayNetworking.send(new ModNetworking.FireWeaponPayload(WeaponType.MISSILE.ordinal()));
 			fireCooldown = WeaponType.MISSILE.cooldownTicks();
 		}
 	}
 
-	/** Beim Einsteigen den Hebel auf den aktuellen Stand des Jets setzen. */
+	// ------------------------------------------------------------------
+
+	/** Beim Einsteigen den Schubhebel auf den Stand des Jets setzen. */
 	public static void onBoard(F47Entity jet) {
 		throttle = jet.getThrottle();
 		stealthOn = jet.isStealthOn();
@@ -120,6 +218,7 @@ public final class JetController {
 		stealthOn = false;
 		afterburnerOn = false;
 		fireCooldown = 0;
+		joystickActive = false;
 	}
 
 	public static float getThrottle() {
@@ -132,6 +231,11 @@ public final class JetController {
 
 	public static boolean isAfterburnerOn() {
 		return afterburnerOn;
+	}
+
+	/** Wird gerade mit Joystick geflogen? Fuer die Anzeige im HUD. */
+	public static boolean isJoystickActive() {
+		return joystickActive;
 	}
 
 	/** Der Jet, in dem der Spieler gerade sitzt - oder null. */

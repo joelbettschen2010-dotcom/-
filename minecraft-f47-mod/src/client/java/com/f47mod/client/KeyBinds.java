@@ -22,6 +22,7 @@ public final class KeyBinds {
 	public static KeyBinding stealth;
 	public static KeyBinding afterburner;
 	public static KeyBinding freeLook;
+	public static KeyBinding joystickSetup;
 
 	private KeyBinds() {
 	}
@@ -35,6 +36,7 @@ public final class KeyBinds {
 		stealth = register("key.f47.stealth", GLFW.GLFW_KEY_V);
 		afterburner = register("key.f47.afterburner", GLFW.GLFW_KEY_C);
 		freeLook = register("key.f47.free_look", GLFW.GLFW_KEY_LEFT_ALT);
+		joystickSetup = register("key.f47.joystick_setup", GLFW.GLFW_KEY_J);
 	}
 
 	private static KeyBinding register(String translationKey, int key) {

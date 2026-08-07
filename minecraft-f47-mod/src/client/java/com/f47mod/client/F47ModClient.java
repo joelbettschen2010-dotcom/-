@@ -1,5 +1,6 @@
 package com.f47mod.client;
 
+import com.f47mod.client.gui.JoystickScreen;
 import com.f47mod.client.hud.JetHud;
 import com.f47mod.client.render.DroneRenderer;
 import com.f47mod.client.render.F47Model;
@@ -43,6 +44,11 @@ public class F47ModClient implements ClientModInitializer {
 				return;
 			}
 			JetController.tick(client);
+
+			// Zuordnungs-Bildschirm fuer Joystick und Schubhebel.
+			while (KeyBinds.joystickSetup.wasPressed()) {
+				client.setScreen(new JoystickScreen(client.currentScreen));
+			}
 		});
 
 		// Cockpitanzeige.

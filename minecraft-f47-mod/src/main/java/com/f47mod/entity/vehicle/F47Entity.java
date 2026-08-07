@@ -87,6 +87,17 @@ public class F47Entity extends Entity implements TeamMember {
 	private int weaponCooldown;
 	private int lockTimer;
 
+	/**
+	 * Direkte Steuereingaben, wie sie ein Joystick liefert (-1..1). Werden vom
+	 * Client jeden Tick gesetzt und nicht gespeichert - sie beschreiben nur die
+	 * augenblickliche Knueppelstellung.
+	 */
+	private float inputPitch;
+	private float inputRoll;
+	private float inputYaw;
+	/** true = Knueppelsteuerung, false = der Jet folgt der Blickrichtung. */
+	private boolean directControl;
+
 	public F47Entity(EntityType<? extends F47Entity> type, World world) {
 		super(type, world);
 		this.intersectionChecked = true;
@@ -147,6 +158,22 @@ public class F47Entity extends Entity implements TeamMember {
 	@Override
 	public void setTeam(Team team) {
 		dataTracker.set(TEAM, team.ordinal());
+	}
+
+	/**
+	 * Knueppelstellung uebernehmen. Bei directControl steuert der Spieler
+	 * unmittelbar Hoehen-, Quer- und Seitenruder - so, wie es sich mit einem
+	 * Joystick gehoert. Ohne directControl folgt der Jet der Blickrichtung.
+	 */
+	public void setControlAxes(float pitch, float roll, float yaw, boolean direct) {
+		this.inputPitch = MathHelper.clamp(pitch, -1.0f, 1.0f);
+		this.inputRoll = MathHelper.clamp(roll, -1.0f, 1.0f);
+		this.inputYaw = MathHelper.clamp(yaw, -1.0f, 1.0f);
+		this.directControl = direct;
+	}
+
+	public boolean isDirectControl() {
+		return directControl;
 	}
 
 	public float getThrottle() {
@@ -593,6 +620,10 @@ public class F47Entity extends Entity implements TeamMember {
 		if (controller == null) {
 			return;
 		}
+		if (directControl) {
+			steerByStick();
+			return;
+		}
 		F47Config config = F47Config.get();
 		float targetYaw = controller.getYaw();
 		float targetPitch = MathHelper.clamp(controller.getPitch(), -80.0f, 80.0f);
@@ -606,6 +637,42 @@ public class F47Entity extends Entity implements TeamMember {
 		// Sichtbare Querlage: Der Jet legt sich in die Kurve.
 		float targetRoll = MathHelper.clamp(yawDelta * 9.0f, -70.0f, 70.0f);
 		setRoll(getRoll() + (targetRoll - getRoll()) * 0.18f);
+	}
+
+	/**
+	 * Knueppelsteuerung wie im echten Flugzeug: Der Stick legt die Maschine in
+	 * die Querlage, das Ziehen bringt sie dann in die Kurve. Wer nur zieht,
+	 * fliegt einen Looping - wer erst rollt und dann zieht, fliegt eine Kurve.
+	 *
+	 * <p>Bei wenig Fahrt greifen die Ruder schlechter, genau wie in echt.
+	 */
+	protected void steerByStick() {
+		F47Config config = F47Config.get();
+		double speed = getVelocity().length();
+		float authority = MathHelper.clamp((float) (speed / config.stallSpeed), 0.15f, 1.0f);
+
+		// Grad pro Tick bei vollem Ausschlag.
+		float pitchRate = 2.8f * authority;
+		float rollRate = 5.0f * authority;
+		float yawRate = 1.1f * authority;
+
+		// Querruder: Der Stick steuert die Rollrate, nicht die Lage selbst.
+		float roll = MathHelper.wrapDegrees(getRoll() + inputRoll * rollRate);
+		if (Math.abs(inputRoll) < 0.02f) {
+			// Ohne Eingabe richtet sich die Maschine langsam von selbst auf.
+			roll *= 0.985f;
+		}
+		setRoll(roll);
+
+		// Hoehenruder wirkt in der geneigten Ebene: Bei Querlage wird aus dem
+		// Ziehen eine Kurve statt eines Steigflugs.
+		double rollRadians = Math.toRadians(getRoll());
+		float pitchInput = -inputPitch * pitchRate;
+		float deltaPitch = (float) (pitchInput * Math.cos(rollRadians));
+		float deltaYaw = (float) (-pitchInput * Math.sin(rollRadians)) + inputYaw * yawRate;
+
+		setPitch(MathHelper.clamp(getPitch() + deltaPitch, -88.0f, 88.0f));
+		setYaw(getYaw() + deltaYaw);
 	}
 
 	protected static float approachAngle(float current, float target, float rate) {

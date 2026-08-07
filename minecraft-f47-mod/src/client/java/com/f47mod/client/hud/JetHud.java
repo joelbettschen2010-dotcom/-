@@ -49,6 +49,7 @@ public final class JetHud {
 		drawReticle(context, font, jet, width, height);
 		drawRadarScope(context, font, jet, width, height);
 		drawWarnings(context, font, jet, width, height);
+		drawStickIndicator(context, font, jet, width, height);
 	}
 
 	/** Linke Seite: Geschwindigkeit in km/h und Schubbalken. */
@@ -258,6 +259,33 @@ public final class JetHud {
 				drawCentered(context, font, Text.translatable("hud.f47.warn_pullup"), cx, y, HUD_RED);
 			}
 		}
+	}
+
+	/**
+	 * Kleine Knueppelanzeige unten links: zeigt die Stellung von Stick und
+	 * Schubhebel. Praktisch, um zu sehen, ob das Geraet richtig erkannt wird.
+	 */
+	private static void drawStickIndicator(DrawContext context, TextRenderer font, F47Entity jet,
+			int width, int height) {
+		if (!JetController.isJoystickActive()) {
+			return;
+		}
+		var settings = com.f47mod.client.input.JoystickSettings.get();
+		int size = 34;
+		int x = 18;
+		int y = height - size - 18;
+
+		context.fill(x, y, x + size, y + size, 0xA0001505);
+		context.fill(x, y + size / 2, x + size, y + size / 2 + 1, HUD_DIM);
+		context.fill(x + size / 2, y, x + size / 2 + 1, y + size, HUD_DIM);
+
+		float stickX = settings.axis(com.f47mod.client.input.JoystickSettings.Axis.ROLL).value();
+		float stickY = settings.axis(com.f47mod.client.input.JoystickSettings.Axis.PITCH).value();
+		int px = x + size / 2 + (int) (stickX * (size / 2 - 2));
+		int py = y + size / 2 + (int) (stickY * (size / 2 - 2));
+		context.fill(px - 2, py - 2, px + 3, py + 3, HUD_GREEN);
+
+		context.drawText(font, Text.translatable("hud.f47.joystick"), x, y - 10, HUD_DIM, false);
 	}
 
 	private static int groundDistance(F47Entity jet) {

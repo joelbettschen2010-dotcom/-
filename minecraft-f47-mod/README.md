@@ -9,6 +9,8 @@ Energiewaffen und Bodenpersonal.
 kannst jederzeit selbst einsteigen und für eine Seite mitfliegen und mitkämpfen.
 Wer lieber nur eine Basis aufbaut, merkt vom Team-System nichts.
 
+Fliegen geht mit Maus und Tastatur — oder mit **Joystick und Schubhebel**.
+
 Gebaut für den **Einzelspielermodus**.
 
 ---
@@ -141,6 +143,7 @@ Einheiten, die du danach aufstellst, gehören der neuen Partei.
 | `C` | Nachbrenner |
 | `Linke Alt-Taste` | Freie Sicht (Jet hält den Kurs) |
 | `Linke Umschalttaste` | **Aussteigen** (Minecraft-Standard) |
+| `J` | Joystick und Schubhebel zuordnen (siehe Kapitel 5) |
 
 Alle Tasten lassen sich in den **Einstellungen → Steuerung → „F-47 Cockpit"** ändern.
 Die Umschalttaste bleibt frei, weil man damit in Minecraft aus einem Fahrzeug
@@ -158,7 +161,70 @@ aussteigt — der Nachbrenner liegt deshalb auf `C`.
 
 ---
 
-## 5. Die Systeme im Einzelnen
+## 5. Joystick und Schubhebel
+
+Der Mod liest Joysticks, Schubhebel und Pedale direkt über GLFW aus — die
+Bibliothek, auf der Minecraft ohnehin aufsetzt. Es braucht also **kein
+zusätzliches Programm** und keine Tastenemulation.
+
+### Einrichten (dauert eine Minute)
+
+Achsen- und Knopfnummern sind bei jedem Hersteller anders. Deshalb rät der Mod
+nicht herum, sondern lernt dein Gerät an:
+
+1. Gerät anschließen, Minecraft starten, Welt betreten.
+2. **`J` drücken** — der Bildschirm „Joystick und Schubhebel" geht auf.
+   Oben steht, welche Geräte gefunden wurden.
+3. Bei **Höhenruder** auf `Belegen` klicken und den Stick **vor und zurück**
+   bewegen. Der Mod erkennt selbst, welche Achse das war.
+4. Dasselbe für **Querruder** (Stick links/rechts), **Seitenruder** (Pedale
+   oder Drehgriff) und **Schubhebel**.
+5. Auf **`Schubhebel vermessen`** klicken und den Hebel innerhalb von 5 Sekunden
+   einmal ganz vor und ganz zurück schieben. Damit kennt der Mod den echten Weg
+   deines Hebels — viele geben nämlich nicht den vollen Bereich aus.
+6. Die Knöpfe (Feuern, Lenkwaffe, Waffe wechseln, Tarnkappe, Nachbrenner,
+   Bremse) genauso: `Belegen` klicken, Knopf drücken. **Hutschalter gehen auch.**
+
+Läuft eine Achse verkehrt herum, hilft der Knopf `Umkehren` daneben. Neben
+jeder Achse siehst du einen **Balken, der live mitgeht** — daran erkennst du
+sofort, ob alles richtig sitzt.
+
+Alles wird in `config/f47-joystick.json` gespeichert, du machst es also nur
+einmal.
+
+> **Zwei getrennte Geräte** (Stick und Schubhebel separat) sind ausdrücklich
+> vorgesehen: Jede Belegung merkt sich, von **welchem** Gerät sie kommt.
+
+### Wie es sich fliegt
+
+Sobald Höhen- und Querruder belegt sind, schaltet der Jet automatisch auf
+**echte Knüppelsteuerung** um — der Jet folgt dann nicht mehr der Blickrichtung,
+sondern du steuerst Ruder für Ruder wie in einem Flugsimulator:
+
+- **Stick links/rechts** legt die Maschine in die Querlage.
+- **Ziehen** bringt sie dann in die Kurve. Nur ziehen ohne Querlage ergibt einen
+  Looping — erst rollen, dann ziehen ergibt eine saubere Kurve.
+- **Bei wenig Fahrt greifen die Ruder schlechter**, genau wie in echt.
+- Der **Schubhebel gibt den Schub absolut vor** — kein Hochtippen mehr.
+- Die **Sicht rollt mit der Maschine mit**, damit der Horizont stimmt.
+  Wem davon schwindelig wird, setzt `cameraRoll` in der Config auf `0`.
+
+Maus und Tastatur funktionieren weiterhin parallel — die Knöpfe am Stick und
+die Tasten lösen dieselben Funktionen aus.
+
+### Feineinstellung in `config/f47-joystick.json`
+
+| Wert | Bedeutung | Standard |
+|---|---|---|
+| `sensitivity` | Empfindlichkeit der Ruder | `1.0` |
+| `curve` | Höher = feinfühliger um die Mitte, gut zum Zielen | `1.6` |
+| `cameraRoll` | Wie stark die Sicht mitrollt (0 = gar nicht) | `1.0` |
+| `deadzone` | Totbereich je Achse, gegen Zittern in Ruhelage | `0.08` |
+| `enabled` | Joysticksteuerung ganz abschalten | `true` |
+
+---
+
+## 6. Die Systeme im Einzelnen
 
 ### F-47 Kampfjet
 
@@ -254,7 +320,7 @@ von selbst an:
 
 ---
 
-## 6. Basis bauen (Vorschlag)
+## 7. Basis bauen (Vorschlag)
 
 ```
      ══════════════════════════════════  ← Startbahn (≥40 Blöcke)
@@ -276,7 +342,7 @@ von selbst an:
 
 ---
 
-## 7. Im Überlebensmodus spielen
+## 8. Im Überlebensmodus spielen
 
 Der Mod bringt einen eigenen Rohstoff mit: **Titanerz** kommt zwischen Y = −32
 und Y = 64 vor (etwas seltener als Eisen) und braucht mindestens eine
@@ -299,7 +365,7 @@ Alle Rezepte findest du im Spiel über das **Rezeptbuch**.
 
 ---
 
-## 8. Einstellungen
+## 9. Einstellungen
 
 Beim ersten Start entsteht die Datei `config/f47.json` im Minecraft-Ordner.
 Dort lässt sich vieles anpassen, ohne den Mod neu zu bauen:
@@ -319,7 +385,7 @@ Dort lässt sich vieles anpassen, ohne den Mod neu zu bauen:
 
 ---
 
-## 9. Aufbau des Projekts
+## 10. Aufbau des Projekts
 
 ```
 minecraft-f47-mod/
@@ -334,6 +400,9 @@ minecraft-f47-mod/
 │   ├── world/              Weltgenerierung, Radarübertragung, Angriffswellen
 │   └── util/Iff.java       Freund-Feind-Erkennung
 ├── src/client/java/        Renderer, Modelle, Cockpitanzeige, Tastenbelegung
+│   ├── input/              Joystick, Schubhebel und Pedale (GLFW)
+│   ├── gui/                Zuordnungs-Bildschirm für die Geräte
+│   └── mixin/              Kamera rollt mit der Maschine mit
 └── tools/                  Erzeugen Texturen, Modelle, Rezepte, Sprachdateien
 ```
 
@@ -347,7 +416,7 @@ python3 tools/gen_lang.py     # Sprachdateien (Deutsch + Englisch)
 
 ---
 
-## 10. Wenn etwas nicht funktioniert
+## 11. Wenn etwas nicht funktioniert
 
 | Problem | Lösung |
 |---|---|
@@ -359,6 +428,10 @@ python3 tools/gen_lang.py     # Sprachdateien (Deutsch + Englisch)
 | Soldaten greifen nicht an | Schwierigkeitsgrad steht auf „Friedlich" |
 | Meine Einheiten kämpfen nicht gegeneinander | Beide gehören derselben Partei — mit dem Truppenabzeichen umstellen |
 | Einheit wechselt die Seite nicht | Truppenabzeichen direkt auf die Einheit rechtsklicken, nicht daneben |
+| Joystick wird nicht gefunden | Vor dem Spielstart anschließen, dann `J` drücken — oben steht die Geräteliste |
+| Achse läuft verkehrt herum | Im Zuordnungs-Bildschirm auf `Umkehren` klicken |
+| Schubhebel geht nur halb | `Schubhebel vermessen` und den Hebel einmal ganz durchschieben |
+| Stick zittert in Ruhelage | `deadzone` in `config/f47-joystick.json` erhöhen (z. B. `0.15`) |
 
 ---
 
