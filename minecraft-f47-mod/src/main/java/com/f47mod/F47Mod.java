@@ -6,6 +6,7 @@ import com.f47mod.registry.ModBlocks;
 import com.f47mod.registry.ModEntities;
 import com.f47mod.registry.ModItemGroups;
 import com.f47mod.registry.ModItems;
+import com.f47mod.world.BaseConstruction;
 import com.f47mod.world.ModCommands;
 import com.f47mod.world.ModWorldGen;
 import com.f47mod.world.RadarSyncHandler;
@@ -46,6 +47,7 @@ public class F47Mod implements ModInitializer {
 
 		ModWorldGen.register();
 		ModCommands.register();
+		BaseConstruction.register();
 		RadarSyncHandler.register();
 		RaidScheduler.register();
 

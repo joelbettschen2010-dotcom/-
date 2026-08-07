@@ -68,27 +68,43 @@ Im Kreativmodus, damit du sofort losfliegen kannst:
 
 ### Was der Basis-Bausatz hinstellt
 
-Rund 6300 Blöcke in einem Zug, ausgerichtet nach deiner Blickrichtung:
+Rund 15 000 Blöcke, ausgerichtet nach deiner Blickrichtung:
 
 | Teil | Beschreibung |
 |---|---|
-| **Startbahn** | 60 Blöcke lang, 7 breit, mit Mittellinie, Schwellen und Befeuerung |
-| **Hangar** | 9 × 9 × 5 mit Rolltor zur Bahn |
-| **Wartungsfeld** | im Hangar — betankt, repariert und bewaffnet abgestellte Jets |
-| **Radarstation** | erhöht, mit freiem Rundblick |
-| **2 × Iron Dome** | bereits voll mit Abfangraketen geladen |
-| **Kaserne** | mit 32 Eisenbarren Nachschub, bildet sofort Soldaten aus |
-| **Einheiten** | 1 F-47 für dich, 1 Drohnenjäger, 1 Pilot, 1 Techniker, 2 Schützen |
+| **Startbahn** | 96 Blöcke lang, 11 breit, mit Mittellinie, Schwellen und Befeuerung |
+| **3 × Hangar** | je 11 × 10 × 6 mit Rolltor — breit genug für die Spannweite |
+| **Wartungsfelder** | in jedem Hangar — betanken, reparieren und bewaffnen abgestellte Jets |
+| **2 × Radarstation** | an beiden Enden, für Rundumsicht |
+| **4 × Iron Dome** | bereits voll mit Abfangraketen geladen |
+| **2 × Kaserne** | mit je 64 Eisenbarren Nachschub, bilden sofort Soldaten aus |
+| **8 Maschinen** | 2 F-47 für dich, 6 Drohnenjäger |
+| **26 Mann** | 6 Piloten, 3 Techniker, 2 Sanitäter, 3 Panzerabwehr, 12 Schützen |
 
 Das Gelände wird dabei planiert: Bewuchs kommt weg, Senken werden aufgefüllt.
 Auf **Superflach** sieht es am saubersten aus.
 
-> **Kein Bausatz zur Hand?** Der Befehl `/f47 base` baut dasselbe an deiner
-> Position. Mit `/f47 base <x> <y> <z>` auch woanders.
+Beim Bauen stockt das Spiel einmalig ein bis zwei Sekunden, wenn die Anlage auf
+Gelände steht, das du noch nie besucht hast — Minecraft muss die Landschaft dort
+erst erzeugen. Die Blöcke selbst werden über mehrere Ticks verteilt gesetzt, du
+siehst den Stützpunkt also entstehen, statt dass das Spiel einfriert.
 
-> **Der Pilot steigt selbst ein:** Kurz nach dem Bau läuft er zum Drohnenjäger
-> und übernimmt ihn — danach trägt die Maschine sein Rufzeichen und ist
-> startklar. Aufträge gibst du mit dem Kommando-Tablet.
+> **Kein Bausatz zur Hand?** Der Befehl `/f47 base` baut dasselbe an deiner
+> Position. Mit `/f47 base <x> <y> <z>` auch woanders, und mit
+> `/f47 base <x> <y> <z> rot` gleich für die Gegenpartei.
+
+> **Die Piloten steigen selbst ein und starten von allein.** Kurz nach dem Bau
+> laufen sie zu den Drohnenjägern und übernehmen sie — danach tragen die
+> Maschinen ihre Rufzeichen. Nach einer knappen halben Minute hebt die erste ab,
+> die übrigen zeitversetzt, damit immer ein Teil der Staffel am Boden auftankt.
+> Aufträge gibst du mit dem Kommando-Tablet, nötig ist das aber nicht.
+
+> **Die Basis läuft weiter, auch wenn du weg bist.** Beim Bauen bleiben die
+> Chunks rund um den Stützpunkt dauerhaft geladen (Standard: 4 Chunks Radius,
+> deckt den Patrouillenkreis ab). Ohne das rechnet Minecraft nur in deiner
+> Umgebung, und die ganze Anlage steht still, sobald du wegfliegst. Bremst das
+> deinen Rechner, stell `baseForceLoadRadiusChunks` in `config/f47.json` kleiner
+> oder auf `0`; `/f47 unload` gibt alle geladenen Chunks sofort wieder frei.
 
 > **Wichtig:** Ohne Schub fällt die Maschine wie ein Stein — genau wie ein echtes
 > Flugzeug braucht die F-47 Fahrt, um zu fliegen. Die Warnung
@@ -123,18 +139,42 @@ Dafür gibt es genau einen Gegenstand: das **Truppenabzeichen**.
 | Rechtsklick auf Radar/Iron Dome/Kaserne | Die Anlage wechselt die Seite |
 
 **Alles, was du aufstellst, gehört automatisch zu der Partei, für die du gerade
-kämpfst.** Ein typischer Ablauf für einen Zweifrontenkrieg:
+kämpfst.**
 
-1. Blaue Basis bauen: Startbahn, Hangar, Radar, Iron Dome, Kaserne, ein paar
-   `F-47 Drohnenjäger` und `Marschbefehl: Pilot`.
-2. Truppenabzeichen rechtsklicken → **du kämpfst jetzt für Rot**.
-3. Ein Stück entfernt die rote Basis genauso aufbauen.
-4. Truppenabzeichen erneut rechtsklicken → zurück zu **Blau**.
-5. Beiden Seiten mit dem Kommando-Tablet den Auftrag `Angriff` geben.
+#### Der kürzeste Weg: `/f47 war`
 
-Ab hier läuft der Krieg von allein: Die Bot-Piloten starten, suchen sich Ziele,
-schießen Lenkwaffen ab; die Iron-Dome-Stellungen fangen die Raketen der
-Gegenseite ab; die Bodentruppen schießen aufeinander.
+Ein Befehl stellt **beide** Stützpunkte auf einmal hin — blau und rot, 180
+Blöcke auseinander, mit den Bahnen parallel zueinander. Das ist genau der
+Abstand, bei dem die Patrouillen einander in die Bordradarreichweite fliegen.
+Mehr ist nicht zu tun: Nach gut einer halben Minute starten die ersten
+Maschinen, und der Krieg läuft.
+
+> Das ist der einzige Befehl, bei dem das Spiel spürbar stockt (etwa vier
+> Sekunden), weil zwei komplette Anlagen gleichzeitig auf frischem Gelände
+> entstehen. Danach ist Ruhe.
+
+#### Von Hand, mit dem Bausatz
+
+1. Basis-Bausatz auf den Boden rechtsklicken → **deine** (blaue) Basis.
+2. Ein Stück weiter **im Schleichen** rechtsklicken → die **rote** Basis.
+3. Fertig.
+
+Der Abstand sollte zwischen etwa 120 und 250 Blöcken liegen. Zu nah, und die
+Bahnen überbauen sich; zu weit, und die Patrouillen finden einander nie.
+
+Alternativ setzt das **Truppenabzeichen** deine eigene Seite um:
+
+| Aktion | Wirkung |
+|---|---|
+| Rechtsklick in die Luft | Du wechselst selbst die Seite (blau ↔ rot) |
+| Rechtsklick auf eine Einheit | Diese Einheit läuft zu **deiner** Partei über |
+| Rechtsklick auf Radar/Iron Dome/Kaserne | Die Anlage wechselt die Seite |
+
+Ab hier läuft der Krieg von allein: Die Bot-Piloten starten von sich aus, suchen
+sich Ziele, schießen Lenkwaffen ab; die Iron-Dome-Stellungen fangen die Raketen
+der Gegenseite ab; die Bodentruppen schießen aufeinander. In einem Testlauf ohne
+jeden Spieler waren von zwölf Maschinen nach drei Minuten fünf abgeschossen und
+fünf weitere hatten ihre Raketen restlos verschossen.
 
 ### Selbst mitkämpfen
 
@@ -408,9 +448,21 @@ Dort lässt sich vieles anpassen, ohne den Mod neu zu bauen:
 | `enableRandomRaids` | Nächtliche Drohnenangriffe | `true` |
 | `jetMaxHealth` | Panzerung der F-47 | `60` |
 | `stealthDetectionFactor` | Wie stark Tarnung wirkt (kleiner = besser) | `0.22` |
+| `jetModelScale` | **Wie groß die F-47 gezeichnet wird** | `1.8` |
+| `baseForceLoadRadiusChunks` | Chunks um die Basis, die geladen bleiben | `4` |
+| `warBaseSeparation` | Abstand der Basen bei `/f47 war` | `180` |
 
 **Tipp:** Wenn dir die Explosionen deine Basis zerlegen, setze
 `explosionsBreakBlocks` auf `false`.
+
+**Zur Größe der Jets:** `1.8` entspricht gut 5,5 Blöcken Länge und Spannweite —
+neben einem Spieler wirkt die Maschine damit wie ein echtes Kampfflugzeug. Wer
+sie größer oder kleiner will, dreht an `jetModelScale`; `1.0` wäre gut drei
+Blöcke. Die Trefferbox bleibt davon unberührt (4 Blöcke breit), damit die
+Maschine durch das Hangartor passt.
+
+**Wenn der Rechner ächzt:** `baseForceLoadRadiusChunks` kleiner stellen. Bei `0`
+laufen die Basen nur noch, während du in der Nähe bist — dafür kostet es nichts.
 
 ---
 
@@ -458,6 +510,10 @@ python3 tools/gen_lang.py     # Sprachdateien (Deutsch + Englisch)
 | Meine Einheiten kämpfen nicht gegeneinander | Beide gehören derselben Partei — mit dem Truppenabzeichen umstellen |
 | Einheit wechselt die Seite nicht | Truppenabzeichen direkt auf die Einheit rechtsklicken, nicht daneben |
 | Startbahn zu bauen ist mühsam | `Basis-Bausatz` benutzen oder `/f47 base` eingeben |
+| **Nichts greift sich an** | Es steht nur eine Partei da. `/f47 war` eingeben, oder mit dem Bausatz **im Schleichen** eine zweite Basis setzen |
+| **Es passiert nur, wenn ich daneben stehe** | `baseForceLoadRadiusChunks` in `config/f47.json` steht auf `0` — auf `4` setzen |
+| **Die Jets sind winzig** | Alte Mod-Datei. Die neue ersetzen; sonst `jetModelScale` in `config/f47.json` prüfen |
+| Die Staffel bleibt am Boden stehen | Kein Pilot an Bord (Kaserne baut Nachschub) oder Tank unter einem Viertel — ein Techniker muss auftanken |
 | Joystick wird nicht gefunden | Vor dem Spielstart anschließen, dann `J` drücken — oben steht die Geräteliste |
 | Achse läuft verkehrt herum | Im Zuordnungs-Bildschirm auf `Umkehren` klicken |
 | Schubhebel geht nur halb | `Schubhebel vermessen` und den Hebel einmal ganz durchschieben |

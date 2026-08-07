@@ -65,10 +65,20 @@ ENTRIES = {
                                "Base established - %s blocks placed, side: %s"),
     "tooltip.f47.base_builder_1": ("Rechtsklick auf den Boden: baut den ganzen Stuetzpunkt",
                                    "Right-click the ground: builds the entire base"),
-    "tooltip.f47.base_builder_2": ("Bahn, Hangar, Radar, Iron Dome, Kaserne und erste Einheiten",
-                                   "Runway, hangar, radar, iron dome, barracks and first units"),
+    "tooltip.f47.base_builder_2": ("3 Hangars, 4 Iron Domes, 2 Radar, 8 Jets, 26 Mann",
+                                   "3 hangars, 4 iron domes, 2 radars, 8 jets, 26 troops"),
     "tooltip.f47.base_builder_3": ("Richtet sich nach deiner Blickrichtung aus",
                                    "Lines up with the direction you are facing"),
+    "tooltip.f47.base_builder_4": ("Beim Schleichen: baut die Basis der Gegenpartei",
+                                   "While sneaking: builds the opposing side's base"),
+    "message.f47.war_started": ("Zwei Stuetzpunkte errichtet - %s Bloecke, %s Bloecke Abstand. "
+                                "Die Parteien finden sich von allein.",
+                                "Two bases established - %s blocks, %s blocks apart. "
+                                "The sides will find each other on their own."),
+    "message.f47.chunks_released": ("%s dauerhaft geladene Chunks freigegeben - "
+                                    "die Basen laufen jetzt nur noch in deiner Naehe weiter.",
+                                    "Released %s force-loaded chunks - "
+                                    "bases now only run while you are nearby."),
 
     # --- Parteien ---
     "team.f47.blue": ("Blaue Partei", "Blue Force"),
@@ -189,6 +199,7 @@ ENTRIES = {
     "message.f47.bingo_fuel": ("%s meldet wenig Treibstoff, kehrt zurueck",
                                "%s bingo fuel, returning to base"),
     "message.f47.on_station": ("%s auf Patrouillenhoehe", "%s on station"),
+    "message.f47.scramble": ("%s startet zum Alarmeinsatz", "%s scrambling"),
     "message.f47.landed": ("%s ist gelandet", "%s has landed"),
     "message.f47.engaging": ("%s greift an", "%s engaging"),
     "message.f47.radar_online": ("Radar aktiv - %s Kontakte", "Radar online - %s contacts"),

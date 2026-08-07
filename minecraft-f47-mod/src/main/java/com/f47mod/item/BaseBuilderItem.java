@@ -51,7 +51,12 @@ public class BaseBuilderItem extends Item {
 		Direction facing = player == null
 				? Direction.NORTH
 				: player.getHorizontalFacing();
-		Team team = player == null ? Team.BLUE : TeamState.teamOf(player);
+
+		// Im Schleichen entsteht der Stuetzpunkt der Gegenpartei. Ohne das
+		// baut man immer nur die eigene Seite auf - und dann steht die ganze
+		// Anlage da, ohne dass jemand einen Gegner findet.
+		Team own = player == null ? Team.BLUE : TeamState.teamOf(player);
+		Team team = player != null && player.isSneaking() ? own.opposite() : own;
 
 		int placed = BaseBlueprint.build(server, origin, facing, player, team);
 
@@ -72,5 +77,6 @@ public class BaseBuilderItem extends Item {
 		tooltip.add(Text.translatable("tooltip.f47.base_builder_1").formatted(Formatting.GRAY));
 		tooltip.add(Text.translatable("tooltip.f47.base_builder_2").formatted(Formatting.DARK_GRAY));
 		tooltip.add(Text.translatable("tooltip.f47.base_builder_3").formatted(Formatting.DARK_GRAY));
+		tooltip.add(Text.translatable("tooltip.f47.base_builder_4").formatted(Formatting.RED));
 	}
 }

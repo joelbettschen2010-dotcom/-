@@ -70,6 +70,11 @@ public class AutonomousF47Entity extends F47Entity {
 	/** Punkt, den der Bot-Pilot gerade anfliegt. */
 	@Nullable
 	private Vec3d currentGoal;
+	/**
+	 * Ticks, bis die Maschine von selbst zum naechsten Einsatz startet.
+	 * Anfangs zufaellig, damit nicht die ganze Staffel gleichzeitig abhebt.
+	 */
+	private int scrambleTimer = 100 + (int) (Math.random() * 500);
 
 	public AutonomousF47Entity(EntityType<? extends AutonomousF47Entity> type, World world) {
 		super(type, world);
@@ -201,7 +206,41 @@ public class AutonomousF47Entity extends F47Entity {
 			targetSearchTimer = 0;
 			currentTarget = findTarget();
 		}
+		scrambleIfIdle();
 		flyMission();
+	}
+
+	/**
+	 * Laesst eine wartende Maschine von selbst starten.
+	 *
+	 * <p>Ohne das bleibt eine frisch aufgestellte Staffel fuer immer stehen:
+	 * {@link Order#PARKED} geht von allein in keinen anderen Zustand ueber,
+	 * und ein Gegner auf einem Stuetzpunkt zweihundert Bloecke weiter liegt
+	 * ausserhalb der Bordradarreichweite - keine Seite bemerkt also je die
+	 * andere, und der Krieg beginnt nie.
+	 *
+	 * <p>Zwei Anlaesse zum Start: ein erkannter Gegner (Alarmstart) oder
+	 * schlicht Zeit. Die Uhr laeuft je Maschine anders, so dass immer nur ein
+	 * Teil der Staffel in der Luft ist und der Rest am Boden auftankt.
+	 */
+	private void scrambleIfIdle() {
+		if (getOrder() != Order.PARKED) {
+			return;
+		}
+		// Mit fast leeren Tanks bleibt sie stehen, bis ein Techniker auftankt.
+		if (getFuel() < F47Config.get().maxFuel * 0.25f) {
+			return;
+		}
+		if (currentTarget != null && currentTarget.isAlive()) {
+			setOrder(Order.TAKEOFF);
+			announce("message.f47.scramble");
+			return;
+		}
+		if (--scrambleTimer <= 0) {
+			// Nach der Landung laenger stehen bleiben als beim ersten Start.
+			scrambleTimer = 600 + (int) (Math.random() * 900);
+			setOrder(Order.TAKEOFF);
+		}
 	}
 
 	/** Der Bot-Pilot: waehlt je nach Befehl einen Zielpunkt und fliegt ihn an. */

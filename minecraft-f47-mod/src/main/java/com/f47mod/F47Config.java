@@ -71,6 +71,27 @@ public class F47Config {
 	public int raidIntervalTicks = 24000;
 	public int raidDroneCount = 4;
 
+	// --- Darstellung ------------------------------------------------------
+	/**
+	 * Groesse, in der die F-47 gezeichnet wird. 1.0 entspricht rund 3 Bloecken
+	 * Laenge, der Standard 1.8 also gut 5,5 Bloecken - etwa so gross wie ein
+	 * echtes Kampfflugzeug neben einem Spieler wirkt. Wer die Maschine lieber
+	 * kleiner oder groesser haette, dreht hier, ohne den Mod neu zu bauen.
+	 */
+	public float jetModelScale = 1.8f;
+
+	// --- Stuetzpunkt ------------------------------------------------------
+	/**
+	 * Wie viele Chunks rund um einen neu gebauten Stuetzpunkt dauerhaft geladen
+	 * bleiben. Ohne das haelt Minecraft nur die Umgebung des Spielers am Laufen,
+	 * und die Basis steht still, sobald man wegfliegt - Jets starten nicht,
+	 * Soldaten kaempfen nicht. 4 deckt den Patrouillenkreis ab. Auf 0 stellen,
+	 * wenn der Rechner das nicht mitmacht.
+	 */
+	public int baseForceLoadRadiusChunks = 4;
+	/** Abstand zwischen den beiden Basen, die {@code /f47 war} aufstellt. */
+	public int warBaseSeparation = 180;
+
 	// --- Sonstiges --------------------------------------------------------
 	/** Explosionen beschaedigen Bloecke. Auf false stellen, um die Basis zu schonen. */
 	public boolean explosionsBreakBlocks = true;

@@ -187,6 +187,13 @@ public class MissileEntity extends TeamProjectileEntity {
 		if (entity == getOwner() || !entity.isAlive()) {
 			return false;
 		}
+		// Abfangraketen schiessen nicht auf andere Abfangraketen. Sonst
+		// beschiessen sich zwei Iron Domes gegenseitig ihre Abwehr, jede
+		// Abwehr zieht die naechste nach sich, und beide Stellungen haben
+		// ihre Munition verschossen, bevor ein Jet in Reichweite ist.
+		if (entity instanceof MissileEntity other && other.getKind() == Kind.INTERCEPTOR) {
+			return false;
+		}
 		// Abfangraketen nehmen nur Luftziele, alles andere jedes gegnerische Ziel.
 		return getKind() == Kind.INTERCEPTOR
 				? Iff.isAirThreat(getTeam(), entity)

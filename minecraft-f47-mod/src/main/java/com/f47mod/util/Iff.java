@@ -103,6 +103,13 @@ public final class Iff {
 		if (!isEnemy(viewer, candidate)) {
 			return false;
 		}
+		// Eine gegnerische Abfangrakete greift niemanden an - sie ist selbst
+		// nur Abwehr. Wer auf sie schiesst, verschiesst seine Stellung an
+		// einem Ziel, das ihm nie gefaehrlich wird.
+		if (candidate instanceof com.f47mod.entity.projectile.MissileEntity missile
+				&& missile.getKind() == com.f47mod.entity.projectile.MissileEntity.Kind.INTERCEPTOR) {
+			return false;
+		}
 		if (candidate instanceof CombatDroneEntity
 				|| candidate instanceof com.f47mod.entity.projectile.MissileEntity
 				|| candidate instanceof ExplosiveProjectileEntity

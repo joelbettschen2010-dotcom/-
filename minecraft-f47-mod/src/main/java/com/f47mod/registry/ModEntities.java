@@ -20,16 +20,19 @@ public final class ModEntities {
 	private ModEntities() {
 	}
 
+	// Die Trefferbox ist bewusst etwas schmaler als die sichtbare Spannweite:
+	// Die Fluegelspitzen ragen darueber hinaus, dafuer bleibt die Maschine im
+	// Hangartor und zwischen den Bahnrandlichtern manoevrierfaehig.
 	public static final EntityType<F47Entity> F47 = register("f47",
 			EntityType.Builder.<F47Entity>create(F47Entity::new, SpawnGroup.MISC)
-					.dimensions(2.6f, 1.4f)
+					.dimensions(4.0f, 1.5f)
 					// Jets sind schnell - deshalb grosser Sichtbereich und Update jeden Tick.
 					.maxTrackingRange(16)
 					.trackingTickInterval(1));
 
 	public static final EntityType<AutonomousF47Entity> AUTONOMOUS_F47 = register("autonomous_f47",
 			EntityType.Builder.<AutonomousF47Entity>create(AutonomousF47Entity::new, SpawnGroup.MISC)
-					.dimensions(2.6f, 1.4f)
+					.dimensions(4.0f, 1.5f)
 					.maxTrackingRange(16)
 					.trackingTickInterval(1));
 

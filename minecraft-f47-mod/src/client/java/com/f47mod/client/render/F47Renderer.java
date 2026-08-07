@@ -1,5 +1,6 @@
 package com.f47mod.client.render;
 
+import com.f47mod.F47Config;
 import com.f47mod.F47Mod;
 import com.f47mod.entity.vehicle.F47Entity;
 import com.f47mod.util.Team;
@@ -28,7 +29,9 @@ public class F47Renderer extends EntityRenderer<F47Entity> {
 	public F47Renderer(EntityRendererFactory.Context context) {
 		super(context);
 		this.model = new F47Model(context.getPart(F47Model.LAYER));
-		this.shadowRadius = 1.6f;
+		// Der Schatten soll mitwachsen, sonst schwebt eine grosse Maschine
+		// ueber einem winzigen Fleck.
+		this.shadowRadius = 1.5f * F47Config.get().jetModelScale;
 	}
 
 	@Override
@@ -37,13 +40,20 @@ public class F47Renderer extends EntityRenderer<F47Entity> {
 		matrices.push();
 
 		// Minecraft-Modelle zeigen kopfueber nach hinten - erst umdrehen.
-		matrices.translate(0.0, 0.6, 0.0);
+		matrices.translate(0.0, 0.7, 0.0);
 		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-yaw));
 		matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(
 				MathHelper.lerp(tickDelta, entity.prevPitch, entity.getPitch())));
 		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(entity.getRoll()));
 		matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(180.0f));
-		matrices.scale(0.1f, 0.1f, 0.1f);
+
+		// Modellmasse sind bereits Sechzehntel-Bloecke - Minecraft teilt jeden
+		// Quader beim Zeichnen durch 16. Hier nochmal mit 0.1 zu verkleinern
+		// hiesse, den Jet auf ein Zehntel zu schrumpfen; er war dadurch nur
+		// gut drei Zentimeter gross. Der Faktor vergroessert stattdessen die
+		// rund drei Bloecke des Rohmodells auf Kampfflugzeuggroesse.
+		float scale = F47Config.get().jetModelScale;
+		matrices.scale(scale, scale, scale);
 
 		Identifier texture = getTexture(entity);
 		model.setAngles(entity, 0.0f, 0.0f, entity.age + tickDelta, 0.0f, entity.getPitch());

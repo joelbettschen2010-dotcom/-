@@ -1,9 +1,8 @@
 package com.f47mod.world;
 
+import com.f47mod.F47Config;
 import com.f47mod.block.HangarDoorBlock;
 import com.f47mod.block.RunwayMarkingBlock;
-import com.f47mod.block.entity.BarracksBlockEntity;
-import com.f47mod.block.entity.IronDomeBlockEntity;
 import com.f47mod.entity.mob.SoldierEntity;
 import com.f47mod.entity.mob.SoldierRole;
 import com.f47mod.entity.vehicle.AutonomousF47Entity;
@@ -11,26 +10,28 @@ import com.f47mod.entity.vehicle.F47Entity;
 import com.f47mod.registry.ModBlocks;
 import com.f47mod.registry.ModEntities;
 import com.f47mod.util.Team;
-import com.f47mod.util.TeamMember;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Direction;
-import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Baut einen kompletten Luftwaffenstuetzpunkt in einem Rutsch.
+ * Plant einen kompletten Luftwaffenstuetzpunkt.
  *
- * <p>Von Hand eine 60 Bloecke lange Bahn zu legen ist muehsam - deshalb setzt
- * dieser Bausatz alles auf einmal: Start- und Landebahn mit Markierungen und
- * Befeuerung, Hangar mit Rolltor, Wartungsfeld, Radarstation, zwei
- * Iron-Dome-Stellungen und eine Kaserne. Dazu kommen ein einsatzbereiter Jet,
- * ein Drohnenjaeger mit Pilot und etwas Bodenpersonal.
+ * <p>Von Hand eine Bahn samt Hangars zu legen ist muehsam - deshalb entsteht
+ * hier alles auf einmal: fast hundert Bloecke Start- und Landebahn mit
+ * Markierungen und Befeuerung, drei Hangars mit Rolltor und Wartungsfeld,
+ * zwei Radarstationen, vier Iron-Dome-Stellungen und zwei Kasernen. Dazu
+ * kommen acht Maschinen und sechsundzwanzig Mann Bodenpersonal.
+ *
+ * <p>Gesetzt werden die Bloecke nicht sofort, sondern ueber
+ * {@link BaseConstruction} verteilt auf mehrere Ticks - sonst steht das Spiel
+ * beim Bauen sekundenlang still.
  *
  * <p>Die Anlage richtet sich nach der Blickrichtung des Spielers aus und
  * gehoert seiner Partei - so lassen sich mit zwei Bausaetzen zwei
@@ -38,37 +39,74 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class BaseBlueprint {
 	/** Laenge der Bahn in Bloecken. Kuerzer reicht zum Abheben nicht. */
-	private static final int RUNWAY_LENGTH = 60;
-	/** Halbe Breite der Bahn (3 = 7 Bloecke breit). */
-	private static final int RUNWAY_HALF_WIDTH = 3;
+	private static final int RUNWAY_LENGTH = 96;
+	/** Halbe Breite der Bahn (5 = 11 Bloecke breit). */
+	private static final int RUNWAY_HALF_WIDTH = 5;
 	/** Wie weit neben der Bahn die Gebaeude stehen. */
-	private static final int APRON_OFFSET = 7;
+	private static final int APRON_OFFSET = 9;
+	/** Wie weit das Vorfeld seitlich reicht. */
+	private static final int APRON_WIDTH = 26;
 	/** Hoehe, die ueber der Anlage freigeraeumt wird. */
-	private static final int CLEAR_HEIGHT = 9;
+	private static final int CLEAR_HEIGHT = 12;
+	/** Lichte Hoehe im Hangar - die Maschine ist gut fuenf Bloecke breit. */
+	private static final int HANGAR_HEIGHT = 6;
 
 	private BaseBlueprint() {
 	}
 
 	/**
-	 * Errichtet die Anlage.
+	 * Plant die Anlage und stellt sie zum Bau ein.
 	 *
 	 * @param origin Punkt, auf den geklickt wurde - dort beginnt die Bahn
 	 * @param facing Richtung, in die die Bahn zeigt
-	 * @return Anzahl gesetzter Bloecke, nur fuer die Rueckmeldung
+	 * @return Anzahl vorgemerkter Bloecke, nur fuer die Rueckmeldung
 	 */
 	public static int build(ServerWorld world, BlockPos origin, Direction facing,
 			@Nullable PlayerEntity owner, Team team) {
-		// Rechtwinklig zur Bahn - dort stehen Hangar und Anlagen.
+		// Rechtwinklig zur Bahn - dort stehen Hangars und Anlagen.
 		Direction side = facing.rotateYClockwise();
 		int ground = origin.getY();
-		Counter placed = new Counter();
+		BaseConstruction.Plan plan = new BaseConstruction.Plan(world);
 
-		clearArea(world, origin, facing, side, ground, placed);
-		buildRunway(world, origin, facing, side, ground, placed);
-		buildApron(world, origin, facing, side, ground, team, owner, placed);
-		spawnUnits(world, origin, facing, side, ground, team, owner);
+		clearArea(plan, origin, facing, side, ground);
+		buildRunway(plan, origin, facing, side, ground);
+		buildApron(plan, origin, facing, side, ground, team, owner);
 
-		return placed.value;
+		// Einheiten erst aufstellen, wenn die Bahn wirklich liegt - sonst
+		// fielen sie in das noch offene Gelaende.
+		plan.afterwards(() -> spawnUnits(world, origin, facing, side, ground, team, owner));
+
+		keepLoaded(plan, origin.offset(facing, RUNWAY_LENGTH / 2));
+		BaseConstruction.enqueue(plan);
+		return plan.blockCount();
+	}
+
+	/**
+	 * Haelt die Chunks rund um den Stuetzpunkt dauerhaft geladen.
+	 *
+	 * <p>Minecraft rechnet ohne das nur in der Umgebung des Spielers weiter.
+	 * Der Stuetzpunkt stuende also still, sobald man ein Stueck wegfliegt:
+	 * keine startenden Jets, keine kaempfenden Soldaten, kein Iron Dome - und
+	 * genau das sieht dann nach einem toten Mod aus. Das erzwungene Laden
+	 * benutzt dasselbe Ticket wie der Vanilla-Befehl {@code /forceload} und
+	 * schliesst das Ticken der Einheiten mit ein.
+	 *
+	 * <p>Die Chunks werden nur vorgemerkt, nicht sofort angefordert: Ein
+	 * Ticket auf noch nie besuchtes Gelaende laesst die Welt an dieser Stelle
+	 * erst entstehen, und einundachtzig davon auf einmal legen den Server
+	 * viereinhalb Sekunden lahm.
+	 */
+	private static void keepLoaded(BaseConstruction.Plan plan, BlockPos centre) {
+		int radius = F47Config.get().baseForceLoadRadiusChunks;
+		if (radius <= 0) {
+			return;
+		}
+		ChunkPos middle = new ChunkPos(centre);
+		for (int x = -radius; x <= radius; x++) {
+			for (int z = -radius; z <= radius; z++) {
+				plan.keepLoaded(new ChunkPos(middle.x + x, middle.z + z));
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------
@@ -80,24 +118,25 @@ public final class BaseBlueprint {
 	 * Ohne das laege die Bahn auf huegeligem Gelaende in der Luft oder waere
 	 * von Baeumen verstellt.
 	 */
-	private static void clearArea(ServerWorld world, BlockPos origin, Direction facing,
-			Direction side, int ground, Counter placed) {
-		for (int forward = -2; forward < RUNWAY_LENGTH + 2; forward++) {
-			for (int across = -RUNWAY_HALF_WIDTH - 2; across <= APRON_OFFSET + 14; across++) {
+	private static void clearArea(BaseConstruction.Plan plan, BlockPos origin, Direction facing,
+			Direction side, int ground) {
+		ServerWorld world = plan.world();
+		for (int forward = -3; forward < RUNWAY_LENGTH + 3; forward++) {
+			for (int across = -RUNWAY_HALF_WIDTH - 6; across <= APRON_OFFSET + APRON_WIDTH; across++) {
 				BlockPos column = origin.offset(facing, forward).offset(side, across);
 
 				// Ueber dem Boden freiraeumen.
 				for (int y = 1; y <= CLEAR_HEIGHT; y++) {
-					BlockPos above = column.up(y).withY(ground + y);
+					BlockPos above = column.withY(ground + y);
 					if (!world.getBlockState(above).isAir()) {
-						set(world, above, Blocks.AIR.getDefaultState(), placed);
+						plan.set(above, Blocks.AIR.getDefaultState());
 					}
 				}
 				// Unterbau: drei Schichten, damit nichts in der Luft haengt.
 				for (int y = 0; y >= -2; y--) {
 					BlockPos below = column.withY(ground + y);
 					if (world.getBlockState(below).isAir() || !world.getFluidState(below).isEmpty()) {
-						set(world, below, ModBlocks.RUNWAY.getDefaultState(), placed);
+						plan.set(below, ModBlocks.RUNWAY.getDefaultState());
 					}
 				}
 			}
@@ -108,8 +147,8 @@ public final class BaseBlueprint {
 	// Start- und Landebahn
 	// ------------------------------------------------------------------
 
-	private static void buildRunway(ServerWorld world, BlockPos origin, Direction facing,
-			Direction side, int ground, Counter placed) {
+	private static void buildRunway(BaseConstruction.Plan plan, BlockPos origin, Direction facing,
+			Direction side, int ground) {
 		BlockState runway = ModBlocks.RUNWAY.getDefaultState();
 		BlockState centerline = ModBlocks.RUNWAY_CENTERLINE.getDefaultState()
 				.with(RunwayMarkingBlock.FACING, facing);
@@ -118,7 +157,7 @@ public final class BaseBlueprint {
 
 		for (int forward = 0; forward < RUNWAY_LENGTH; forward++) {
 			// Schwellenmarkierung an beiden Enden.
-			boolean isThreshold = forward < 3 || forward >= RUNWAY_LENGTH - 3;
+			boolean isThreshold = forward < 4 || forward >= RUNWAY_LENGTH - 4;
 
 			for (int across = -RUNWAY_HALF_WIDTH; across <= RUNWAY_HALF_WIDTH; across++) {
 				BlockPos pos = origin.offset(facing, forward).offset(side, across).withY(ground);
@@ -131,7 +170,7 @@ public final class BaseBlueprint {
 				} else {
 					state = runway;
 				}
-				set(world, pos, state, placed);
+				plan.set(pos, state);
 			}
 
 			// Bahnbefeuerung alle 8 Bloecke an beiden Raendern.
@@ -139,95 +178,113 @@ public final class BaseBlueprint {
 				for (int sign = -1; sign <= 1; sign += 2) {
 					BlockPos light = origin.offset(facing, forward)
 							.offset(side, sign * (RUNWAY_HALF_WIDTH + 1)).withY(ground);
-					set(world, light, ModBlocks.RUNWAY_LIGHT.getDefaultState(), placed);
+					plan.set(light, ModBlocks.RUNWAY_LIGHT.getDefaultState());
 				}
 			}
 		}
 	}
 
 	// ------------------------------------------------------------------
-	// Hangar und Anlagen
+	// Hangars und Anlagen
 	// ------------------------------------------------------------------
 
-	private static void buildApron(ServerWorld world, BlockPos origin, Direction facing,
-			Direction side, int ground, Team team, @Nullable PlayerEntity owner, Counter placed) {
-		BlockState wall = ModBlocks.HANGAR_WALL.getDefaultState();
-
-		// --- Vorfeld vor dem Hangar ---
-		for (int forward = 6; forward <= 20; forward++) {
-			for (int across = RUNWAY_HALF_WIDTH + 1; across <= APRON_OFFSET + 12; across++) {
-				set(world, origin.offset(facing, forward).offset(side, across).withY(ground),
-						ModBlocks.RUNWAY.getDefaultState(), placed);
+	private static void buildApron(BaseConstruction.Plan plan, BlockPos origin, Direction facing,
+			Direction side, int ground, Team team, @Nullable PlayerEntity owner) {
+		// --- Vorfeld: die ganze Flaeche zwischen Bahn und Gebaeuden ---
+		for (int forward = 4; forward <= 76; forward++) {
+			for (int across = RUNWAY_HALF_WIDTH + 1; across <= APRON_OFFSET + APRON_WIDTH - 2; across++) {
+				plan.set(origin.offset(facing, forward).offset(side, across).withY(ground),
+						ModBlocks.RUNWAY.getDefaultState());
 			}
 		}
 
-		// --- Hangar: 9 breit, 8 tief, 5 hoch, Tor zur Bahn hin ---
-		int hangarFront = 8;
-		int hangarBack = hangarFront + 8;
-		int hangarLeft = APRON_OFFSET;
-		int hangarRight = hangarLeft + 8;
+		// --- Drei Hangars nebeneinander am Vorfeld ---
+		for (int index = 0; index < 3; index++) {
+			buildHangar(plan, origin, facing, side, ground, 10 + index * 22);
+		}
 
-		for (int forward = hangarFront; forward <= hangarBack; forward++) {
-			for (int across = hangarLeft; across <= hangarRight; across++) {
-				boolean edge = forward == hangarFront || forward == hangarBack
-						|| across == hangarLeft || across == hangarRight;
-				for (int y = 1; y <= 5; y++) {
+		// --- Zwei Radarstationen an den Enden, fuer Rundumsicht ---
+		BlockPos[] radars = {
+				origin.offset(facing, 18).offset(side, APRON_OFFSET + APRON_WIDTH - 4).withY(ground + 1),
+				origin.offset(facing, 74).offset(side, -RUNWAY_HALF_WIDTH - 4).withY(ground + 1),
+		};
+		for (BlockPos radar : radars) {
+			plan.set(radar.down(), ModBlocks.HANGAR_WALL.getDefaultState());
+			plan.set(radar, ModBlocks.RADAR.getDefaultState());
+			plan.assignTeam(radar, team);
+		}
+
+		// --- Vier Iron-Dome-Stellungen, ueber die Anlage verteilt ---
+		BlockPos[] domes = {
+				origin.offset(facing, 12).offset(side, -RUNWAY_HALF_WIDTH - 4).withY(ground + 1),
+				origin.offset(facing, 46).offset(side, -RUNWAY_HALF_WIDTH - 4).withY(ground + 1),
+				origin.offset(facing, 30).offset(side, APRON_OFFSET + APRON_WIDTH - 4).withY(ground + 1),
+				origin.offset(facing, 64).offset(side, APRON_OFFSET + APRON_WIDTH - 4).withY(ground + 1),
+		};
+		for (BlockPos dome : domes) {
+			// Einen Block hoch aufgestellt, damit die Bahn die Sicht nicht nimmt.
+			plan.set(dome.down(), ModBlocks.HANGAR_WALL.getDefaultState());
+			plan.set(dome, ModBlocks.IRON_DOME.getDefaultState());
+			plan.assignTeam(dome, team);
+			// Gleich einsatzbereit ausliefern - sonst steht die Abwehr leer da.
+			plan.loadDome(dome);
+		}
+
+		// --- Zwei Kasernen, damit der Nachschub nicht abreisst ---
+		BlockPos[] barracks = {
+				origin.offset(facing, 40).offset(side, APRON_OFFSET + APRON_WIDTH - 3).withY(ground + 1),
+				origin.offset(facing, 44).offset(side, APRON_OFFSET + APRON_WIDTH - 3).withY(ground + 1),
+		};
+		for (BlockPos pos : barracks) {
+			plan.set(pos, ModBlocks.BARRACKS.getDefaultState());
+			plan.assignTeam(pos, team);
+			plan.stockBarracks(pos, 64, owner);
+		}
+	}
+
+	/**
+	 * Setzt einen Hangar ans Vorfeld: 11 Bloecke breit, 10 tief, mit Rolltor
+	 * zur Bahn hin und einem Wartungsfeld darin, das abgestellte Maschinen
+	 * betankt und bewaffnet.
+	 *
+	 * @param front Abstand vom Bahnanfang, an dem die Vorderwand steht
+	 */
+	private static void buildHangar(BaseConstruction.Plan plan, BlockPos origin, Direction facing,
+			Direction side, int ground, int front) {
+		BlockState wall = ModBlocks.HANGAR_WALL.getDefaultState();
+		int back = front + 10;
+		int left = APRON_OFFSET + 6;
+		int right = left + 10;
+
+		for (int forward = front; forward <= back; forward++) {
+			for (int across = left; across <= right; across++) {
+				boolean edge = forward == front || forward == back
+						|| across == left || across == right;
+				for (int y = 1; y <= HANGAR_HEIGHT; y++) {
 					BlockPos pos = origin.offset(facing, forward).offset(side, across).withY(ground + y);
-					if (y == 5) {
-						// Dach
-						set(world, pos, wall, placed);
+					if (y == HANGAR_HEIGHT) {
+						plan.set(pos, wall);
 					} else if (edge) {
-						// Torlaibung in der Vorderwand offen lassen.
-						boolean doorway = forward == hangarFront
-								&& across > hangarLeft + 1 && across < hangarRight - 1;
+						// Torlaibung in der Vorderwand offen lassen - 9 breit,
+						// 5 hoch, damit die Spannweite durchpasst.
+						boolean doorway = forward == front
+								&& across > left && across < right;
 						if (doorway) {
-							set(world, pos, ModBlocks.HANGAR_DOOR.getDefaultState()
-									.with(HangarDoorBlock.OPEN, true), placed);
+							plan.set(pos, ModBlocks.HANGAR_DOOR.getDefaultState()
+									.with(HangarDoorBlock.OPEN, true));
 						} else {
-							set(world, pos, wall, placed);
+							plan.set(pos, wall);
 						}
 					}
 				}
 			}
 		}
 
-		// --- Wartungsfeld im Hangar ---
-		for (int forward = hangarFront + 2; forward <= hangarFront + 4; forward++) {
-			for (int across = hangarLeft + 3; across <= hangarLeft + 5; across++) {
-				set(world, origin.offset(facing, forward).offset(side, across).withY(ground),
-						ModBlocks.REARM_PAD.getDefaultState(), placed);
-			}
-		}
-
-		// --- Radarstation, etwas abseits mit freiem Blick ---
-		BlockPos radar = origin.offset(facing, 26).offset(side, APRON_OFFSET + 4).withY(ground + 1);
-		set(world, radar.down(), ModBlocks.HANGAR_WALL.getDefaultState(), placed);
-		set(world, radar, ModBlocks.RADAR.getDefaultState(), placed);
-		assignTeam(world, radar, team);
-
-		// --- Zwei Iron-Dome-Stellungen, links und rechts der Bahn ---
-		BlockPos[] domes = {
-				origin.offset(facing, 14).offset(side, -RUNWAY_HALF_WIDTH - 4).withY(ground + 1),
-				origin.offset(facing, 34).offset(side, APRON_OFFSET + 9).withY(ground + 1),
-		};
-		for (BlockPos dome : domes) {
-			set(world, dome.down(), ModBlocks.HANGAR_WALL.getDefaultState(), placed);
-			set(world, dome, ModBlocks.IRON_DOME.getDefaultState(), placed);
-			assignTeam(world, dome, team);
-			// Gleich einsatzbereit ausliefern - sonst steht die Abwehr leer da.
-			if (world.getBlockEntity(dome) instanceof IronDomeBlockEntity launcher) {
-				launcher.load(IronDomeBlockEntity.MAX_AMMO);
-			}
-		}
-
-		// --- Kaserne ---
-		BlockPos barracks = origin.offset(facing, 20).offset(side, APRON_OFFSET + 10).withY(ground + 1);
-		set(world, barracks, ModBlocks.BARRACKS.getDefaultState(), placed);
-		assignTeam(world, barracks, team);
-		if (world.getBlockEntity(barracks) instanceof BarracksBlockEntity kaserne) {
-			kaserne.addSupplies(32);
-			if (owner != null) {
-				kaserne.setOwner(owner);
+		// Wartungsfeld mittig im Hangar.
+		for (int forward = front + 3; forward <= front + 7; forward++) {
+			for (int across = left + 3; across <= right - 3; across++) {
+				plan.set(origin.offset(facing, forward).offset(side, across).withY(ground),
+						ModBlocks.REARM_PAD.getDefaultState());
 			}
 		}
 	}
@@ -239,34 +296,65 @@ public final class BaseBlueprint {
 	private static void spawnUnits(ServerWorld world, BlockPos origin, Direction facing,
 			Direction side, int ground, Team team, @Nullable PlayerEntity owner) {
 		float yaw = facing.getOpposite().asRotation();
-		BlockPos base = origin.offset(facing, 20).offset(side, APRON_OFFSET + 4).withY(ground);
+		BlockPos home = origin.offset(facing, RUNWAY_LENGTH / 2).withY(ground);
 
-		// Ein bemannbarer Jet am Anfang der Bahn.
-		F47Entity jet = ModEntities.F47.create(world);
-		if (jet != null) {
-			BlockPos spot = origin.offset(facing, 4).withY(ground + 1);
+		// Zwei bemannbare Maschinen, aufgereiht am Anfang der Bahn.
+		for (int i = 0; i < 2; i++) {
+			F47Entity jet = ModEntities.F47.create(world);
+			if (jet == null) {
+				continue;
+			}
+			BlockPos spot = origin.offset(facing, 5)
+					.offset(side, i == 0 ? -3 : 3).withY(ground + 1);
 			jet.refreshPositionAndAngles(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, yaw, 0.0f);
 			jet.setTeam(team);
 			world.spawnEntity(jet);
 		}
 
-		// Ein Drohnenjaeger samt Pilot, der ihn selbst besteigt.
-		AutonomousF47Entity drone = ModEntities.AUTONOMOUS_F47.create(world);
-		if (drone != null) {
-			BlockPos spot = origin.offset(facing, 10).offset(side, RUNWAY_HALF_WIDTH + 3).withY(ground + 1);
+		// Sechs Drohnenjaeger auf dem Vorfeld - mit genug Abstand, dass sich
+		// die breiten Trefferboxen nicht ineinander schieben.
+		for (int i = 0; i < 6; i++) {
+			AutonomousF47Entity drone = ModEntities.AUTONOMOUS_F47.create(world);
+			if (drone == null) {
+				continue;
+			}
+			BlockPos spot = origin.offset(facing, 14 + (i % 3) * 22)
+					.offset(side, RUNWAY_HALF_WIDTH + 3 + (i / 3) * 6).withY(ground + 1);
 			drone.refreshPositionAndAngles(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, yaw, 0.0f);
 			drone.setTeam(team);
-			drone.setHomeBase(origin.withY(ground));
+			drone.setHomeBase(home);
 			drone.randomiseCallsign();
 			drone.setOwner(owner);
 			world.spawnEntity(drone);
 		}
 
-		// Bodenpersonal: ein Pilot, ein Techniker, zwei Schuetzen.
-		spawnSoldier(world, base.offset(side, -2), yaw, SoldierRole.PILOT, team, owner);
-		spawnSoldier(world, base.offset(side, -1), yaw, SoldierRole.ENGINEER, team, owner);
-		spawnSoldier(world, base.offset(facing, 2), yaw, SoldierRole.RIFLEMAN, team, owner);
-		spawnSoldier(world, base.offset(facing, 3), yaw, SoldierRole.RIFLEMAN, team, owner);
+		// Bodenpersonal. Sechs Piloten, damit auch die Reservemaschinen
+		// besetzt werden koennen - ein Pilot wird beim Einsteigen verbraucht.
+		BlockPos quarters = origin.offset(facing, 42).offset(side, APRON_OFFSET + APRON_WIDTH - 8).withY(ground);
+		SoldierRole[] roster = {
+				SoldierRole.PILOT, SoldierRole.PILOT, SoldierRole.PILOT,
+				SoldierRole.PILOT, SoldierRole.PILOT, SoldierRole.PILOT,
+				SoldierRole.ENGINEER, SoldierRole.ENGINEER, SoldierRole.ENGINEER,
+				SoldierRole.MEDIC, SoldierRole.MEDIC,
+				SoldierRole.HEAVY, SoldierRole.HEAVY, SoldierRole.HEAVY,
+				SoldierRole.RIFLEMAN, SoldierRole.RIFLEMAN, SoldierRole.RIFLEMAN,
+				SoldierRole.RIFLEMAN, SoldierRole.RIFLEMAN, SoldierRole.RIFLEMAN,
+		};
+		for (int i = 0; i < roster.length; i++) {
+			BlockPos spot = quarters.offset(facing, (i % 5) * 2).offset(side, (i / 5) * 2);
+			spawnSoldier(world, spot, yaw, roster[i], team, owner);
+		}
+
+		// Wachposten rund um die Anlage, damit die Basis nicht offen liegt.
+		int[][] posts = {
+				{6, -RUNWAY_HALF_WIDTH - 3}, {30, -RUNWAY_HALF_WIDTH - 3},
+				{58, -RUNWAY_HALF_WIDTH - 3}, {88, -RUNWAY_HALF_WIDTH - 3},
+				{6, APRON_OFFSET + APRON_WIDTH - 5}, {88, APRON_OFFSET + APRON_WIDTH - 5},
+		};
+		for (int[] post : posts) {
+			spawnSoldier(world, origin.offset(facing, post[0]).offset(side, post[1]).withY(ground),
+					yaw, SoldierRole.RIFLEMAN, team, owner);
+		}
 	}
 
 	private static void spawnSoldier(ServerWorld world, BlockPos pos, float yaw, SoldierRole role,
@@ -284,29 +372,5 @@ public final class BaseBlueprint {
 		soldier.setStance(SoldierEntity.Stance.PATROL);
 		soldier.setGuardPost(pos);
 		world.spawnEntity(soldier);
-	}
-
-	// ------------------------------------------------------------------
-	// Hilfsmittel
-	// ------------------------------------------------------------------
-
-	private static void set(World world, BlockPos pos, BlockState state, Counter placed) {
-		// NOTIFY_LISTENERS statt NOTIFY_ALL: Bei tausenden Bloecken am Stueck
-		// sind Nachbar-Aktualisierungen unnoetig teuer.
-		if (world.setBlockState(pos, state, net.minecraft.block.Block.NOTIFY_LISTENERS)) {
-			placed.value++;
-		}
-	}
-
-	private static void assignTeam(World world, BlockPos pos, Team team) {
-		BlockEntity blockEntity = world.getBlockEntity(pos);
-		if (blockEntity instanceof TeamMember member) {
-			member.setTeam(team);
-		}
-	}
-
-	/** Zaehler in einem Objekt, damit ihn die Hilfsmethoden hochzaehlen koennen. */
-	private static final class Counter {
-		private int value;
 	}
 }
