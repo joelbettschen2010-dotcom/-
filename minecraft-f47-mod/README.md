@@ -89,6 +89,10 @@ Gelände steht, das du noch nie besucht hast — Minecraft muss die Landschaft d
 erst erzeugen. Die Blöcke selbst werden über mehrere Ticks verteilt gesetzt, du
 siehst den Stützpunkt also entstehen, statt dass das Spiel einfriert.
 
+> **Es passiert nichts?** `/f47 status` eintippen. Der Lagebericht sagt, wie
+> viele Maschinen und Mann jede Partei hat und wie weit die Basen auseinander
+> liegen. Die mit Abstand häufigste Ursache: Es steht nur **eine** Partei da.
+
 > **Kein Bausatz zur Hand?** Der Befehl `/f47 base` baut dasselbe an deiner
 > Position. Mit `/f47 base <x> <y> <z>` auch woanders, und mit
 > `/f47 base <x> <y> <z> rot` gleich für die Gegenpartei.
@@ -519,7 +523,8 @@ python3 tools/gen_lang.py     # Sprachdateien (Deutsch + Englisch)
 | Meine Einheiten kämpfen nicht gegeneinander | Beide gehören derselben Partei — mit dem Truppenabzeichen umstellen |
 | Einheit wechselt die Seite nicht | Truppenabzeichen direkt auf die Einheit rechtsklicken, nicht daneben |
 | Startbahn zu bauen ist mühsam | `Basis-Bausatz` benutzen oder `/f47 base` eingeben |
-| **Nichts greift sich an** | Es steht nur eine Partei da. `/f47 war` eingeben, oder mit dem Bausatz **im Schleichen** eine zweite Basis setzen |
+| **Nichts greift sich an** | `/f47 status` eingeben — sagt dir, ob eine zweite Partei da ist und ob der Abstand passt |
+| **Sie kreisen nur über der Basis** | Kein Gegner in 320 Blöcken Umkreis. Näher zusammen bauen oder `/f47 war` benutzen |
 | **Es passiert nur, wenn ich daneben stehe** | `baseForceLoadRadiusChunks` in `config/f47.json` steht auf `0` — auf `4` setzen |
 | **Die Jets sind winzig** | Alte Mod-Datei. Die neue ersetzen; sonst `jetModelScale` in `config/f47.json` prüfen |
 | Die Staffel bleibt am Boden stehen | Kein Pilot an Bord (Kaserne baut Nachschub) oder Tank unter einem Viertel — ein Techniker muss auftanken |

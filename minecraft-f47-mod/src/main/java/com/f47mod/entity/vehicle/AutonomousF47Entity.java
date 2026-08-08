@@ -88,6 +88,11 @@ public class AutonomousF47Entity extends F47Entity {
 	private int strandedTicks;
 	/** Richtung der Startbahn in Grad - der Startlauf folgt ihr. */
 	private float homeHeading;
+	/** Zuletzt bekannte Stelle, an der Gegner stehen. Ziel des Vorstosses. */
+	@Nullable
+	private Vec3d knownEnemy;
+	/** Uhr fuer die weitraeumige Gegnersuche. */
+	private int sweepTimer;
 
 	public AutonomousF47Entity(EntityType<? extends AutonomousF47Entity> type, World world) {
 		super(type, world);
@@ -243,6 +248,7 @@ public class AutonomousF47Entity extends F47Entity {
 			targetSearchTimer = 0;
 			currentTarget = findTarget();
 		}
+		lookForEnemyBase();
 		scrambleIfIdle();
 		checkForWreck();
 		flyMission();
@@ -447,10 +453,10 @@ public class AutonomousF47Entity extends F47Entity {
 				}
 			}
 			default -> {
-				goal = patrolPoint();
+				goal = patrolOrSweep();
 				// Auf der Warteschleife wird Fahrt gehalten, nicht Vollgas
 				// gegeben - sonst wird der Kreis zu weit fuer die Physik.
-				throttle = throttleForSpeed(PATROL_SPEED);
+				throttle = throttleForSpeed(knownEnemy != null ? ATTACK_SPEED : PATROL_SPEED);
 				if (currentTarget != null && currentTarget.isAlive()) {
 					setOrder(Order.ATTACK);
 					announce("message.f47.engaging");
@@ -506,6 +512,48 @@ public class AutonomousF47Entity extends F47Entity {
 	}
 
 	/**
+	 * Sucht weitraeumig, wo der Gegner ueberhaupt sitzt.
+	 *
+	 * <p>Das Bordradar reicht hundertvierzig Bloecke - ein feindlicher
+	 * Stuetzpunkt liegt weiter weg. Ohne diese Suche kreist die Staffel bis in
+	 * alle Ewigkeit ueber der eigenen Bahn und findet nie jemanden, obwohl der
+	 * Gegner nur zwei Kreisdurchmesser entfernt steht. Gesucht wird selten,
+	 * weil es ueber ein grosses Gebiet geht.
+	 */
+	private void lookForEnemyBase() {
+		if (--sweepTimer > 0) {
+			return;
+		}
+		sweepTimer = 100;
+		double reach = SWEEP_RANGE;
+		Box box = getBoundingBox().expand(reach);
+		Entity nearest = null;
+		double best = Double.MAX_VALUE;
+		for (Entity candidate : getWorld().getOtherEntities(this, box, e -> Iff.isEnemy(this, e))) {
+			double distance = candidate.squaredDistanceTo(this);
+			if (distance < best) {
+				best = distance;
+				nearest = candidate;
+			}
+		}
+		knownEnemy = nearest == null ? null : nearest.getPos();
+	}
+
+	/**
+	 * Zielpunkt der Patrouille: entweder Warteschleife oder Vorstoss.
+	 *
+	 * <p>Solange kein Gegner bekannt ist, wird gekreist. Sobald einer bekannt
+	 * ist, fliegt die Staffel hin - genau das hat vorher gefehlt, und deshalb
+	 * sah es aus, als wuerde sie nur ueber der eigenen Basis Runden drehen.
+	 */
+	private Vec3d patrolOrSweep() {
+		if (knownEnemy == null) {
+			return patrolPoint();
+		}
+		return new Vec3d(knownEnemy.x, patrolAltitude, knownEnemy.z);
+	}
+
+	/**
 	 * Punkt auf der Warteschleife.
 	 *
 	 * <p>Der Kreis wandert mit der Geschwindigkeit weiter, aber sein Radius
@@ -548,7 +596,10 @@ public class AutonomousF47Entity extends F47Entity {
 		double loaded = (F47Config.get().baseForceLoadRadiusChunks * 2 + 1) * 8.0 - 24.0;
 		// Mit Ziel darf sie weiter - das Ziel selbst tickt ja, liegt also
 		// seinerseits in geladenem Gelaende.
-		double limit = currentTarget != null && currentTarget.isAlive() ? loaded * 2.4 : loaded;
+		// Mit Ziel oder bekanntem Gegner darf sie weiter - beide ticken ja, ihr
+		// Gelaende ist also gerechnet.
+		boolean pursuing = (currentTarget != null && currentTarget.isAlive()) || knownEnemy != null;
+		double limit = pursuing ? loaded * 2.6 : loaded;
 		if (squaredHorizontalDistance(homeBase) < limit * limit) {
 			return null;
 		}
@@ -621,6 +672,11 @@ public class AutonomousF47Entity extends F47Entity {
 	 * Hochziehen selbst kostet nochmal knapp zwanzig.
 	 */
 	private static final double ROTATE_SPEED = 36.0;
+	/**
+	 * Umkreis der weitraeumigen Gegnersuche in Bloecken. Deckt einen
+	 * Nachbarstuetzpunkt ab, ohne die halbe Welt abzusuchen.
+	 */
+	private static final double SWEEP_RANGE = 320.0;
 	/** Mindestabstand ueber Gelaende, das voraus liegt, in Bloecken. */
 	private static final double TERRAIN_CLEARANCE = 22.0;
 

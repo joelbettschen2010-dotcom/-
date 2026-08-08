@@ -1,6 +1,8 @@
 package com.f47mod.world;
 
 import com.f47mod.F47Config;
+import com.f47mod.entity.mob.SoldierEntity;
+import com.f47mod.entity.vehicle.AutonomousF47Entity;
 import com.f47mod.util.Team;
 import com.f47mod.util.TeamState;
 import com.mojang.brigadier.context.CommandContext;
@@ -14,7 +16,13 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.TypeFilter;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.EnumMap;
+import java.util.Map;
 
 /**
  * Befehle des Mods.
@@ -26,6 +34,9 @@ import org.jetbrains.annotations.Nullable;
  *   <li>{@code /f47 base <pos> <partei>} baut ihn fuer eine bestimmte Seite.</li>
  *   <li>{@code /f47 war} stellt beide Parteien auf einmal auf, weit genug
  *       auseinander zum Starten und nah genug, dass sie sich finden.</li>
+ *   <li>{@code /f47 status} sagt, wer wo steht und ob sich die Parteien
+ *       ueberhaupt finden koennen - die haeufigste Ursache dafuer, dass nichts
+ *       passiert, ist naemlich, dass nur eine Seite dasteht.</li>
  *   <li>{@code /f47 unload} gibt die dauerhaft geladenen Chunks wieder frei.</li>
  * </ul>
  */
@@ -52,7 +63,9 @@ public final class ModCommands {
 						.then(CommandManager.literal("war")
 								.executes(ModCommands::startWar))
 						.then(CommandManager.literal("unload")
-								.executes(ModCommands::releaseChunks))));
+								.executes(ModCommands::releaseChunks))
+						.then(CommandManager.literal("status")
+								.executes(ModCommands::status))));
 	}
 
 	private static int buildHere(CommandContext<ServerCommandSource> context, @Nullable BlockPos given,
@@ -106,6 +119,59 @@ public final class ModCommands {
 
 		source.sendFeedback(() -> Text.translatable("message.f47.war_started", placed, gap), true);
 		return placed;
+	}
+
+	/**
+	 * Lagebericht: Wer steht wo, und koennen sich die Parteien ueberhaupt
+	 * finden?
+	 *
+	 * <p>Die haeufigste Ursache dafuer, dass nichts passiert, ist banal - es
+	 * steht nur eine Partei da, oder die beiden Basen liegen zu weit
+	 * auseinander. Beides sieht man im Spiel nicht, ohne hinzufliegen.
+	 */
+	private static int status(CommandContext<ServerCommandSource> context) {
+		ServerCommandSource source = context.getSource();
+		ServerWorld world = source.getWorld();
+
+		Map<Team, Integer> jets = new EnumMap<>(Team.class);
+		Map<Team, Integer> troops = new EnumMap<>(Team.class);
+		Map<Team, Vec3d> centre = new EnumMap<>(Team.class);
+
+		for (AutonomousF47Entity jet : world.getEntitiesByType(
+				TypeFilter.instanceOf(AutonomousF47Entity.class), e -> true)) {
+			jets.merge(jet.getTeam(), 1, Integer::sum);
+			BlockPos home = jet.getHomeBase();
+			if (home != null) {
+				centre.putIfAbsent(jet.getTeam(), Vec3d.ofCenter(home));
+			}
+		}
+		for (SoldierEntity soldier : world.getEntitiesByType(
+				TypeFilter.instanceOf(SoldierEntity.class), e -> true)) {
+			troops.merge(soldier.getTeam(), 1, Integer::sum);
+		}
+
+		for (Team team : Team.values()) {
+			Text name = Text.translatable(team.translationKey()).formatted(team.formatting());
+			source.sendFeedback(() -> Text.translatable("message.f47.status_side", name,
+					jets.getOrDefault(team, 0), troops.getOrDefault(team, 0)), false);
+		}
+
+		Vec3d blue = centre.get(Team.BLUE);
+		Vec3d red = centre.get(Team.RED);
+		if (blue == null || red == null) {
+			// Genau der Fall, in dem nichts passiert und niemand weiss warum.
+			source.sendFeedback(() -> Text.translatable("message.f47.status_one_side")
+					.formatted(Formatting.YELLOW), false);
+			return 0;
+		}
+
+		int distance = (int) blue.distanceTo(red);
+		source.sendFeedback(() -> Text.translatable("message.f47.status_distance", distance,
+				Text.translatable(distance <= 320
+						? "message.f47.status_ok"
+						: "message.f47.status_too_far").formatted(distance <= 320
+						? Formatting.GREEN : Formatting.RED)), false);
+		return distance;
 	}
 
 	/**

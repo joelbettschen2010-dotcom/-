@@ -75,6 +75,15 @@ ENTRIES = {
                                 "Die Parteien finden sich von allein.",
                                 "Two bases established - %s blocks, %s blocks apart. "
                                 "The sides will find each other on their own."),
+    "message.f47.status_side": ("%s: %s Maschinen, %s Mann", "%s: %s aircraft, %s troops"),
+    "message.f47.status_one_side": ("Es steht nur eine Partei da - deshalb greift niemand an. "
+                                    "Mit dem Bausatz im Schleichen eine Gegenbasis setzen, oder /f47 war benutzen.",
+                                    "Only one side is present - that is why nobody attacks. "
+                                    "Sneak-click the kit for an enemy base, or use /f47 war."),
+    "message.f47.status_distance": ("Abstand der Basen: %s Bloecke - %s", "Distance between bases: %s blocks - %s"),
+    "message.f47.status_ok": ("die Staffeln finden sich", "the squadrons will find each other"),
+    "message.f47.status_too_far": ("zu weit auseinander, sie finden sich nie",
+                                    "too far apart, they will never meet"),
     "message.f47.chunks_released": ("%s dauerhaft geladene Chunks freigegeben - "
                                     "die Basen laufen jetzt nur noch in deiner Naehe weiter.",
                                     "Released %s force-loaded chunks - "
