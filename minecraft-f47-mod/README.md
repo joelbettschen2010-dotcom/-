@@ -68,22 +68,31 @@ Im Kreativmodus, damit du sofort losfliegen kannst:
 
 ### Was der Basis-Bausatz hinstellt
 
-Rund 32 000 Blöcke, ausgerichtet nach deiner Blickrichtung:
+Rund 130 000 Blöcke auf mäßig hügeligem Gelände (in den Bergen deutlich mehr), ausgerichtet nach deiner Blickrichtung:
 
 | Teil | Beschreibung |
 |---|---|
-| **Startbahn** | 160 Blöcke lang, 11 breit, mit Mittellinie, Schwellen und Befeuerung |
-| **3 × Hangar** | je 11 × 10 × 6 mit Rolltor — breit genug für die Spannweite |
+| **3 × Hangar je Bahn** | je 11 × 10 × 6 mit Rolltor — breit genug für die Spannweite |
 | **Wartungsfelder** | in jedem Hangar — betanken, reparieren und bewaffnen abgestellte Jets |
 | **2 × Radarstation** | an beiden Enden, für Rundumsicht |
 | **4 × Iron Dome** | bereits voll mit Abfangraketen geladen |
 | **2 × Kaserne** | mit je 64 Eisenbarren Nachschub, bilden sofort Soldaten aus |
-| **10 Maschinen** | 2 F-47 für dich, 6 Drohnenjäger, 1 B-21, 1 Transporter |
-| **2 Schützenpanzer** | fahren die Infanterie zum Gegner |
-| **26 Mann** | 6 Piloten, 3 Techniker, 2 Sanitäter, 3 Panzerabwehr, 12 Schützen |
+| **3 Startbahnen** | parallel, je 160 × 11 Blöcke, mit eigenem Vorfeld und Hangars |
+| **40 Jäger** | autonome F-47 |
+| **12 B-21** | Tarnkappenbomber |
+| **12 Transporter** | Truppen und Luftbetankung |
+| **30 Schützenpanzer** | fahren die Infanterie zum Gegner |
+| **350 Mann** | Piloten, Techniker, Sanitäter, Panzerabwehr, Schützen |
 
-Das Gelände wird dabei planiert: Bewuchs kommt weg, Senken werden aufgefüllt.
-Auf **Superflach** sieht es am saubersten aus.
+Alle Zahlen stehen in `config/f47.json` (`squadronFighters`, `squadronBombers`,
+`squadronTransports`, `squadronVehicles`, `garrisonTroops`, `runwayCount`) —
+**wenn dein Rechner ruckelt, halbiere sie einfach.** Zwei Stützpunkte in voller
+Stärke sind rund 900 Einheiten mit eigener KI.
+
+Das Gelände wird **vollständig eingeebnet**: Berge und Hügel im Weg werden bis
+zum Himmel abgetragen, Senken aufgefüllt. Danach ist die ganze Anlage tischeben.
+In den Bergen können das mehrere hunderttausend Blöcke sein — abschaltbar über
+`levelTerrain` in `config/f47.json`.
 
 Beim Bauen stockt das Spiel einmalig ein bis zwei Sekunden, wenn die Anlage auf
 Gelände steht, das du noch nie besucht hast — Minecraft muss die Landschaft dort

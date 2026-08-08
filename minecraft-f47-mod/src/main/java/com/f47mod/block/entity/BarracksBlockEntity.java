@@ -49,8 +49,15 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 
 	/** Ticks, bis von selbst ein Barren Nachschub eintrifft. */
 	private static final int SUPPLY_TICKS = 160;
-	/** Anteil der Sollstaerke, den eine einzelne Kaserne zu halten versucht. */
-	private static final double BARRACKS_SHARE = 0.5;
+	/**
+	 * Anteil der Sollstaerke, den eine einzelne Kaserne anpeilt.
+	 *
+	 * <p>Volle Staerke, nicht die Haelfte: Beide Kasernen zaehlen denselben
+	 * Bestand, wer nur die Haelfte anpeilt, laesst den Verband auf der Haelfte
+	 * stehenbleiben. Doppelt gebaut wird trotzdem nicht - sobald das Soll
+	 * erreicht ist, hoeren beide auf.
+	 */
+	private static final double BARRACKS_SHARE = 1.0;
 	/** Eisenbarren fuer eine Ersatzmaschine. */
 	private static final int JET_COST = 20;
 	/** Ticks pro Ersatzmaschine (etwa 90 Sekunden). */
