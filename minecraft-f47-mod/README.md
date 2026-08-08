@@ -60,7 +60,7 @@ Im Kreativmodus, damit du sofort losfliegen kannst:
    Der ganze Stützpunkt entsteht in einem Rutsch — du musst nichts von Hand bauen.
 2. **Einsteigen:** Rechtsklick auf die F-47 am Anfang der Bahn.
 3. **Starten:** `W` gedrückt halten (Schub hoch), Maus leicht nach oben ziehen,
-   sobald die Anzeige links über ~85 km/h zeigt — die F-47 hebt ab.
+   sobald die Anzeige links über ~120 km/h zeigt — die F-47 hebt ab.
 4. **Fliegen:** Die Maus steuert. Der Jet folgt deiner Blickrichtung.
 5. **Schießen:** **Linke Maustaste**. Mit `X` schaltest du zwischen Bordkanone,
    Lenkwaffe, Bombe und Laser um.
@@ -100,7 +100,7 @@ siehst den Stützpunkt also entstehen, statt dass das Spiel einfriert.
 > Aufträge gibst du mit dem Kommando-Tablet, nötig ist das aber nicht.
 
 > **Die Basis läuft weiter, auch wenn du weg bist.** Beim Bauen bleiben die
-> Chunks rund um den Stützpunkt dauerhaft geladen (Standard: 4 Chunks Radius,
+> Chunks rund um den Stützpunkt dauerhaft geladen (Standard: 6 Chunks Radius,
 > deckt den Patrouillenkreis ab). Ohne das rechnet Minecraft nur in deiner
 > Umgebung, und die ganze Anlage steht still, sobald du wegfliegst. Bremst das
 > deinen Rechner, stell `baseForceLoadRadiusChunks` in `config/f47.json` kleiner
@@ -143,7 +143,7 @@ kämpfst.**
 
 #### Der kürzeste Weg: `/f47 war`
 
-Ein Befehl stellt **beide** Stützpunkte auf einmal hin — blau und rot, 180
+Ein Befehl stellt **beide** Stützpunkte auf einmal hin — blau und rot, 150
 Blöcke auseinander, mit den Bahnen parallel zueinander. Das ist genau der
 Abstand, bei dem die Patrouillen einander in die Bordradarreichweite fliegen.
 Mehr ist nicht zu tun: Nach gut einer halben Minute starten die ersten
@@ -441,9 +441,11 @@ Dort lässt sich vieles anpassen, ohne den Mod neu zu bauen:
 
 | Einstellung | Bedeutung | Standard |
 |---|---|---|
-| `maxSpeed` | Höchstgeschwindigkeit (Blöcke/Tick) | `4.6` |
-| `thrust` | Beschleunigung | `0.055` |
-| `stallSpeed` | Ab hier tragen die Flügel | `0.85` |
+| `massKg` | Startmasse in Kilogramm | `6000` |
+| `wingAreaM2` | Tragfläche in m² — größer = kürzerer Start, langsamer | `110` |
+| `thrustNewtons` | Schub bei Vollgas | `60000` |
+| `afterburnerNewtons` | Schub mit Nachbrenner | `110000` |
+| `maxLoadFactor` | Höchste Querbeschleunigung in g | `9` |
 | `explosionsBreakBlocks` | Explosionen zerstören Blöcke | `true` |
 | `enableRandomRaids` | Nächtliche Drohnenangriffe | `true` |
 | `jetMaxHealth` | Panzerung der F-47 | `60` |
@@ -454,6 +456,13 @@ Dort lässt sich vieles anpassen, ohne den Mod neu zu bauen:
 
 **Tipp:** Wenn dir die Explosionen deine Basis zerlegen, setze
 `explosionsBreakBlocks` auf `false`.
+
+**Zum Flugmodell:** Die F-47 fliegt nach echter Aerodynamik. Aus Anstellwinkel,
+Staudruck und Luftdichte werden Auftrieb und Widerstand berechnet und zusammen
+mit Schub und Gewicht aufsummiert — nichts davon ist gemogelt. Wer schneller
+oder träger fliegen will, dreht an `thrustNewtons`, `massKg` und `wingAreaM2`.
+Mehr Schub heißt mehr Spitze, aber auch weitere Kurven; mehr Tragfläche heißt
+kürzerer Start und langsamerer Flug.
 
 **Zur Größe der Jets:** `1.8` entspricht gut 5,5 Blöcken Länge und Spannweite —
 neben einem Spieler wirkt die Maschine damit wie ein echtes Kampfflugzeug. Wer
@@ -502,7 +511,7 @@ python3 tools/gen_lang.py     # Sprachdateien (Deutsch + Englisch)
 | Problem | Lösung |
 |---|---|
 | Minecraft startet nicht | Fabric API im `mods`-Ordner? Profil `fabric-loader-1.21.1` gewählt? |
-| Der Jet hebt nicht ab | Längere Bahn bauen, `W` halten, erst ab ~85 km/h die Nase heben |
+| Der Jet hebt nicht ab | `W` halten, erst ab ~120 km/h die Nase heben — vorher trägt die Fläche nicht |
 | Der Jet stürzt sofort ab | Schub zu niedrig — die Anzeige `! STRÖMUNGSABRISS !` beachten |
 | Autonomer Jet bleibt stehen | Er braucht einen Piloten (`Marschbefehl: Pilot` daneben benutzen) |
 | Iron Dome schießt nicht | Mit `Abfangrakete`n laden (Rechtsklick) |

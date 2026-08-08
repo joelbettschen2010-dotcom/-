@@ -18,6 +18,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
@@ -36,6 +37,14 @@ public class AutonomousF47Entity extends F47Entity {
 			DataTracker.registerData(AutonomousF47Entity.class, TrackedDataHandlerRegistry.STRING);
 	private static final TrackedData<Boolean> HAS_PILOT =
 			DataTracker.registerData(AutonomousF47Entity.class, TrackedDataHandlerRegistry.BOOLEAN);
+
+	/**
+	 * Ausfuehrliches Flugprotokoll, eingeschaltet ueber die Umgebungsvariable
+	 * {@code F47_DEBUG}. Damit laesst sich nachvollziehen, warum eine Maschine
+	 * nicht abhebt - Anstellwinkel, Bodenkontakt und Kollisionen stehen dann
+	 * fuenfmal je Sekunde im Protokoll.
+	 */
+	private static final boolean DEBUG = System.getenv("F47_DEBUG") != null;
 
 	private static final String[] CALLSIGNS = {
 			"Viper", "Falcon", "Ghost", "Raven", "Hammer", "Cobra", "Eagle", "Reaper",
@@ -75,6 +84,10 @@ public class AutonomousF47Entity extends F47Entity {
 	 * Anfangs zufaellig, damit nicht die ganze Staffel gleichzeitig abhebt.
 	 */
 	private int scrambleTimer = 100 + (int) (Math.random() * 500);
+	/** Wie lange die Maschine schon bewegungslos im Gelaende steht. */
+	private int strandedTicks;
+	/** Richtung der Startbahn in Grad - der Startlauf folgt ihr. */
+	private float homeHeading;
 
 	public AutonomousF47Entity(EntityType<? extends AutonomousF47Entity> type, World world) {
 		super(type, world);
@@ -103,6 +116,7 @@ public class AutonomousF47Entity extends F47Entity {
 			homeBase = NbtHelper.toBlockPos(nbt, "HomeBase").orElse(null);
 		}
 		patrolAltitude = nbt.contains("PatrolAltitude") ? nbt.getInt("PatrolAltitude") : 70;
+		homeHeading = nbt.getFloat("HomeHeading");
 	}
 
 	@Override
@@ -118,6 +132,7 @@ public class AutonomousF47Entity extends F47Entity {
 			nbt.put("HomeBase", NbtHelper.fromBlockPos(homeBase));
 		}
 		nbt.putInt("PatrolAltitude", patrolAltitude);
+		nbt.putFloat("HomeHeading", homeHeading);
 	}
 
 	public Order getOrder() {
@@ -164,8 +179,25 @@ public class AutonomousF47Entity extends F47Entity {
 	}
 
 	public void setHomeBase(BlockPos pos) {
+		setHomeBase(pos, getYaw());
+	}
+
+	/**
+	 * Setzt Heimatflugplatz und Bahnrichtung.
+	 *
+	 * <p>Die Richtung ist noetig, weil der Startlauf ihr folgt: Eine Maschine,
+	 * die beim Abstellen quer stand, wuerde sonst quer ueber das Vorfeld
+	 * beschleunigen und im Gelaende haengen bleiben.
+	 */
+	public void setHomeBase(BlockPos pos, float heading) {
 		homeBase = pos;
+		homeHeading = heading;
 		patrolAltitude = Math.max(pos.getY() + 35, 75);
+	}
+
+	/** Richtung der Startbahn in Grad. */
+	public float getHomeHeading() {
+		return homeHeading;
 	}
 
 	@Nullable
@@ -207,7 +239,45 @@ public class AutonomousF47Entity extends F47Entity {
 			currentTarget = findTarget();
 		}
 		scrambleIfIdle();
+		checkForWreck();
 		flyMission();
+
+		if (DEBUG && age % 5 == 0) {
+			com.f47mod.F47Mod.LOGGER.info(
+					"[SPUR] {} {} v={} vy={} Nick={} Roll={} Anstell={} Y={} Gas={}",
+					getCallsign(), getOrder(),
+					String.format("%.1f", getVelocity().length() * FlightModel.TICKS_PER_SECOND),
+					String.format("%+.1f", getVelocity().y * FlightModel.TICKS_PER_SECOND),
+					String.format("%.1f", getPitch()),
+					String.format("%.1f", getRoll()),
+					String.format("%.1f", FlightModel.degrees(getAngleOfAttack())),
+					String.format("%.2f", getY()),
+					String.format("%.2f", getThrottle()));
+		}
+	}
+
+	/**
+	 * Erkennt eine verunglueckte Maschine und schreibt sie ab.
+	 *
+	 * <p>Wer irgendwo im Gelaende gestrandet ist, kommt aus eigener Kraft nicht
+	 * mehr weg: kein Anlauf, kein Auftrieb, dazu bei jedem Tick eine Kollision.
+	 * Ohne diese Pruefung stuende so ein Wrack fuer immer da und wuerde in der
+	 * Staffelstaerke mitzaehlen - die Kaserne baute also nie Ersatz.
+	 */
+	private void checkForWreck() {
+		boolean stranded = isOnGround()
+				&& getOrder() != Order.PARKED
+				&& getVelocity().lengthSquared() < 0.01
+				&& (homeBase == null || squaredHorizontalDistance(homeBase) > 40.0 * 40.0);
+		if (!stranded) {
+			strandedTicks = 0;
+			return;
+		}
+		// Ein paar Sekunden Geduld - eine harte Landung ist noch kein Totalverlust.
+		if (++strandedTicks > 100) {
+			announce("message.f47.lost");
+			kill();
+		}
 	}
 
 	/**
@@ -262,10 +332,47 @@ public class AutonomousF47Entity extends F47Entity {
 		switch (order) {
 			case TAKEOFF -> {
 				BlockPos base = homeBase != null ? homeBase : getBlockPos();
-				goal = new Vec3d(base.getX(), patrolAltitude, base.getZ())
-						.add(getForwardVector().multiply(60));
-				throttle = 1.0f;
-				setAfterburner(true);
+				double speedMs = getVelocity().length() * FlightModel.TICKS_PER_SECOND;
+
+				// Startverfahren in drei Abschnitten, wie in echt geflogen.
+				// Der Bahnrichtung folgen, nicht der eigenen Nase: Beim
+				// Abstellen kann die Maschine beliebig herumstehen.
+				double radians = Math.toRadians(homeHeading);
+				Vec3d along = new Vec3d(-Math.sin(radians), 0.0, Math.cos(radians));
+
+				if (speedMs < ROTATE_SPEED && getY() < base.getY() + 12) {
+					// 1. Anlauf: Nase unten, volle Leistung. Wer sofort zieht,
+					// hebt zwar ab - bei sechsundzwanzig Metern je Sekunde
+					// traegt die Flaeche aber noch nicht, der Anstellwinkel
+					// laeuft weg, und die Maschine faellt wieder herunter.
+					goal = getPos().add(along.multiply(150));
+					throttle = 1.0f;
+					setAfterburner(true);
+				} else if (squaredHorizontalDistance(base) < 70.0 * 70.0) {
+					// 2. Anfangssteigflug geradeaus auf Bahnrichtung. Hier
+					// wird nicht gekurvt: Frisch abgehoben mit knapp fuenfzig
+					// Metern je Sekunde kann die Maschine einer Kurve nicht
+					// folgen - sie schiebt quer, der Anstellwinkel schiesst
+					// ueber siebzig Grad, und sie faellt aus dem Himmel.
+					// Steil steigen, nicht flach: Die Maschine schafft bei
+					// dreizehn Grad Anstellwinkel ueber vierzig Grad Steigwinkel.
+					// Ein flacher Zielpunkt verschenkt das - mit fuenfzehn Grad
+					// war die Staffel am Ende des freigeraeumten Gelaendes erst
+					// fuenfzehn Bloecke hoch und lief in den naechsten Hang.
+					goal = getPos().add(along.multiply(60)).add(0.0, 70.0, 0.0);
+					throttle = 1.0f;
+					setAfterburner(true);
+				} else {
+					// 3. Ueber der Basis weitersteigen. Bewusst zurueck ueber
+					// das eigene Gelaende: Dort ist bis zwoelf Bloecke ueber
+					// Grund freigeraeumt, waehrend geradeaus schon der naechste
+					// Huegel steht - in den ist die Staffel vorher reihenweise
+					// hineingeflogen.
+					goal = patrolPoint();
+					setAfterburner(false);
+					throttle = throttleForSpeed(PATROL_SPEED * 1.2);
+				}
+
 				if (getY() > patrolAltitude - 8) {
 					setAfterburner(false);
 					setOrder(Order.PATROL);
@@ -276,6 +383,7 @@ public class AutonomousF47Entity extends F47Entity {
 				PlayerEntity owner = getOwner();
 				if (owner == null) {
 					goal = patrolPoint();
+					throttle = throttleForSpeed(PATROL_SPEED);
 				} else {
 					// Formation schraeg hinter und ueber dem Spieler.
 					Vec3d offset = new Vec3d(9.0, 6.0, -12.0)
@@ -295,11 +403,15 @@ public class AutonomousF47Entity extends F47Entity {
 					} else {
 						goal = targetPos.add(currentTarget.getVelocity().multiply(14));
 					}
-					throttle = 1.0f;
-					setAfterburner(distance > 70);
+					// Auch im Angriff geregelt statt Vollgas: Wer schneller
+					// fliegt, als seine Kurve zulaesst, schiesst am Ziel vorbei
+					// und dann aus dem gerechneten Gebiet hinaus.
+					throttle = throttleForSpeed(ATTACK_SPEED);
+					setAfterburner(false);
 					engage(currentTarget, distance);
 				} else {
 					goal = patrolPoint();
+					throttle = throttleForSpeed(PATROL_SPEED);
 					setAfterburner(false);
 				}
 			}
@@ -307,9 +419,10 @@ public class AutonomousF47Entity extends F47Entity {
 				BlockPos base = homeBase != null ? homeBase : getBlockPos();
 				double horizontal = Math.sqrt(squaredHorizontalDistance(base));
 				if (horizontal < 24) {
-					// Sinkflug bis zum Aufsetzen, dann parken.
+					// Sinkflug bis zum Aufsetzen, dann parken. Anfluggeschwindigkeit
+					// knapp ueber dem Abriss - darunter faellt sie durch.
 					goal = new Vec3d(base.getX(), base.getY() + 1.5, base.getZ());
-					throttle = 0.22f;
+					throttle = throttleForSpeed(45.0);
 					if (isOnGround() || getY() - base.getY() < 2.5) {
 						setOrder(Order.PARKED);
 						setThrottle(0.0f);
@@ -319,16 +432,36 @@ public class AutonomousF47Entity extends F47Entity {
 					}
 				} else {
 					goal = new Vec3d(base.getX(), Math.max(base.getY() + 25, patrolAltitude - 15), base.getZ());
-					throttle = 0.7f;
+					throttle = throttleForSpeed(PATROL_SPEED);
 				}
 			}
 			default -> {
 				goal = patrolPoint();
+				// Auf der Warteschleife wird Fahrt gehalten, nicht Vollgas
+				// gegeben - sonst wird der Kreis zu weit fuer die Physik.
+				throttle = throttleForSpeed(PATROL_SPEED);
 				if (currentTarget != null && currentTarget.isAlive()) {
 					setOrder(Order.ATTACK);
 					announce("message.f47.engaging");
 				}
 			}
+		}
+
+		// Gelaende voraus? Dann Ziel anheben. Ein Kampfflugzeug steigt flach -
+		// bei fuenfzig Metern je Sekunde und sieben Metern Steigen dauert es
+		// fuenf Sekunden und zweihundert Meter Weg, um dreissig Bloecke hoch zu
+		// kommen. Steht in dieser Strecke ein Huegel, fliegt die Maschine
+		// hinein; im Versuch ist die halbe Staffel immer an derselben
+		// Gelaendekante hinter der Bahn zerschellt.
+		goal = avoidTerrain(goal);
+
+		// Notfalls zurueck ins geladene Gebiet - das hat Vorrang vor allem
+		// anderen, denn ausserhalb hoert die Maschine schlicht auf zu fliegen.
+		Vec3d recall = stayInRange();
+		if (recall != null) {
+			goal = recall;
+			throttle = throttleForSpeed(PATROL_SPEED * 1.4);
+			setAfterburner(false);
 		}
 
 		// Nur den Plan festlegen - geflogen wird im gemeinsamen Flugmodell,
@@ -338,14 +471,91 @@ public class AutonomousF47Entity extends F47Entity {
 	}
 
 	/** Kreisbahn um die Basis. */
+	/**
+	 * Hebt das Ziel an, wenn voraus Gelaende steht.
+	 *
+	 * <p>Wie ein Bodenannaeherungs-Warnsystem: Es wird nicht die Stelle unter
+	 * der Maschine geprueft, sondern die, an der sie in gut zwei Sekunden
+	 * ankommt - darunter laesst sich ein Hang nicht mehr ueberfliegen. Die
+	 * Hoehenkarte beantwortet das ohne Blockabfragen.
+	 */
+	private Vec3d avoidTerrain(Vec3d goal) {
+		if (isOnGround()) {
+			return goal;
+		}
+		Vec3d motion = getVelocity();
+		if (motion.horizontalLengthSquared() < 0.01) {
+			return goal;
+		}
+		Vec3d ahead = getPos().add(motion.multiply(70.0));
+		int terrain = getWorld().getTopY(Heightmap.Type.MOTION_BLOCKING,
+				MathHelper.floor(ahead.x), MathHelper.floor(ahead.z));
+		double floor = terrain + TERRAIN_CLEARANCE;
+		return goal.y < floor ? new Vec3d(goal.x, floor, goal.z) : goal;
+	}
+
+	/**
+	 * Punkt auf der Warteschleife.
+	 *
+	 * <p>Der Kreis wandert mit der Geschwindigkeit weiter, aber sein Radius
+	 * bleibt fest - und der Bot haelt dazu passend Fahrt (siehe
+	 * {@link #PATROL_SPEED}). Beides muss zusammenpassen: Nach der echten
+	 * Kurvenformel r = v² / (g·√(n²−1)) braucht eine Maschine bei 360 km/h
+	 * selbst mit sieben g rund 150 Meter Radius. Wer schneller kreisen will,
+	 * als die Physik zulaesst, fliegt die Kurve einfach nach aussen auf - und
+	 * landet ausserhalb der geladenen Chunks.
+	 */
 	private Vec3d patrolPoint() {
 		BlockPos base = homeBase != null ? homeBase : getBlockPos();
-		patrolAngle += 0.02;
-		double radius = 55.0;
+		// Winkelschritt so, dass die Bahngeschwindigkeit ungefaehr stimmt.
+		patrolAngle += PATROL_SPEED / (PATROL_RADIUS * FlightModel.TICKS_PER_SECOND);
 		return new Vec3d(
-				base.getX() + Math.cos(patrolAngle) * radius,
+				base.getX() + Math.cos(patrolAngle) * PATROL_RADIUS,
 				patrolAltitude,
-				base.getZ() + Math.sin(patrolAngle) * radius);
+				base.getZ() + Math.sin(patrolAngle) * PATROL_RADIUS);
+	}
+
+	/**
+	 * Haelt die Maschine im geladenen Gebiet.
+	 *
+	 * <p>Das ist die Lehre aus dem ersten Versuch mit echter Physik: Die
+	 * Staffel hob ab, beschleunigte, verliess den dauerhaft geladenen Bereich -
+	 * und blieb dort auf der Stelle stehen, weil Minecraft ausserhalb nicht
+	 * mehr rechnet. Vier Minuten spaeter standen alle zwoelf Maschinen noch auf
+	 * die Nachkommastelle genau dort. Wer ohne Ziel zu weit hinausfliegt,
+	 * dreht deshalb wieder heim.
+	 *
+	 * @return Ersatzziel oder {@code null}, wenn alles in Ordnung ist
+	 */
+	@Nullable
+	private Vec3d stayInRange() {
+		if (homeBase == null) {
+			return null;
+		}
+		// Der Force-Load deckt ein Quadrat ab; der eingeschriebene Kreis ist
+		// die sichere Grenze. Etwas Rand bleibt fuer den Kurvenausgang.
+		double loaded = (F47Config.get().baseForceLoadRadiusChunks * 2 + 1) * 8.0 - 24.0;
+		// Mit Ziel darf sie weiter - das Ziel selbst tickt ja, liegt also
+		// seinerseits in geladenem Gelaende.
+		double limit = currentTarget != null && currentTarget.isAlive() ? loaded * 2.4 : loaded;
+		if (squaredHorizontalDistance(homeBase) < limit * limit) {
+			return null;
+		}
+		return new Vec3d(homeBase.getX(), patrolAltitude, homeBase.getZ());
+	}
+
+	/**
+	 * Schubstellung, die eine Wunschgeschwindigkeit haelt.
+	 *
+	 * <p>Ein Kampfflugzeug hat viel mehr Schub als Widerstand - mit festem
+	 * Vollgas rennt es einfach bis zur Hoechstgeschwindigkeit davon und kann
+	 * dann nicht mehr eng genug kurven. Ein echter Autopilot regelt deshalb
+	 * auf eine Sollgeschwindigkeit, und genau das passiert hier.
+	 */
+	private float throttleForSpeed(double targetMs) {
+		double speed = getVelocity().length() * FlightModel.TICKS_PER_SECOND;
+		double error = targetMs - speed;
+		return MathHelper.clamp((float) (0.30 + error * 0.02), 0.05f, 1.0f);
 	}
 
 	private double squaredHorizontalDistance(BlockPos pos) {
@@ -354,20 +564,87 @@ public class AutonomousF47Entity extends F47Entity {
 		return dx * dx + dz * dz;
 	}
 
+	/**
+	 * Groesster Anstellwinkel, den sich der Bot-Pilot erlaubt, in Grad.
+	 *
+	 * <p>Deutlich unter dem kritischen Winkel von zwanzig Grad - ein echter
+	 * Pilot fliegt nicht an der Abrisskante entlang, und ein Bot, der die Nase
+	 * einfach auf sein Ziel richtet, wuerde beim Steigflug sofort ueberziehen.
+	 */
+	private static final float SAFE_ANGLE_OF_ATTACK = 13.0f;
+
+	/**
+	 * Radius der Warteschleife in Bloecken. Muss in den dauerhaft geladenen
+	 * Bereich passen, sonst friert die Maschine ausserhalb ein.
+	 */
+	private static final double PATROL_RADIUS = 70.0;
+	/**
+	 * Geschwindigkeit auf der Warteschleife in Metern je Sekunde.
+	 *
+	 * <p>Rund 250 km/h - langsam fuer einen Jet, aber genau das fliegen echte
+	 * Bereitschaftsmuster auch. Bei diesem Tempo laesst sich der Kreis oben
+	 * mit knapp sieben g ausfliegen; schneller ginge nur mit groesserem
+	 * Radius, und der passt nicht mehr ins geladene Gebiet. Im Angriff wird
+	 * ohnehin auf Vollgas gegangen.
+	 */
+	private static final double PATROL_SPEED = 70.0;
+	/**
+	 * Hoechstgeschwindigkeit im Angriff, in Metern je Sekunde.
+	 *
+	 * <p>Rund 400 km/h - deutlich unter dem, was die Maschine koennte, und das
+	 * mit Absicht. Bei voller Fahrt braucht eine Kurve nach der echten Formel
+	 * fast tausend Bloecke Radius; das geladene Gebiet ist achtzig. Ein Bot
+	 * mit Vollgas fliegt seine Kurve also weit hinaus, verlaesst den
+	 * gerechneten Bereich und bleibt dort stehen. Der Spieler hat dieses
+	 * Problem nicht: Um ihn herum laedt Minecraft ohnehin staendig nach, er
+	 * darf die vollen 1060 km/h fliegen.
+	 */
+	private static final double ATTACK_SPEED = 110.0;
+	/**
+	 * Rotationsgeschwindigkeit in Metern je Sekunde - erst ab hier wird die
+	 * Nase gehoben.
+	 *
+	 * <p>Rechnerisch traegt die Flaeche bei dreizehn Grad Anstellwinkel ab
+	 * dreiunddreissig Metern je Sekunde. Viel mehr Reserve waere teuer: Der
+	 * Anlauf bis hierher braucht schon rund sechsunddreissig Meter, und das
+	 * Hochziehen selbst kostet nochmal knapp zwanzig.
+	 */
+	private static final double ROTATE_SPEED = 36.0;
+	/** Mindestabstand ueber Gelaende, das voraus liegt, in Bloecken. */
+	private static final double TERRAIN_CLEARANCE = 22.0;
+
 	/** Richtet Nase und Querlage auf einen Punkt aus. */
 	private void steerTowards(Vec3d goal) {
 		Vec3d delta = goal.subtract(getPos());
 		double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
 		float targetYaw = (float) (MathHelper.atan2(delta.z, delta.x) * MathHelper.DEGREES_PER_RADIAN) - 90.0f;
 		float targetPitch = (float) (-MathHelper.atan2(delta.y, horizontal) * MathHelper.DEGREES_PER_RADIAN);
-		targetPitch = MathHelper.clamp(targetPitch, -55.0f, 55.0f);
 
-		float rate = 0.09f;
+		// Die Nase darf nur so weit ueber die Flugbahn, wie die Stroemung
+		// mitmacht. Wer steiler zieht, haengt an der Abrisskante und faellt
+		// durch - was bei einer stehenden Maschine auf der Bahn sofort
+		// passieren wuerde, weil das Ziel hoch ueber ihr liegt.
+		Vec3d motion = getVelocity();
+		double alongGround = Math.sqrt(motion.x * motion.x + motion.z * motion.z);
+		float flightPath = (float) (-MathHelper.atan2(motion.y, alongGround)
+				* MathHelper.DEGREES_PER_RADIAN);
+		targetPitch = MathHelper.clamp(targetPitch,
+				flightPath - SAFE_ANGLE_OF_ATTACK, flightPath + SAFE_ANGLE_OF_ATTACK);
+		targetPitch = MathHelper.clamp(targetPitch, -60.0f, 60.0f);
+
+		// Zuegig genug, dass das Hochziehen nicht die halbe Bahn kostet.
+		float rate = 0.18f;
 		float newYaw = approachAngle(getYaw(), targetYaw, rate);
 		float yawDelta = MathHelper.wrapDegrees(newYaw - getYaw());
 		setYaw(newYaw);
 		setPitch(approachAngle(getPitch(), targetPitch, rate));
-		setRoll(getRoll() + (MathHelper.clamp(yawDelta * 9.0f, -65.0f, 65.0f) - getRoll()) * 0.15f);
+
+		// Querlage nach Fahrt begrenzen: Eine langsame Maschine kann eine
+		// steile Kurve gar nicht ausfliegen, sie wuerde nur querschieben.
+		double speed = getVelocity().length() * FlightModel.TICKS_PER_SECOND;
+		float maxBank = MathHelper.clamp((float) (speed - 40.0) * 1.6f, 5.0f, 65.0f);
+		float wanted = MathHelper.clamp(yawDelta * 9.0f, -maxBank, maxBank);
+		setRoll(getRoll() + (wanted - getRoll()) * 0.15f);
 	}
 
 	/** Statt eines Piloten richtet der Bot die Maschine auf den Zielpunkt aus. */

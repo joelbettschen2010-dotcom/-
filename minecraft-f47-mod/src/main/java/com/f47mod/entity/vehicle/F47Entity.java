@@ -87,6 +87,9 @@ public class F47Entity extends Entity implements TeamMember {
 	private int weaponCooldown;
 	private int lockTimer;
 
+	/** Aufschlagprotokoll, ueber die Umgebungsvariable F47_DEBUG geschaltet. */
+	private static final boolean DEBUG = System.getenv("F47_DEBUG") != null;
+
 	/**
 	 * Direkte Steuereingaben, wie sie ein Joystick liefert (-1..1). Werden vom
 	 * Client jeden Tick gesetzt und nicht gespeichert - sie beschreiben nur die
@@ -97,6 +100,8 @@ public class F47Entity extends Entity implements TeamMember {
 	private float inputYaw;
 	/** true = Knueppelsteuerung, false = der Jet folgt der Blickrichtung. */
 	private boolean directControl;
+	/** Anstellwinkel des letzten Ticks in Radiant - fuer Anzeige und Bot-Piloten. */
+	private float angleOfAttack;
 
 	public F47Entity(EntityType<? extends F47Entity> type, World world) {
 		super(type, world);
@@ -555,63 +560,99 @@ public class F47Entity extends Entity implements TeamMember {
 
 	protected void updateFlight() {
 		F47Config config = F47Config.get();
-		Vec3d velocity = getVelocity();
-		double speed = velocity.length();
 
 		steer();
 
 		Vec3d forward = getForwardVector();
+		Vec3d right = getRightVector();
 		boolean engineRunning = getFuel() > 0.0f;
 		float throttle = engineRunning ? getThrottle() : 0.0f;
-		float thrust = throttle * config.thrust;
-		if (isAfterburner() && engineRunning) {
-			thrust *= config.afterburnerFactor;
-		}
 
-		if (isOnGround()) {
-			// Rollen: Schub wirkt nur waagerecht, Reibung bremst kraeftig.
-			Vec3d ground = new Vec3d(forward.x, 0.0, forward.z).normalize();
-			velocity = velocity.add(ground.multiply(thrust));
-			double friction = isOnRunway() ? 0.985 : 0.90;
-			velocity = new Vec3d(velocity.x * friction, velocity.y, velocity.z * friction);
-			// Erst ab Rotationsgeschwindigkeit hebt die Maschine ab.
-			double groundSpeed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
-			if (groundSpeed > config.takeoffSpeed && getPitch() < -3.0f) {
-				velocity = velocity.add(0.0, 0.22, 0.0);
-			} else {
-				velocity = new Vec3d(velocity.x, Math.max(velocity.y, 0.0), velocity.z);
-			}
-		} else {
-			velocity = velocity.add(forward.multiply(thrust));
-			speed = velocity.length();
+		// Der Nachbrenner ist kein Faktor auf den Schub, sondern eine zweite
+		// Betriebsstufe - deshalb zwei getrennte Werte.
+		double thrust = throttle * (isAfterburner() && engineRunning
+				? config.afterburnerNewtons
+				: config.thrustNewtons);
 
-			// Auftrieb: je schneller, desto weniger zieht die Schwerkraft.
-			double liftFactor = MathHelper.clamp(speed / config.stallSpeed, 0.0, 1.0);
-			double bank = Math.abs(MathHelper.wrapDegrees(getRoll())) / 90.0;
-			liftFactor *= 1.0 - MathHelper.clamp(bank, 0.0, 1.0) * 0.35;
-			velocity = velocity.add(0.0, -0.055 * (1.0 - liftFactor * 0.94), 0.0);
+		// Rollreibung: auf der Bahn wenig, im Gelaende viel.
+		double rolling = isOnRunway() ? 0.02 : 0.12;
 
-			// Der Geschwindigkeitsvektor dreht sich in Blickrichtung ("Grip").
-			double grip = MathHelper.clamp(speed / config.stallSpeed, 0.0, 1.0) * 0.16;
-			velocity = velocity.lerp(forward.multiply(speed), grip);
-			velocity = velocity.multiply(config.drag);
-		}
+		Vec3d velocity = FlightModel.step(getVelocity(), forward, right, thrust,
+				getY(), isOnGround(), rolling);
 
-		double max = config.maxSpeed * (isAfterburner() ? 1.35 : 1.0);
-		if (velocity.length() > max) {
-			velocity = velocity.normalize().multiply(max);
-		}
+		// Anstellwinkel merken - Cockpitwarnung und Bot-Piloten sollen
+		// denselben Wert sehen, mit dem die Physik gerechnet hat.
+		double speedMs = velocity.length() * FlightModel.TICKS_PER_SECOND;
+		Vec3d flow = speedMs > 0.05
+				? velocity.normalize()
+				: forward;
+		angleOfAttack = (float) FlightModel.angleOfAttack(flow, forward, right, speedMs);
+
 		setVelocity(velocity);
 
 		Vec3d before = getPos();
 		move(MovementType.SELF, getVelocity());
 
 		if (horizontalCollision || (verticalCollision && !isOnGround())) {
+			logImpact("Kollision", before);
 			handleImpact(before);
 		}
+		// Schnelles Rollen abseits befestigter Flaechen ist eine Bruchlandung.
+		// Der Schwellwert ist eine Landegeschwindigkeit, keine Rollgeschwindigkeit:
+		// Beim Start wird er planmaessig ueberschritten, deshalb zaehlt hier nur
+		// der Untergrund.
 		if (isOnGround() && getVelocity().length() > 1.6 && !isOnRunway()) {
+			logImpact("abseits der Bahn", before);
 			handleImpact(before);
 		}
+	}
+
+	/**
+	 * Protokolliert einen Aufschlag, wenn die Umgebungsvariable
+	 * {@code F47_DEBUG} gesetzt ist. Ohne die Meldung laesst sich nicht
+	 * unterscheiden, ob eine Maschine gegen Gelaende geflogen oder abseits der
+	 * Bahn aufgesetzt ist - beides sah im Protokoll gleich aus.
+	 */
+	private void logImpact(String reason, Vec3d before) {
+		if (!DEBUG) {
+			return;
+		}
+		com.f47mod.F47Mod.LOGGER.info("[AUFSCHLAG] {} bei {} {} {} - Grund: {}, Boden darunter: {}",
+				getType().getUntranslatedName(),
+				String.format("%.1f", getX()), String.format("%.1f", getY()), String.format("%.1f", getZ()),
+				reason, getWorld().getBlockState(getBlockPos().down()).getBlock());
+	}
+
+	/**
+	 * Rechte Tragflaeche als Einheitsvektor, Querlage eingerechnet.
+	 *
+	 * <p>Ohne die Querlage waere jede Kurve ein reines Gieren - der Auftrieb
+	 * zeigt aber immer aus der Maschine heraus, und genau daraus entsteht die
+	 * Kurve beim Schraeglagenflug.
+	 */
+	public Vec3d getRightVector() {
+		Vec3d forward = getForwardVector();
+		Vec3d level = forward.crossProduct(new Vec3d(0.0, 1.0, 0.0));
+		if (level.lengthSquared() < 1.0e-6) {
+			// Senkrecht nach oben oder unten - dann gibt die Gierlage die Ebene vor.
+			level = new Vec3d(-Math.cos(Math.toRadians(getYaw())), 0.0,
+					Math.sin(Math.toRadians(getYaw())));
+		}
+		level = level.normalize();
+		Vec3d up = level.crossProduct(forward).normalize();
+
+		double roll = Math.toRadians(getRoll());
+		return level.multiply(Math.cos(roll)).subtract(up.multiply(Math.sin(roll))).normalize();
+	}
+
+	/** Anstellwinkel des letzten Ticks, in Radiant. */
+	public float getAngleOfAttack() {
+		return angleOfAttack;
+	}
+
+	/** Ueberzieht die Maschine gerade? */
+	public boolean isStalled() {
+		return !isOnGround() && FlightModel.isStalled(angleOfAttack);
 	}
 
 	/** Standardsteuerung: Der Jet folgt der Blickrichtung des Piloten. */
@@ -627,7 +668,10 @@ public class F47Entity extends Entity implements TeamMember {
 		F47Config config = F47Config.get();
 		float targetYaw = controller.getYaw();
 		float targetPitch = MathHelper.clamp(controller.getPitch(), -80.0f, 80.0f);
-		float rate = config.turnRate * MathHelper.clamp((float) getVelocity().length() / config.stallSpeed, 0.25f, 1.0f);
+		// Ruderwirkung waechst mit dem Staudruck: Im Langsamflug greift wenig,
+		// bei Fahrt folgt die Maschine zuegig.
+		float rate = MathHelper.clamp((float) (getVelocity().length()
+				* FlightModel.TICKS_PER_SECOND / 90.0), 0.06f, 0.30f);
 
 		float newYaw = approachAngle(getYaw(), targetYaw, rate);
 		float yawDelta = MathHelper.wrapDegrees(newYaw - getYaw());
@@ -648,12 +692,14 @@ public class F47Entity extends Entity implements TeamMember {
 	 */
 	protected void steerByStick() {
 		F47Config config = F47Config.get();
-		double speed = getVelocity().length();
-		float authority = MathHelper.clamp((float) (speed / config.stallSpeed), 0.15f, 1.0f);
+		// Ruderwirkung haengt am Staudruck, nicht an einer festen Kennzahl:
+		// Im Langsamflug sind die Ruder weich, mit Fahrt beissen sie zu.
+		double speedMs = getVelocity().length() * FlightModel.TICKS_PER_SECOND;
+		float authority = MathHelper.clamp((float) (speedMs / 120.0), 0.12f, 1.0f);
 
 		// Grad pro Tick bei vollem Ausschlag.
-		float pitchRate = 2.8f * authority;
-		float rollRate = 5.0f * authority;
+		float pitchRate = config.pitchRateDegrees * authority;
+		float rollRate = config.rollRateDegrees * authority;
 		float yawRate = 1.1f * authority;
 
 		// Querruder: Der Stick steuert die Rollrate, nicht die Lage selbst.

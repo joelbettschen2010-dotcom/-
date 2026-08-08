@@ -128,12 +128,18 @@ public final class BaseConstruction {
 			});
 		}
 
-		/** Versorgt eine Kaserne, sobald sie steht. */
-		public void stockBarracks(BlockPos pos, int supplies, @Nullable PlayerEntity owner) {
+		/**
+		 * Versorgt eine Kaserne und sagt ihr, wo die Bahn liegt - dorthin
+		 * stellt sie spaeter ihre Ersatzmaschinen.
+		 */
+		public void stockBarracks(BlockPos pos, int supplies, BlockPos home, float heading,
+				@Nullable PlayerEntity owner) {
 			BlockPos frozen = pos.toImmutable();
+			BlockPos frozenHome = home.toImmutable();
 			afterwards(() -> {
 				if (world.getBlockEntity(frozen) instanceof BarracksBlockEntity barracks) {
 					barracks.addSupplies(supplies);
+					barracks.setHomeBase(frozenHome, heading);
 					if (owner != null) {
 						barracks.setOwner(owner);
 					}

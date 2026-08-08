@@ -18,20 +18,38 @@ public class F47Config {
 	private static F47Config instance;
 
 	// --- Flugmodell -------------------------------------------------------
-	/** Schub pro Tick bei Vollgas (Bloecke/Tick^2). */
-	public float thrust = 0.055f;
-	/** Zusaetzlicher Schubfaktor im Nachbrenner. */
-	public float afterburnerFactor = 1.85f;
-	/** Hoechstgeschwindigkeit in Bloecken pro Tick (20 Ticks = 1 Sekunde). */
-	public float maxSpeed = 4.6f;
-	/** Geschwindigkeit, ab der die Tragflaechen genug Auftrieb erzeugen. */
-	public float stallSpeed = 0.85f;
-	/** Mindestgeschwindigkeit zum Abheben von der Bahn. */
-	public float takeoffSpeed = 1.15f;
-	/** Wie schnell der Jet der Blickrichtung folgt (0..1 pro Tick). */
-	public float turnRate = 0.12f;
-	/** Luftwiderstand pro Tick. */
-	public float drag = 0.988f;
+	// Echte Kennwerte in SI-Einheiten. Der Auftrieb wird daraus gerechnet,
+	// nicht vorgegeben - siehe com.f47mod.entity.vehicle.FlightModel.
+	/** Startmasse in Kilogramm. Leichter heisst wendiger und kuerzerer Start. */
+	public float massKg = 6000.0f;
+	/**
+	 * Tragflaeche in Quadratmetern. Groesser heisst mehr Auftrieb, kuerzerer
+	 * Start und niedrigere Abrissgeschwindigkeit - dafuer etwas weniger
+	 * Spitze. 110 ist der Wert, bei dem die Maschine sicher auf die
+	 * sechsundneunzig Bloecke lange Bahn des Bausatzes passt.
+	 */
+	public float wingAreaM2 = 110.0f;
+	/** Schub bei Vollgas ohne Nachbrenner, in Newton. */
+	public float thrustNewtons = 60000.0f;
+	/** Schub mit Nachbrenner, in Newton. */
+	public float afterburnerNewtons = 110000.0f;
+	/**
+	 * Hoechste Querbeschleunigung in g. Darueber wuerde die Zelle brechen -
+	 * begrenzt zugleich, wie eng die Maschine kurven kann.
+	 */
+	public float maxLoadFactor = 9.0f;
+	/**
+	 * Harte Obergrenze in Bloecken pro Tick.
+	 *
+	 * <p>Nicht aerodynamisch, sondern eine Notbremse: Jenseits davon kommt
+	 * Minecrafts Kollisionspruefung nicht mehr mit und das Nachladen der
+	 * Landschaft haengt hinterher. 12 entspricht rund 860 km/h.
+	 */
+	public float speedLimitBlocksPerTick = 16.0f;
+	/** Wie schnell die Maschine der Blickrichtung folgt (Grad pro Tick). */
+	public float pitchRateDegrees = 3.2f;
+	/** Rollrate bei vollem Querruderausschlag (Grad pro Tick). */
+	public float rollRateDegrees = 6.5f;
 
 	// --- Kampfwerte -------------------------------------------------------
 	public float missileDamage = 22.0f;
@@ -85,12 +103,23 @@ public class F47Config {
 	 * Wie viele Chunks rund um einen neu gebauten Stuetzpunkt dauerhaft geladen
 	 * bleiben. Ohne das haelt Minecraft nur die Umgebung des Spielers am Laufen,
 	 * und die Basis steht still, sobald man wegfliegt - Jets starten nicht,
-	 * Soldaten kaempfen nicht. 4 deckt den Patrouillenkreis ab. Auf 0 stellen,
-	 * wenn der Rechner das nicht mitmacht.
+	 * Soldaten kaempfen nicht.
+	 *
+	 * <p>6 deckt einen Kreis von gut hundert Bloecken ab und damit die
+	 * Warteschleife der Staffel. Kleiner heisst: Die Maschinen fliegen hinaus
+	 * und bleiben dort stehen, weil ausserhalb nicht mehr gerechnet wird. Auf
+	 * 0 stellen, wenn der Rechner das nicht mitmacht - dann laeuft die Basis
+	 * nur in Spielernaehe.
 	 */
-	public int baseForceLoadRadiusChunks = 4;
-	/** Abstand zwischen den beiden Basen, die {@code /f47 war} aufstellt. */
-	public int warBaseSeparation = 180;
+	public int baseForceLoadRadiusChunks = 6;
+	/**
+	 * Abstand zwischen den beiden Basen, die {@code /f47 war} aufstellt.
+	 *
+	 * <p>So gewaehlt, dass sich die geladenen Bereiche beider Seiten
+	 * ueberlappen - der Luftraum dazwischen muss mitrechnen, sonst frieren
+	 * angreifende Maschinen auf halbem Weg ein.
+	 */
+	public int warBaseSeparation = 150;
 
 	// --- Sonstiges --------------------------------------------------------
 	/** Explosionen beschaedigen Bloecke. Auf false stellen, um die Basis zu schonen. */

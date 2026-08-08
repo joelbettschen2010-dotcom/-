@@ -246,8 +246,9 @@ public final class JetHud {
 			y += 12;
 		}
 
-		double speed = jet.getVelocity().length();
-		if (!jet.isOnGround() && speed < config.stallSpeed && blink) {
+		// Der Abriss haengt am Anstellwinkel, nicht an der Geschwindigkeit -
+		// die Warnung liest deshalb genau den Wert, mit dem die Physik rechnet.
+		if (jet.isStalled() && blink) {
 			drawCentered(context, font, Text.translatable("hud.f47.warn_stall"), cx, y, HUD_RED);
 			y += 12;
 		}

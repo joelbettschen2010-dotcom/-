@@ -47,9 +47,18 @@ public final class BaseBlueprint {
 	/** Wie weit das Vorfeld seitlich reicht. */
 	private static final int APRON_WIDTH = 26;
 	/** Hoehe, die ueber der Anlage freigeraeumt wird. */
-	private static final int CLEAR_HEIGHT = 12;
+	private static final int CLEAR_HEIGHT = 16;
 	/** Lichte Hoehe im Hangar - die Maschine ist gut fuenf Bloecke breit. */
 	private static final int HANGAR_HEIGHT = 6;
+	/**
+	 * Abstellstreifen zwischen Bahnbefeuerung und Hangartor.
+	 *
+	 * <p>Die Trefferbox ist vier Bloecke breit, reicht von hier also von 8 bis
+	 * 12. Links liegt bei 6 die Befeuerung, rechts beginnt bei
+	 * {@code APRON_OFFSET + 6} = 15 die Hangarwand - dazwischen steht die
+	 * Maschine frei.
+	 */
+	private static final int PARKING_LANE = 10;
 
 	private BaseBlueprint() {
 	}
@@ -121,7 +130,7 @@ public final class BaseBlueprint {
 	private static void clearArea(BaseConstruction.Plan plan, BlockPos origin, Direction facing,
 			Direction side, int ground) {
 		ServerWorld world = plan.world();
-		for (int forward = -3; forward < RUNWAY_LENGTH + 3; forward++) {
+		for (int forward = -6; forward <= RUNWAY_LENGTH + 6; forward++) {
 			for (int across = -RUNWAY_HALF_WIDTH - 6; across <= APRON_OFFSET + APRON_WIDTH; across++) {
 				BlockPos column = origin.offset(facing, forward).offset(side, across);
 
@@ -191,7 +200,13 @@ public final class BaseBlueprint {
 	private static void buildApron(BaseConstruction.Plan plan, BlockPos origin, Direction facing,
 			Direction side, int ground, Team team, @Nullable PlayerEntity owner) {
 		// --- Vorfeld: die ganze Flaeche zwischen Bahn und Gebaeuden ---
-		for (int forward = 4; forward <= 76; forward++) {
+		// Reicht ueber die volle Bahnlaenge. Endete es frueher, liefen
+		// startende Maschinen am Ende in unebenes Gelaende, blieben mit einer
+		// Kollision haengen und verloren dabei drei Viertel ihrer Fahrt.
+		// Reicht ueber beide Bahnenden hinaus. Wer beim Start zu lang wird,
+		// rollt so auf befestigtem Grund aus statt in unebenes Gelaende - dort
+		// zaehlt jede Bodenwelle als Bruchlandung.
+		for (int forward = -4; forward <= RUNWAY_LENGTH + 4; forward++) {
 			for (int across = RUNWAY_HALF_WIDTH + 1; across <= APRON_OFFSET + APRON_WIDTH - 2; across++) {
 				plan.set(origin.offset(facing, forward).offset(side, across).withY(ground),
 						ModBlocks.RUNWAY.getDefaultState());
@@ -235,10 +250,12 @@ public final class BaseBlueprint {
 				origin.offset(facing, 40).offset(side, APRON_OFFSET + APRON_WIDTH - 3).withY(ground + 1),
 				origin.offset(facing, 44).offset(side, APRON_OFFSET + APRON_WIDTH - 3).withY(ground + 1),
 		};
+		// Ersatzmaschinen sollen auf den Abstellstreifen, nicht neben die Kaserne.
+		BlockPos apron = origin.offset(facing, 10).offset(side, PARKING_LANE).withY(ground);
 		for (BlockPos pos : barracks) {
 			plan.set(pos, ModBlocks.BARRACKS.getDefaultState());
 			plan.assignTeam(pos, team);
-			plan.stockBarracks(pos, 64, owner);
+			plan.stockBarracks(pos, 64, apron, facing.asRotation(), owner);
 		}
 	}
 
@@ -295,7 +312,9 @@ public final class BaseBlueprint {
 
 	private static void spawnUnits(ServerWorld world, BlockPos origin, Direction facing,
 			Direction side, int ground, Team team, @Nullable PlayerEntity owner) {
-		float yaw = facing.getOpposite().asRotation();
+		// Nase in Bahnrichtung: Die Maschinen sollen losrollen koennen, ohne
+		// sich erst umdrehen zu muessen.
+		float yaw = facing.asRotation();
 		BlockPos home = origin.offset(facing, RUNWAY_LENGTH / 2).withY(ground);
 
 		// Zwei bemannbare Maschinen, aufgereiht am Anfang der Bahn.
@@ -311,18 +330,23 @@ public final class BaseBlueprint {
 			world.spawnEntity(jet);
 		}
 
-		// Sechs Drohnenjaeger auf dem Vorfeld - mit genug Abstand, dass sich
-		// die breiten Trefferboxen nicht ineinander schieben.
+		// Sechs Drohnenjaeger in einer Reihe auf dem Abstellstreifen.
+		// Sie stehen bewusst alle auf derselben Linie: Die Maschine ist vier
+		// Bloecke breit, links liegt die Bahnbefeuerung, rechts beginnt bei 15
+		// die Hangarwand - eine zweite Reihe weiter aussen wuerde in der Wand
+		// stecken und bei jedem Tick eine Kollision ausloesen.
 		for (int i = 0; i < 6; i++) {
 			AutonomousF47Entity drone = ModEntities.AUTONOMOUS_F47.create(world);
 			if (drone == null) {
 				continue;
 			}
-			BlockPos spot = origin.offset(facing, 14 + (i % 3) * 22)
-					.offset(side, RUNWAY_HALF_WIDTH + 3 + (i / 3) * 6).withY(ground + 1);
+			// Alle am Anfang der Bahn: Selbst die hinterste hat so noch ueber
+			// sechzig Bloecke Rollstrecke, und gebraucht werden rund fuenfzig.
+			BlockPos spot = origin.offset(facing, 2 + i * 6)
+					.offset(side, PARKING_LANE).withY(ground + 1);
 			drone.refreshPositionAndAngles(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, yaw, 0.0f);
 			drone.setTeam(team);
-			drone.setHomeBase(home);
+			drone.setHomeBase(home, yaw);
 			drone.randomiseCallsign();
 			drone.setOwner(owner);
 			world.spawnEntity(drone);
