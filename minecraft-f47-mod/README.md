@@ -68,11 +68,11 @@ Im Kreativmodus, damit du sofort losfliegen kannst:
 
 ### Was der Basis-Bausatz hinstellt
 
-Rund 15 000 Blöcke, ausgerichtet nach deiner Blickrichtung:
+Rund 32 000 Blöcke, ausgerichtet nach deiner Blickrichtung:
 
 | Teil | Beschreibung |
 |---|---|
-| **Startbahn** | 96 Blöcke lang, 11 breit, mit Mittellinie, Schwellen und Befeuerung |
+| **Startbahn** | 160 Blöcke lang, 11 breit, mit Mittellinie, Schwellen und Befeuerung |
 | **3 × Hangar** | je 11 × 10 × 6 mit Rolltor — breit genug für die Spannweite |
 | **Wartungsfelder** | in jedem Hangar — betanken, reparieren und bewaffnen abgestellte Jets |
 | **2 × Radarstation** | an beiden Enden, für Rundumsicht |
