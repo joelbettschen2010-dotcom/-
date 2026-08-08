@@ -1,6 +1,7 @@
 package com.f47mod.entity.mob;
 
 import com.f47mod.F47Config;
+import com.f47mod.entity.ai.AdvanceOnEnemyGoal;
 import com.f47mod.entity.ai.BoardJetGoal;
 import com.f47mod.entity.ai.EngineerServiceGoal;
 import com.f47mod.entity.ai.FollowCommanderGoal;
@@ -81,7 +82,9 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob, T
 		return MobEntity.createMobAttributes()
 				.add(EntityAttributes.GENERIC_MAX_HEALTH, 24.0)
 				.add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.30)
-				.add(EntityAttributes.GENERIC_FOLLOW_RANGE, 40.0)
+				// Weit genug, um einen Gegner ueber das ganze Vorfeld hinweg zu
+				// erfassen. Vierzig reichte nur bis zum naechsten Hangar.
+				.add(EntityAttributes.GENERIC_FOLLOW_RANGE, 96.0)
 				.add(EntityAttributes.GENERIC_ATTACK_DAMAGE, 4.0)
 				.add(EntityAttributes.GENERIC_ARMOR, 4.0);
 	}
@@ -95,6 +98,9 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob, T
 		goalSelector.add(3, new ProjectileAttackGoal(this, 1.0, 20, 26.0f));
 		goalSelector.add(4, new FollowCommanderGoal(this, 1.15, 6.0f, 22.0f));
 		goalSelector.add(5, new GuardPostGoal(this, 0.9));
+		// Nach dem Postendienst: Wer nichts zu tun hat, sucht den Gegner auf -
+		// sonst steht der Trupp bis in alle Ewigkeit auf seinem Platz herum.
+		goalSelector.add(6, new AdvanceOnEnemyGoal(this, 1.05));
 		goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 10.0f));
 		goalSelector.add(8, new LookAroundGoal(this));
 

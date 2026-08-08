@@ -78,7 +78,8 @@ Rund 32 000 Blöcke, ausgerichtet nach deiner Blickrichtung:
 | **2 × Radarstation** | an beiden Enden, für Rundumsicht |
 | **4 × Iron Dome** | bereits voll mit Abfangraketen geladen |
 | **2 × Kaserne** | mit je 64 Eisenbarren Nachschub, bilden sofort Soldaten aus |
-| **8 Maschinen** | 2 F-47 für dich, 6 Drohnenjäger |
+| **10 Maschinen** | 2 F-47 für dich, 6 Drohnenjäger, 1 B-21, 1 Transporter |
+| **2 Schützenpanzer** | fahren die Infanterie zum Gegner |
 | **26 Mann** | 6 Piloten, 3 Techniker, 2 Sanitäter, 3 Panzerabwehr, 12 Schützen |
 
 Das Gelände wird dabei planiert: Bewuchs kommt weg, Senken werden aufgefüllt.
@@ -163,8 +164,10 @@ Maschinen, und der Krieg läuft.
 2. Ein Stück weiter **im Schleichen** rechtsklicken → die **rote** Basis.
 3. Fertig.
 
-Der Abstand sollte zwischen etwa 120 und 250 Blöcken liegen. Zu nah, und die
-Bahnen überbauen sich; zu weit, und die Patrouillen finden einander nie.
+Der Abstand ist fast egal: Die Einheiten suchen bis **2000 Blöcke** weit und
+nehmen ihr gerechnetes Gelände unterwegs mit. Getestet auf 600 Blöcke Abstand —
+28 Raketen verschossen, drei Maschinen abgeschossen. Nur zu nah sollten sie
+nicht stehen, sonst überbauen sich die Bahnen (unter etwa 120 Blöcken).
 
 Alternativ setzt das **Truppenabzeichen** deine eigene Seite um:
 
@@ -435,6 +438,27 @@ Rohtitan  →(schmelzen)→  Titanbarren  →  Titanplatte
 ```
 
 Alle Rezepte findest du im Spiel über das **Rezeptbuch**.
+
+---
+
+## 8a. Die neuen Muster
+
+| Einheit | Aufgabe |
+|---|---|
+| **B-21 Tarnkappenbomber** | Kaum zu orten (7 % der normalen Ortungsreichweite). Fliegt an Luftzielen vorbei und wirft seine Last auf Stellungen und Kasernen ab. Sieht als fliegendes Radar doppelt so weit wie ein Jäger. |
+| **Transportflugzeug** | Halb getarnt (45 %). Unbewaffnet. **Betankt eigene Maschinen in der Luft** — dadurch reichen Einsätze weiter als eine Tankfüllung. Nimmt bis zu 8 Mann auf. |
+| **Schützenpanzer** | Nimmt 6 Mann auf, fährt selbstständig zum Gegner, setzt sie dort ab und schießt unterwegs mit dem Turm. |
+
+Alle drei liegen im Kreativ-Reiter und stehen bei jedem neuen Stützpunkt schon
+bereit.
+
+### Bodentruppen greifen jetzt wirklich an
+
+Soldaten blieben bisher an ihrem Posten stehen und schossen nur auf das, was
+ihnen vor die Füße lief. Jetzt suchen sie den Gegner bis 2000 Blöcke weit und
+marschieren in kurzen Etappen hin — einzeln wäre der Weg für Minecrafts
+Wegfindung zu lang, aneinandergereiht trägt er beliebig weit. Ihre
+Erfassungsreichweite ist von 40 auf 96 Blöcke gestiegen.
 
 ---
 

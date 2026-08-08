@@ -29,6 +29,9 @@ public final class ModItemGroups {
 					// Flugzeuge
 					entries.add(ModItems.F47_AIRCRAFT);
 					entries.add(ModItems.F47_AUTONOMOUS);
+					entries.add(ModItems.B21_BOMBER);
+					entries.add(ModItems.TRANSPORT_AIRCRAFT);
+					entries.add(ModItems.ARMORED_VEHICLE);
 
 					// Fuehrung und Truppen
 					entries.add(ModItems.COMMAND_TABLET);

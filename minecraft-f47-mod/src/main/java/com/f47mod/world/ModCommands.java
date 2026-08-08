@@ -166,11 +166,15 @@ public final class ModCommands {
 		}
 
 		int distance = (int) blue.distanceTo(red);
+		// Die Grenze ist die Suchreichweite der Einheiten, nicht mehr die alte
+		// feste Zahl: Seit der gerechnete Bereich mitfliegt, greifen sie auch
+		// ueber hunderte Bloecke an.
+		boolean reachable = distance <= F47Config.get().strikeRange;
 		source.sendFeedback(() -> Text.translatable("message.f47.status_distance", distance,
-				Text.translatable(distance <= 320
-						? "message.f47.status_ok"
-						: "message.f47.status_too_far").formatted(distance <= 320
-						? Formatting.GREEN : Formatting.RED)), false);
+				Text.translatable(reachable ? "message.f47.status_ok" : "message.f47.status_too_far")
+						.formatted(reachable ? Formatting.GREEN : Formatting.RED)), false);
+		source.sendFeedback(() -> Text.translatable("message.f47.status_chunks",
+				MissionLoader.heldChunks()), false);
 		return distance;
 	}
 

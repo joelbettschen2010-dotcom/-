@@ -876,6 +876,11 @@ ITEM_ICONS = {
     "command_tablet": (TABLET_ART, metal_palette(STEEL_DARK, accent=(60, 180, 120, 255))),
     "f47_aircraft": (JET_ART, metal_palette(JET_GREY, accent=AMBER)),
     "f47_autonomous": (JET_ART, metal_palette(STEALTH_BLACK, accent=LASER_CYAN)),
+    # Bomber, Transporter und Panzer teilen sich die Umrisse der vorhandenen
+    # Symbole, nur die Farbgebung unterscheidet sie.
+    "b21_bomber": (JET_ART, metal_palette((26, 27, 31, 255), accent=(90, 96, 110, 255))),
+    "transport_aircraft": (JET_ART, metal_palette((72, 78, 74, 255), accent=(150, 158, 150, 255))),
+    "armored_vehicle": (JET_ART, metal_palette((74, 86, 104, 255), accent=(40, 44, 52, 255))),
     "threat_beacon": (BEACON_ART, metal_palette(STEEL_DARK, accent=DANGER_RED)),
     "team_badge": (BADGE_ART, metal_palette((186, 176, 150, 255), accent=(58, 96, 168, 255))),
     "base_builder": (KIT_ART, metal_palette(OLIVE, accent=MARKING)),
@@ -928,6 +933,13 @@ def gen_entity_textures():
     write_png(os.path.join(out, "f47_red.png"),
               tex_aircraft((88, 66, 62, 255), 103, insignia=False, stripe=DANGER_RED))
     write_png(os.path.join(out, "f47_stealth.png"), tex_aircraft(STEALTH_BLACK, 102, insignia=False))
+    # B-21: mattschwarz ohne Kennung - eine Tarnkappe traegt keine Hoheitszeichen.
+    write_png(os.path.join(out, "b21.png"), tex_aircraft((26, 27, 31, 255), 104, insignia=False))
+    # Transporter: gedecktes Grau, halb getarnt, mit Kennung.
+    write_png(os.path.join(out, "transport.png"), tex_aircraft((72, 78, 74, 255), 105))
+    # Schuetzenpanzer in beiden Parteifarben.
+    write_png(os.path.join(out, "vehicle_blue.png"), tex_panel((74, 86, 104, 255), 106))
+    write_png(os.path.join(out, "vehicle_red.png"), tex_panel((104, 72, 66, 255), 107))
 
     # Soldaten: jede Rolle in beiden Parteifarben.
     for role, (uniform, vest, helmet, accent) in SOLDIER_ROLES.items():

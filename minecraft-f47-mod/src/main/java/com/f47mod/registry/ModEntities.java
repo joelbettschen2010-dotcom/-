@@ -7,7 +7,10 @@ import com.f47mod.entity.projectile.BombEntity;
 import com.f47mod.entity.projectile.BulletEntity;
 import com.f47mod.entity.projectile.MissileEntity;
 import com.f47mod.entity.projectile.PlasmaBoltEntity;
+import com.f47mod.entity.vehicle.ArmoredVehicleEntity;
 import com.f47mod.entity.vehicle.AutonomousF47Entity;
+import com.f47mod.entity.vehicle.B21Entity;
+import com.f47mod.entity.vehicle.TransportEntity;
 import com.f47mod.entity.vehicle.F47Entity;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.minecraft.entity.EntityType;
@@ -35,6 +38,29 @@ public final class ModEntities {
 					.dimensions(4.0f, 1.5f)
 					.maxTrackingRange(16)
 					.trackingTickInterval(1));
+
+	/**
+	 * B-21 - Tarnkappenbomber. Groesser und schwerer als der Jaeger, dafuer
+	 * kaum zu orten.
+	 */
+	public static final EntityType<B21Entity> B21 = register("b21",
+			EntityType.Builder.<B21Entity>create(B21Entity::new, SpawnGroup.MISC)
+					.dimensions(6.0f, 1.8f)
+					.maxTrackingRange(16)
+					.trackingTickInterval(1));
+
+	/** Transporter - traegt Truppen und Geraet und betankt in der Luft. */
+	public static final EntityType<TransportEntity> TRANSPORT = register("transport",
+			EntityType.Builder.<TransportEntity>create(TransportEntity::new, SpawnGroup.MISC)
+					.dimensions(6.5f, 2.4f)
+					.maxTrackingRange(16)
+					.trackingTickInterval(1));
+
+	/** Schuetzenpanzer - bringt die Bodentruppen ans Ziel. */
+	public static final EntityType<ArmoredVehicleEntity> ARMORED_VEHICLE = register("armored_vehicle",
+			EntityType.Builder.<ArmoredVehicleEntity>create(ArmoredVehicleEntity::new, SpawnGroup.MISC)
+					.dimensions(2.4f, 2.0f)
+					.maxTrackingRange(12));
 
 	public static final EntityType<SoldierEntity> SOLDIER = register("soldier",
 			EntityType.Builder.create(SoldierEntity::new, SpawnGroup.CREATURE)

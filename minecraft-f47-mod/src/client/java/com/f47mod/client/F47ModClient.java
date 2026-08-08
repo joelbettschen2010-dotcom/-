@@ -4,6 +4,7 @@ import com.f47mod.client.gui.JoystickScreen;
 import com.f47mod.client.hud.JetHud;
 import com.f47mod.client.render.DroneRenderer;
 import com.f47mod.client.render.F47Model;
+import com.f47mod.client.render.ArmoredVehicleRenderer;
 import com.f47mod.client.render.F47Renderer;
 import com.f47mod.client.render.ProjectileRenderers;
 import com.f47mod.client.render.RadarBlockEntityRenderer;
@@ -13,6 +14,7 @@ import com.f47mod.entity.vehicle.F47Entity;
 import com.f47mod.net.ModNetworking;
 import com.f47mod.registry.ModBlockEntities;
 import com.f47mod.registry.ModBlocks;
+import com.f47mod.F47Mod;
 import com.f47mod.registry.ModEntities;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -65,6 +67,8 @@ public class F47ModClient implements ClientModInitializer {
 	private void registerModels() {
 		EntityModelLayerRegistry.registerModelLayer(F47Model.LAYER, F47Model::getTexturedModelData);
 		EntityModelLayerRegistry.registerModelLayer(SoldierModel.LAYER, SoldierModel::getTexturedModelData);
+		EntityModelLayerRegistry.registerModelLayer(ArmoredVehicleRenderer.LAYER,
+				ArmoredVehicleRenderer::getTexturedModelData);
 		EntityModelLayerRegistry.registerModelLayer(DroneRenderer.DroneModel.LAYER,
 				DroneRenderer.DroneModel::getTexturedModelData);
 		EntityModelLayerRegistry.registerModelLayer(ProjectileRenderers.MISSILE_LAYER,
@@ -76,6 +80,13 @@ public class F47ModClient implements ClientModInitializer {
 	private void registerRenderers() {
 		EntityRendererRegistry.register(ModEntities.F47, F47Renderer::new);
 		EntityRendererRegistry.register(ModEntities.AUTONOMOUS_F47, F47Renderer::new);
+		// Bomber und Transporter teilen sich Modell und Renderer, nur Groesse
+		// und Textur unterscheiden sich - das spart ein zweites Modell.
+		EntityRendererRegistry.register(ModEntities.B21,
+				context -> new F47Renderer(context, 1.6f, F47Mod.id("textures/entity/b21.png")));
+		EntityRendererRegistry.register(ModEntities.TRANSPORT,
+				context -> new F47Renderer(context, 1.8f, F47Mod.id("textures/entity/transport.png")));
+		EntityRendererRegistry.register(ModEntities.ARMORED_VEHICLE, ArmoredVehicleRenderer::new);
 		EntityRendererRegistry.register(ModEntities.SOLDIER, SoldierRenderer::new);
 		EntityRendererRegistry.register(ModEntities.COMBAT_DRONE, DroneRenderer::new);
 		EntityRendererRegistry.register(ModEntities.MISSILE, ProjectileRenderers.MissileRenderer::new);

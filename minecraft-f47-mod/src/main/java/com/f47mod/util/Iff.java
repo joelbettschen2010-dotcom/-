@@ -3,7 +3,9 @@ package com.f47mod.util;
 import com.f47mod.F47Config;
 import com.f47mod.entity.mob.CombatDroneEntity;
 import com.f47mod.entity.mob.SoldierEntity;
+import com.f47mod.entity.vehicle.B21Entity;
 import com.f47mod.entity.vehicle.F47Entity;
+import com.f47mod.entity.vehicle.TransportEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.mob.CreeperEntity;
@@ -151,6 +153,16 @@ public final class Iff {
 	 * spaet erfasst - das ist der ganze Sinn von Stealth.
 	 */
 	public static double detectionRange(Entity target, double baseRange) {
+		if (target instanceof B21Entity bomber && bomber.isStealthEffective()) {
+			// Die B-21 ist die Tarnkappe schlechthin - sie wird erst bemerkt,
+			// wenn sie praktisch ueber der Stellung steht.
+			return baseRange * B21Entity.STEALTH_FACTOR;
+		}
+		if (target instanceof TransportEntity transport && transport.isStealthEffective()) {
+			// Halb getarnt: schwerer zu orten als ein Jaeger, aber ein grosses
+			// Flugzeug bleibt ein grosses Flugzeug.
+			return baseRange * TransportEntity.STEALTH_FACTOR;
+		}
 		if (target instanceof F47Entity jet && jet.isStealthEffective()) {
 			return baseRange * F47Config.get().stealthDetectionFactor;
 		}

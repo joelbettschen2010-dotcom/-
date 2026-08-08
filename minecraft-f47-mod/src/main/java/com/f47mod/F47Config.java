@@ -137,6 +137,24 @@ public class F47Config {
 	 * angreifende Maschinen auf halbem Weg ein.
 	 */
 	public int warBaseSeparation = 150;
+	/**
+	 * Chunks, die eine unterwegs befindliche Einheit um sich herum gerechnet
+	 * haelt. Ohne das steht sie ausserhalb des Stuetzpunkts still - genau
+	 * daran sind Angriffe ueber groessere Entfernungen gescheitert. 2 deckt
+	 * gut achtzig Bloecke ab und reicht bei jeder fliegbaren Geschwindigkeit.
+	 */
+	public int missionChunkRadius = 2;
+	/**
+	 * Obergrenze fuer die mitgefuehrten Chunks insgesamt. Verhindert, dass ein
+	 * grosser Krieg mit vielen gleichzeitigen Einsaetzen den Rechner erdrueckt.
+	 */
+	public int missionChunkBudget = 400;
+	/**
+	 * Wie weit Einheiten nach Gegnern suchen, in Bloecken. Grosszuegig - der
+	 * Wunsch war ausdruecklich, dass sie angreifen, egal wie weit weg der
+	 * Gegner steht.
+	 */
+	public int strikeRange = 2000;
 
 	// --- Sonstiges --------------------------------------------------------
 	/** Explosionen beschaedigen Bloecke. Auf false stellen, um die Basis zu schonen. */

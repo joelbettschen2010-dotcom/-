@@ -14,6 +14,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Zeichnet die F-47 in der Welt - samt Querlage, Tarnkappen-Transparenz und
@@ -25,13 +26,25 @@ public class F47Renderer extends EntityRenderer<F47Entity> {
 	private static final Identifier STEALTH = F47Mod.id("textures/entity/f47_stealth.png");
 
 	private final F47Model model;
+	/** Zusaetzlicher Groessenfaktor - Bomber und Transporter sind groesser. */
+	private final float sizeFactor;
+	/** Feste Textur, falls dieses Muster keine Parteifarben hat. */
+	@Nullable
+	private final Identifier override;
 
 	public F47Renderer(EntityRendererFactory.Context context) {
+		this(context, 1.0f, null);
+	}
+
+	public F47Renderer(EntityRendererFactory.Context context, float sizeFactor,
+			@Nullable Identifier override) {
 		super(context);
+		this.sizeFactor = sizeFactor;
+		this.override = override;
 		this.model = new F47Model(context.getPart(F47Model.LAYER));
 		// Der Schatten soll mitwachsen, sonst schwebt eine grosse Maschine
 		// ueber einem winzigen Fleck.
-		this.shadowRadius = 1.5f * F47Config.get().jetModelScale;
+		this.shadowRadius = 1.5f * F47Config.get().jetModelScale * sizeFactor;
 	}
 
 	@Override
@@ -52,7 +65,7 @@ public class F47Renderer extends EntityRenderer<F47Entity> {
 		// hiesse, den Jet auf ein Zehntel zu schrumpfen; er war dadurch nur
 		// gut drei Zentimeter gross. Der Faktor vergroessert stattdessen die
 		// rund drei Bloecke des Rohmodells auf Kampfflugzeuggroesse.
-		float scale = F47Config.get().jetModelScale;
+		float scale = F47Config.get().jetModelScale * sizeFactor;
 		matrices.scale(scale, scale, scale);
 
 		Identifier texture = getTexture(entity);
@@ -73,6 +86,9 @@ public class F47Renderer extends EntityRenderer<F47Entity> {
 
 	@Override
 	public Identifier getTexture(F47Entity entity) {
+		if (override != null) {
+			return override;
+		}
 		if (entity.isStealthOn()) {
 			return STEALTH;
 		}

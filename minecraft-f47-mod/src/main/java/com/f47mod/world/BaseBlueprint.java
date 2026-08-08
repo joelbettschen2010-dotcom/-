@@ -5,6 +5,7 @@ import com.f47mod.block.HangarDoorBlock;
 import com.f47mod.block.RunwayMarkingBlock;
 import com.f47mod.entity.mob.SoldierEntity;
 import com.f47mod.entity.mob.SoldierRole;
+import com.f47mod.entity.vehicle.ArmoredVehicleEntity;
 import com.f47mod.entity.vehicle.AutonomousF47Entity;
 import com.f47mod.entity.vehicle.F47Entity;
 import com.f47mod.registry.ModBlocks;
@@ -374,6 +375,40 @@ public final class BaseBlueprint {
 			drone.randomiseCallsign();
 			drone.setOwner(owner);
 			world.spawnEntity(drone);
+		}
+
+		// Ein Tarnkappenbomber und ein Transporter je Basis - der eine schlaegt
+		// gegen Bodenziele zu, der andere betankt die Staffel in der Luft und
+		// verlaengert damit ihre Reichweite.
+		for (int i = 0; i < 2; i++) {
+			AutonomousF47Entity heavy = i == 0
+					? ModEntities.B21.create(world)
+					: ModEntities.TRANSPORT.create(world);
+			if (heavy == null) {
+				continue;
+			}
+			BlockPos spot = origin.offset(facing, 46 + i * 12)
+					.offset(side, PARKING_LANE).withY(ground + 1);
+			heavy.refreshPositionAndAngles(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, yaw, 0.0f);
+			heavy.setTeam(team);
+			heavy.setHomeBase(home, yaw);
+			heavy.randomiseCallsign();
+			heavy.setOwner(owner);
+			world.spawnEntity(heavy);
+		}
+
+		// Zwei Schuetzenpanzer - sie fahren die Infanterie zum Gegner, statt
+		// sie hunderte Bloecke zu Fuss laufen zu lassen.
+		for (int i = 0; i < 2; i++) {
+			ArmoredVehicleEntity carrier = ModEntities.ARMORED_VEHICLE.create(world);
+			if (carrier == null) {
+				continue;
+			}
+			BlockPos spot = origin.offset(facing, 70 + i * 6)
+					.offset(side, PARKING_LANE + 6).withY(ground + 1);
+			carrier.refreshPositionAndAngles(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, yaw, 0.0f);
+			carrier.setTeam(team);
+			world.spawnEntity(carrier);
 		}
 
 		// Bodenpersonal. Sechs Piloten, damit auch die Reservemaschinen

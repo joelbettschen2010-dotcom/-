@@ -2,6 +2,7 @@ package com.f47mod.entity.vehicle;
 
 import com.f47mod.F47Config;
 import com.f47mod.util.Iff;
+import com.f47mod.world.MissionLoader;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.data.DataTracker;
@@ -30,7 +31,7 @@ import java.util.UUID;
  * einfachen Zustandsautomaten ("Bot-Pilot"), der Kurs, Schub und Waffeneinsatz
  * selbst bestimmt. Befehle kommen ueber das Kommando-Tablet.
  */
-public class AutonomousF47Entity extends F47Entity {
+public class AutonomousF47Entity extends F47Entity implements MissionLoader.MissionUnit {
 	private static final TrackedData<Integer> ORDER =
 			DataTracker.registerData(AutonomousF47Entity.class, TrackedDataHandlerRegistry.INTEGER);
 	private static final TrackedData<String> CALLSIGN =
@@ -198,6 +199,16 @@ public class AutonomousF47Entity extends F47Entity {
 		homeBase = pos;
 		homeHeading = heading;
 		patrolAltitude = Math.max(pos.getY() + 35, 75);
+	}
+
+	/**
+	 * Unterwegs braucht die Maschine eigenes gerechnetes Gelaende - der feste
+	 * Bereich um den Stuetzpunkt reicht nur bis zur Warteschleife. Am Boden
+	 * abgestellt braucht sie nichts, da steht sie ohnehin im Bereich der Basis.
+	 */
+	@Override
+	public boolean needsLoadedTerrain() {
+		return getOrder() != Order.PARKED;
 	}
 
 	@Override
@@ -525,7 +536,7 @@ public class AutonomousF47Entity extends F47Entity {
 			return;
 		}
 		sweepTimer = 100;
-		double reach = SWEEP_RANGE;
+		double reach = F47Config.get().strikeRange;
 		Box box = getBoundingBox().expand(reach);
 		Entity nearest = null;
 		double best = Double.MAX_VALUE;
@@ -589,6 +600,11 @@ public class AutonomousF47Entity extends F47Entity {
 	@Nullable
 	private Vec3d stayInRange() {
 		if (homeBase == null) {
+			return null;
+		}
+		// Wandert das Gelaende mit, gibt es keinen Grund mehr umzudrehen -
+		// die Maschine nimmt ihren gerechneten Bereich einfach mit.
+		if (F47Config.get().missionChunkRadius > 0) {
 			return null;
 		}
 		// Der Force-Load deckt ein Quadrat ab; der eingeschriebene Kreis ist
@@ -731,13 +747,13 @@ public class AutonomousF47Entity extends F47Entity {
 		if (getOrder() == Order.RTB) {
 			return null;
 		}
-		double range = F47Config.get().jetRadarRange;
+		double range = radarRange();
 		Box box = getBoundingBox().expand(range);
 		List<Entity> threats = getWorld().getOtherEntities(this, box, candidate -> Iff.isEnemy(this, candidate));
 		Entity best = null;
 		double bestDistance = Double.MAX_VALUE;
 		for (Entity threat : threats) {
-			if (!Iff.canDetect(threat, getPos(), range)) {
+			if (!Iff.canDetect(threat, getPos(), range) || !isWorthAttacking(threat)) {
 				continue;
 			}
 			double distance = threat.squaredDistanceTo(this);
@@ -754,12 +770,11 @@ public class AutonomousF47Entity extends F47Entity {
 	}
 
 	/** Waffeneinsatz gegen das aktuelle Ziel. */
-	private void engage(Entity target, double distance) {
+	protected void engage(Entity target, double distance) {
 		if (weaponTimer > 0) {
 			return;
 		}
-		Vec3d toTarget = target.getPos().add(0, target.getHeight() * 0.5, 0).subtract(getPos());
-		double alignment = toTarget.normalize().dotProduct(getForwardVector());
+		double alignment = toTargetAlignment(target);
 
 		// Der Suchkopf sieht weit - enger als noetig zu zielen heisst, nie zu
 		// schiessen: Der Bot fliegt seinen Zielpunkt bewusst etwas ueber dem
@@ -796,5 +811,43 @@ public class AutonomousF47Entity extends F47Entity {
 		};
 		setOrder(next);
 		return next;
+	}
+
+	// ------------------------------------------------------------------
+	// Haken fuer abgeleitete Muster (Bomber, Transporter)
+	// ------------------------------------------------------------------
+
+	/** Ortungsreichweite dieser Maschine. Der Bomber sieht weiter. */
+	protected double radarRange() {
+		return F47Config.get().jetRadarRange;
+	}
+
+	/**
+	 * Lohnt sich dieses Ziel? Ein Jaeger nimmt alles, ein Bomber nur
+	 * Bodenziele, ein Transporter gar nichts.
+	 */
+	protected boolean isWorthAttacking(Entity candidate) {
+		return true;
+	}
+
+	/** Wie genau zeigt die Nase auf das Ziel? 1 heisst genau darauf. */
+	protected double toTargetAlignment(Entity target) {
+		Vec3d toTarget = target.getPos().add(0, target.getHeight() * 0.5, 0).subtract(getPos());
+		return toTarget.lengthSquared() < 1.0e-6
+				? 0.0
+				: toTarget.normalize().dotProduct(getForwardVector());
+	}
+
+	protected int getWeaponTimer() {
+		return weaponTimer;
+	}
+
+	protected void setWeaponTimer(int ticks) {
+		weaponTimer = ticks;
+	}
+
+	/** Warteschleifenhoehe setzen - Bomber kreisen hoeher als Jaeger. */
+	protected void setPatrolAltitude(int altitude) {
+		patrolAltitude = altitude;
 	}
 }

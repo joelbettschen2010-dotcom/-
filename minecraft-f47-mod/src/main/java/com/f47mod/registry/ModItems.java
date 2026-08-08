@@ -6,6 +6,7 @@ import com.f47mod.item.BaseBuilderItem;
 import com.f47mod.item.CommandTabletItem;
 import com.f47mod.item.EnergyWeaponItem;
 import com.f47mod.item.JetSpawnItem;
+import com.f47mod.item.VehicleSpawnItem;
 import com.f47mod.item.RecruitOrderItem;
 import com.f47mod.item.TeamBadgeItem;
 import com.f47mod.item.ThreatBeaconItem;
@@ -41,6 +42,16 @@ public final class ModItems {
 			register("f47_aircraft", new JetSpawnItem(new Item.Settings().maxCount(1), false));
 	public static final Item F47_AUTONOMOUS =
 			register("f47_autonomous", new JetSpawnItem(new Item.Settings().maxCount(1), true));
+
+	public static final Item B21_BOMBER =
+			register("b21_bomber", new VehicleSpawnItem(new Item.Settings().maxCount(1),
+					() -> ModEntities.B21));
+	public static final Item TRANSPORT_AIRCRAFT =
+			register("transport_aircraft", new VehicleSpawnItem(new Item.Settings().maxCount(1),
+					() -> ModEntities.TRANSPORT));
+	public static final Item ARMORED_VEHICLE =
+			register("armored_vehicle", new VehicleSpawnItem(new Item.Settings().maxCount(1),
+					() -> ModEntities.ARMORED_VEHICLE));
 
 	// --- Energiewaffen ----------------------------------------------------
 	public static final Item LASER_RIFLE = register("laser_rifle",
