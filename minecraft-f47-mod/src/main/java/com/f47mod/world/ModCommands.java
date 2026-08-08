@@ -93,12 +93,16 @@ public final class ModCommands {
 		Direction across = facing.rotateYClockwise();
 		int gap = Math.max(80, F47Config.get().warBaseSeparation);
 
-		// Beide Bahnen laufen parallel, die Basen liegen sich seitlich gegenueber.
+		// Beide Bahnen laufen in dieselbe Richtung, die Basen liegen sich rein
+		// seitlich gegenueber. Liess man die rote Bahn entgegengesetzt laufen,
+		// kam ihre Laenge zum Abstand hinzu: Aus hundertfuenfzig Bloecken
+		// wurden zweihundertneunzehn, die geladenen Bereiche beruehrten sich
+		// nicht mehr, und wer den Zwischenraum ueberflog, blieb dort stehen.
 		BlockPos blue = centre.offset(across, -gap / 2);
 		BlockPos red = centre.offset(across, gap / 2);
 
 		int placed = BaseBlueprint.build(world, blue, facing, player, Team.BLUE)
-				+ BaseBlueprint.build(world, red, facing.getOpposite(), null, Team.RED);
+				+ BaseBlueprint.build(world, red, facing, null, Team.RED);
 
 		source.sendFeedback(() -> Text.translatable("message.f47.war_started", placed, gap), true);
 		return placed;

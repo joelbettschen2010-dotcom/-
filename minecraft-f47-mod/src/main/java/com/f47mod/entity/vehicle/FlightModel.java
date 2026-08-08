@@ -58,6 +58,11 @@ public final class FlightModel {
 	private static final double CD_ZERO = 0.023;
 	/** Faktor des induzierten Widerstands, 1/(pi * Streckung * Wirkungsgrad). */
 	private static final double INDUCED_DRAG = 0.17;
+	/**
+	 * Geschwindigkeit in m/s, ab der die Regelung das Gewicht voll traegt.
+	 * Entspricht ungefaehr der Abhebegeschwindigkeit der echten Rechnung.
+	 */
+	private static final double ASSIST_LIFT_SPEED = 34.0;
 
 	private FlightModel() {
 	}
@@ -121,6 +126,64 @@ public final class FlightModel {
 
 		// Sicherheitsgrenze: Jenseits davon reisst Minecrafts Kollisionspruefung
 		// ab und die Maschine faellt durch die Welt.
+		double limit = config.speedLimitBlocksPerTick * TICKS_PER_SECOND;
+		if (updated.length() > limit) {
+			updated = updated.normalize().multiply(limit);
+		}
+		return updated.multiply(SECONDS_PER_TICK);
+	}
+
+	/**
+	 * Gutmuetiges Ersatzmodell fuer die Bot-Piloten.
+	 *
+	 * <p>Dieselben Kraefte, aber mit zwei Zugestaendnissen: Der
+	 * Geschwindigkeitsvektor wird zur Nase hin gezogen, statt ihr traege
+	 * hinterherzulaufen, und der Auftrieb haelt das Gewicht, sobald genug Fahrt
+	 * da ist. Damit fliegt die Maschine dorthin, wohin sie zeigt.
+	 *
+	 * <p>Warum das noetig ist: Ein Bot kennt nur seinen Zielpunkt. Er sieht
+	 * keinen Horizont, hat keinen Blick auf das Gelaende und muss innerhalb der
+	 * dauerhaft geladenen Chunks bleiben. Mit voller Traegheit faehrt er Kurven
+	 * zu weit aus, ueberzieht im Steigflug und faellt an Haengen herunter - im
+	 * Versuch hing so die halbe Staffel unbeweglich im Gelaende, statt zu
+	 * kaempfen. Der Spieler bekommt weiter die volle Aerodynamik; er sieht ja,
+	 * was er tut.
+	 */
+	public static Vec3d assisted(Vec3d velocity, Vec3d forward, double thrust,
+			boolean onGround, double rolling) {
+		F47Config config = F47Config.get();
+		double mass = Math.max(500.0, config.massKg);
+
+		Vec3d speedMs = velocity.multiply(TICKS_PER_SECOND);
+		double speed = speedMs.length();
+
+		// Schub und Gewicht wie gehabt.
+		Vec3d force = forward.multiply(thrust).add(0.0, -mass * GRAVITY, 0.0);
+
+		// Auftrieb: traegt ab Abhebegeschwindigkeit voll, darunter anteilig.
+		double lift = MathHelper.clamp(speed / ASSIST_LIFT_SPEED, 0.0, 1.0);
+		force = force.add(0.0, mass * GRAVITY * lift, 0.0);
+
+		// Luftwiderstand, damit die Geschwindigkeit endlich bleibt.
+		if (speed > 0.05) {
+			double drag = 0.5 * SEA_LEVEL_DENSITY * speed * speed
+					* Math.max(1.0, config.wingAreaM2) * CD_ZERO;
+			force = force.add(speedMs.multiply(-drag / speed));
+		}
+
+		if (onGround) {
+			force = applyGroundContact(force, speedMs, mass, rolling);
+		}
+
+		Vec3d updated = speedMs.add(force.multiply(SECONDS_PER_TICK / mass));
+
+		// Die Nase zieht den Geschwindigkeitsvektor nach - das ist der
+		// eigentliche Unterschied zur freien Aerodynamik.
+		if (!onGround && updated.length() > 0.05) {
+			double grip = MathHelper.clamp(updated.length() / ASSIST_LIFT_SPEED, 0.0, 1.0) * 0.22;
+			updated = updated.lerp(forward.multiply(updated.length()), grip);
+		}
+
 		double limit = config.speedLimitBlocksPerTick * TICKS_PER_SECOND;
 		if (updated.length() > limit) {
 			updated = updated.normalize().multiply(limit);

@@ -195,6 +195,11 @@ public class AutonomousF47Entity extends F47Entity {
 		patrolAltitude = Math.max(pos.getY() + 35, 75);
 	}
 
+	@Override
+	protected boolean usesFlightAssist() {
+		return F47Config.get().botFlightAssist;
+	}
+
 	/** Richtung der Startbahn in Grad. */
 	public float getHomeHeading() {
 		return homeHeading;
@@ -265,8 +270,10 @@ public class AutonomousF47Entity extends F47Entity {
 	 * Staffelstaerke mitzaehlen - die Kaserne baute also nie Ersatz.
 	 */
 	private void checkForWreck() {
-		boolean stranded = isOnGround()
-				&& getOrder() != Order.PARKED
+		// Bewusst ohne Bodenpruefung: Eine verkeilte Maschine meldet oft gar
+		// keinen Bodenkontakt mehr, weil sie zwischen Bloecken haengt. Wer sich
+		// nicht mehr bewegt, ist so oder so ein Wrack.
+		boolean stranded = getOrder() != Order.PARKED
 				&& getVelocity().lengthSquared() < 0.01
 				&& (homeBase == null || squaredHorizontalDistance(homeBase) > 40.0 * 40.0);
 		if (!stranded) {
@@ -307,8 +314,9 @@ public class AutonomousF47Entity extends F47Entity {
 			return;
 		}
 		if (--scrambleTimer <= 0) {
-			// Nach der Landung laenger stehen bleiben als beim ersten Start.
-			scrambleTimer = 600 + (int) (Math.random() * 900);
+			// Nach der Landung eine Weile stehen bleiben, aber nicht zu lange -
+			// sonst ist von zwoelf Maschinen nie mehr als eine in der Luft.
+			scrambleTimer = 250 + (int) (Math.random() * 450);
 			setOrder(Order.TAKEOFF);
 		}
 	}
@@ -373,7 +381,10 @@ public class AutonomousF47Entity extends F47Entity {
 					throttle = throttleForSpeed(PATROL_SPEED * 1.2);
 				}
 
-				if (getY() > patrolAltitude - 8) {
+				// Frueh genug in die Patrouille wechseln. Der Wechsel auf
+				// Angriff passiert erst von dort aus - wer im Start haengen
+				// bleibt, greift also nie an, egal wie nah der Gegner ist.
+				if (getY() > base.getY() + 26) {
 					setAfterburner(false);
 					setOrder(Order.PATROL);
 					announce("message.f47.on_station");
@@ -657,8 +668,11 @@ public class AutonomousF47Entity extends F47Entity {
 
 	@Nullable
 	private Entity findTarget() {
-		Order order = getOrder();
-		if (order == Order.PARKED || order == Order.RTB) {
+		// Auch am Boden wird gesucht: Der Alarmstart haengt daran, dass eine
+		// wartende Maschine den Gegner ueberhaupt bemerkt. Ohne das konnte er
+		// nie ausloesen - beim Anflug einer feindlichen Staffel blieb die
+		// halbe Basis stehen und schaute zu.
+		if (getOrder() == Order.RTB) {
 			return null;
 		}
 		double range = F47Config.get().jetRadarRange;
@@ -691,11 +705,15 @@ public class AutonomousF47Entity extends F47Entity {
 		Vec3d toTarget = target.getPos().add(0, target.getHeight() * 0.5, 0).subtract(getPos());
 		double alignment = toTarget.normalize().dotProduct(getForwardVector());
 
-		if (distance < 110 && distance > 18 && alignment > 0.90 && getMissileAmmo() > 0) {
+		// Der Suchkopf sieht weit - enger als noetig zu zielen heisst, nie zu
+		// schiessen: Der Bot fliegt seinen Zielpunkt bewusst etwas ueber dem
+		// Gegner an, um nicht hineinzufliegen, und lag damit staendig knapp
+		// ausserhalb des alten Kegels von sechsundzwanzig Grad.
+		if (distance < 120 && distance > 14 && alignment > 0.78 && getMissileAmmo() > 0) {
 			setLockedTarget(target);
 			fireWeapon(WeaponType.MISSILE);
 			weaponTimer = 70;
-		} else if (distance < 55 && alignment > 0.97 && getCannonAmmo() > 0) {
+		} else if (distance < 60 && alignment > 0.94 && getCannonAmmo() > 0) {
 			setLockedTarget(target);
 			fireWeapon(WeaponType.CANNON);
 			weaponTimer = 3;

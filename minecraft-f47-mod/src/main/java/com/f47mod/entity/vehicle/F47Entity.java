@@ -577,8 +577,10 @@ public class F47Entity extends Entity implements TeamMember {
 		// Rollreibung: auf der Bahn wenig, im Gelaende viel.
 		double rolling = isOnRunway() ? 0.02 : 0.12;
 
-		Vec3d velocity = FlightModel.step(getVelocity(), forward, right, thrust,
-				getY(), isOnGround(), rolling);
+		Vec3d velocity = usesFlightAssist()
+				? FlightModel.assisted(getVelocity(), forward, thrust, isOnGround(), rolling)
+				: FlightModel.step(getVelocity(), forward, right, thrust,
+						getY(), isOnGround(), rolling);
 
 		// Anstellwinkel merken - Cockpitwarnung und Bot-Piloten sollen
 		// denselben Wert sehen, mit dem die Physik gerechnet hat.
@@ -593,16 +595,22 @@ public class F47Entity extends Entity implements TeamMember {
 		Vec3d before = getPos();
 		move(MovementType.SELF, getVelocity());
 
-		if (horizontalCollision || (verticalCollision && !isOnGround())) {
-			logImpact("Kollision", before);
+		// Nur in der Luft gilt eine Kollision als Aufschlag.
+		//
+		// Am Boden meldet Minecraft beim schnellen Rollen staendig eine
+		// waagerechte Kollision - die Trefferbox streift die Kanten der
+		// Bahnbloecke unter sich. Wer das als Bruchlandung wertet, nimmt der
+		// Maschine jeden Tick drei Viertel ihrer Fahrt: Sie kommt nie auf
+		// Geschwindigkeit, bleibt mitten auf der Bahn stehen und kollidiert von
+		// da an fuer immer mit sich selbst. Genau daran hing die halbe Staffel
+		// bewegungslos fest.
+		if (!isOnGround() && (horizontalCollision || verticalCollision)) {
+			logImpact("in der Luft angeschlagen", before);
 			handleImpact(before);
 		}
 		// Schnelles Rollen abseits befestigter Flaechen ist eine Bruchlandung.
-		// Der Schwellwert ist eine Landegeschwindigkeit, keine Rollgeschwindigkeit:
-		// Beim Start wird er planmaessig ueberschritten, deshalb zaehlt hier nur
-		// der Untergrund.
-		if (isOnGround() && getVelocity().length() > 1.6 && !isOnRunway()) {
-			logImpact("abseits der Bahn", before);
+		if (isOnGround() && !isOnRunway() && getVelocity().horizontalLength() > 1.6) {
+			logImpact("abseits der Bahn aufgesetzt", before);
 			handleImpact(before);
 		}
 	}
@@ -617,10 +625,30 @@ public class F47Entity extends Entity implements TeamMember {
 		if (!DEBUG) {
 			return;
 		}
-		com.f47mod.F47Mod.LOGGER.info("[AUFSCHLAG] {} bei {} {} {} - Grund: {}, Boden darunter: {}",
+		// Was steht eigentlich im Weg? Alle festen Bloecke in der Trefferbox.
+		StringBuilder blocked = new StringBuilder();
+		Box box = getBoundingBox().expand(0.2);
+		for (net.minecraft.util.math.BlockPos pos : net.minecraft.util.math.BlockPos.iterate(
+				net.minecraft.util.math.BlockPos.ofFloored(box.minX, box.minY, box.minZ),
+				net.minecraft.util.math.BlockPos.ofFloored(box.maxX, box.maxY, box.maxZ))) {
+			net.minecraft.block.BlockState state = getWorld().getBlockState(pos);
+			if (!state.isAir() && !state.getCollisionShape(getWorld(), pos).isEmpty()) {
+				blocked.append(state.getBlock()).append('@').append(pos.toShortString()).append(' ');
+			}
+		}
+		com.f47mod.F47Mod.LOGGER.info("[AUFSCHLAG] {} bei {} {} {} - Grund: {}, im Weg: {}",
 				getType().getUntranslatedName(),
 				String.format("%.1f", getX()), String.format("%.1f", getY()), String.format("%.1f", getZ()),
-				reason, getWorld().getBlockState(getBlockPos().down()).getBlock());
+				reason, blocked.length() == 0 ? "nichts" : blocked.toString());
+	}
+
+	/**
+	 * Fliegt diese Maschine mit Regelung statt voller Aerodynamik? Nur die
+	 * autonomen Jets tun das, und auch die nur, wenn es eingeschaltet ist -
+	 * wer selbst im Cockpit sitzt, bekommt immer die echte Physik.
+	 */
+	protected boolean usesFlightAssist() {
+		return false;
 	}
 
 	/**

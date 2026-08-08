@@ -50,6 +50,23 @@ public class F47Config {
 	public float pitchRateDegrees = 3.2f;
 	/** Rollrate bei vollem Querruderausschlag (Grad pro Tick). */
 	public float rollRateDegrees = 6.5f;
+	/**
+	 * Flugregelung fuer die Bot-Piloten.
+	 *
+	 * <p>Die volle Aerodynamik ist fuer einen Menschen im Cockpit genau
+	 * richtig - er sieht, wohin er fliegt, und Minecraft laedt die Landschaft
+	 * um ihn herum nach. Ein Bot hat beides nicht: Er kennt nur seinen
+	 * Zielpunkt, fliegt in engem, huegeligem Gelaende und muss innerhalb der
+	 * dauerhaft geladenen Chunks bleiben. Mit echter Traegheit verpasst er
+	 * Kurven, ueberzieht beim Ziehen und zerschellt an Haengen.
+	 *
+	 * <p>Ist das hier an, bekommen <em>nur</em> die autonomen Maschinen eine
+	 * gutmuetige Regelung: Der Geschwindigkeitsvektor folgt der Nase, und der
+	 * Auftrieb traegt zuverlaessig. Der Spieler fliegt unveraendert nach
+	 * echter Aerodynamik. Auf false stellen, wenn die Bots auch stuerzen
+	 * duerfen sollen.
+	 */
+	public boolean botFlightAssist = true;
 
 	// --- Kampfwerte -------------------------------------------------------
 	public float missileDamage = 22.0f;

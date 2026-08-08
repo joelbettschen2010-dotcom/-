@@ -18,6 +18,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.world.Heightmap;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -54,8 +55,19 @@ public final class BaseBlueprint {
 	private static final int APRON_OFFSET = 9;
 	/** Wie weit das Vorfeld seitlich reicht. */
 	private static final int APRON_WIDTH = 26;
-	/** Hoehe, die ueber der Anlage freigeraeumt wird. */
-	private static final int CLEAR_HEIGHT = 16;
+	/**
+	 * Hoehe, die ueber der Anlage freigeraeumt wird.
+	 *
+	 * <p>Hoch genug fuer den ganzen Steigflug: Die Maschine steigt mit rund
+	 * sechzehn Grad, gewinnt ueber die Bahnlaenge also gut fuenfundvierzig
+	 * Bloecke. Mit sechzehn Bloecken Freiraum stieg sie oben aus der Baugrube
+	 * heraus und schlug an dem Gelaende an, das darueber stehen geblieben war.
+	 *
+	 * <p>Teuer ist das nicht: Geraeumt wird nur, was auch dasteht - die
+	 * Hoehenkarte sagt vorher, wie weit ueberhaupt zu suchen ist, und in flachem
+	 * Gelaende faellt gar nichts an.
+	 */
+	private static final int CLEAR_HEIGHT = 48;
 	/** Lichte Hoehe im Hangar - die Maschine ist gut fuenf Bloecke breit. */
 	private static final int HANGAR_HEIGHT = 6;
 	/**
@@ -142,9 +154,13 @@ public final class BaseBlueprint {
 			for (int across = -RUNWAY_HALF_WIDTH - 6; across <= APRON_OFFSET + APRON_WIDTH; across++) {
 				BlockPos column = origin.offset(facing, forward).offset(side, across);
 
-				// Ueber dem Boden freiraeumen.
-				for (int y = 1; y <= CLEAR_HEIGHT; y++) {
-					BlockPos above = column.withY(ground + y);
+				// Ueber dem Boden freiraeumen. Wie weit, verraet die Hoehenkarte:
+				// Ueber dem hoechsten Block ist ohnehin nur Luft, dort muss gar
+				// nicht erst gesucht werden.
+				int top = Math.min(world.getTopY(Heightmap.Type.WORLD_SURFACE,
+						column.getX(), column.getZ()), ground + CLEAR_HEIGHT);
+				for (int y = ground + 1; y <= top; y++) {
+					BlockPos above = column.withY(y);
 					if (!world.getBlockState(above).isAir()) {
 						plan.set(above, Blocks.AIR.getDefaultState());
 					}
