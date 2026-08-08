@@ -294,8 +294,11 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 				return false;
 			}
 			BlockPos home = jet.getHomeBase();
-			// Ohne eigenen Heimatflugplatz zaehlt sie zur naechstgelegenen Basis.
-			return home == null || home.isWithinDistance(field, 48.0);
+			// Grosszuegig, weil Bahnmitte und Abstellstreifen weit auseinander
+			// liegen koennen: Bei einer hundertsechzig Bloecke langen Bahn sind
+			// es siebzig. Mit einem engen Radius zaehlt die Kaserne die eigene
+			// Staffel nicht mehr mit und baut endlos Ersatz.
+			return home == null || home.isWithinDistance(field, 128.0);
 		}).size();
 	}
 

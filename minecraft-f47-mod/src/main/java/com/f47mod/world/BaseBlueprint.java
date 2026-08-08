@@ -24,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
  * Plant einen kompletten Luftwaffenstuetzpunkt.
  *
  * <p>Von Hand eine Bahn samt Hangars zu legen ist muehsam - deshalb entsteht
- * hier alles auf einmal: fast hundert Bloecke Start- und Landebahn mit
+ * hier alles auf einmal: hundertsechzig Bloecke Start- und Landebahn mit
  * Markierungen und Befeuerung, drei Hangars mit Rolltor und Wartungsfeld,
  * zwei Radarstationen, vier Iron-Dome-Stellungen und zwei Kasernen. Dazu
  * kommen acht Maschinen und sechsundzwanzig Mann Bodenpersonal.
@@ -38,8 +38,16 @@ import org.jetbrains.annotations.Nullable;
  * gegnerische Basen aufstellen.
  */
 public final class BaseBlueprint {
-	/** Laenge der Bahn in Bloecken. Kuerzer reicht zum Abheben nicht. */
-	private static final int RUNWAY_LENGTH = 96;
+	/**
+	 * Laenge der Bahn in Bloecken.
+	 *
+	 * <p>Nachgerechnet aus dem Flugmodell: Bis zur Rotationsgeschwindigkeit von
+	 * 33 m/s braucht die Maschine mit Vollgas rund sechzig Meter Anlauf, und bis
+	 * sie sicher weg vom Boden ist nochmal gut achtzig. Mit sechsundneunzig
+	 * Bloecken reichte es nur mit Nachbrenner - wer ohne startete, rollte hinten
+	 * heraus. Hundertsechzig lassen auch beim Landen Luft.
+	 */
+	private static final int RUNWAY_LENGTH = 160;
 	/** Halbe Breite der Bahn (5 = 11 Bloecke breit). */
 	private static final int RUNWAY_HALF_WIDTH = 5;
 	/** Wie weit neben der Bahn die Gebaeude stehen. */
@@ -215,13 +223,13 @@ public final class BaseBlueprint {
 
 		// --- Drei Hangars nebeneinander am Vorfeld ---
 		for (int index = 0; index < 3; index++) {
-			buildHangar(plan, origin, facing, side, ground, 10 + index * 22);
+			buildHangar(plan, origin, facing, side, ground, 14 + index * 36);
 		}
 
 		// --- Zwei Radarstationen an den Enden, fuer Rundumsicht ---
 		BlockPos[] radars = {
-				origin.offset(facing, 18).offset(side, APRON_OFFSET + APRON_WIDTH - 4).withY(ground + 1),
-				origin.offset(facing, 74).offset(side, -RUNWAY_HALF_WIDTH - 4).withY(ground + 1),
+				origin.offset(facing, 24).offset(side, APRON_OFFSET + APRON_WIDTH - 4).withY(ground + 1),
+				origin.offset(facing, RUNWAY_LENGTH - 24).offset(side, -RUNWAY_HALF_WIDTH - 4).withY(ground + 1),
 		};
 		for (BlockPos radar : radars) {
 			plan.set(radar.down(), ModBlocks.HANGAR_WALL.getDefaultState());
@@ -231,10 +239,10 @@ public final class BaseBlueprint {
 
 		// --- Vier Iron-Dome-Stellungen, ueber die Anlage verteilt ---
 		BlockPos[] domes = {
-				origin.offset(facing, 12).offset(side, -RUNWAY_HALF_WIDTH - 4).withY(ground + 1),
-				origin.offset(facing, 46).offset(side, -RUNWAY_HALF_WIDTH - 4).withY(ground + 1),
-				origin.offset(facing, 30).offset(side, APRON_OFFSET + APRON_WIDTH - 4).withY(ground + 1),
-				origin.offset(facing, 64).offset(side, APRON_OFFSET + APRON_WIDTH - 4).withY(ground + 1),
+				origin.offset(facing, 14).offset(side, -RUNWAY_HALF_WIDTH - 4).withY(ground + 1),
+				origin.offset(facing, RUNWAY_LENGTH - 14).offset(side, -RUNWAY_HALF_WIDTH - 4).withY(ground + 1),
+				origin.offset(facing, 52).offset(side, APRON_OFFSET + APRON_WIDTH - 4).withY(ground + 1),
+				origin.offset(facing, RUNWAY_LENGTH - 52).offset(side, APRON_OFFSET + APRON_WIDTH - 4).withY(ground + 1),
 		};
 		for (BlockPos dome : domes) {
 			// Einen Block hoch aufgestellt, damit die Bahn die Sicht nicht nimmt.
@@ -247,8 +255,8 @@ public final class BaseBlueprint {
 
 		// --- Zwei Kasernen, damit der Nachschub nicht abreisst ---
 		BlockPos[] barracks = {
-				origin.offset(facing, 40).offset(side, APRON_OFFSET + APRON_WIDTH - 3).withY(ground + 1),
-				origin.offset(facing, 44).offset(side, APRON_OFFSET + APRON_WIDTH - 3).withY(ground + 1),
+				origin.offset(facing, RUNWAY_LENGTH / 2 - 2).offset(side, APRON_OFFSET + APRON_WIDTH - 3).withY(ground + 1),
+				origin.offset(facing, RUNWAY_LENGTH / 2 + 2).offset(side, APRON_OFFSET + APRON_WIDTH - 3).withY(ground + 1),
 		};
 		// Ersatzmaschinen sollen auf den Abstellstreifen, nicht neben die Kaserne.
 		BlockPos apron = origin.offset(facing, 10).offset(side, PARKING_LANE).withY(ground);
@@ -354,7 +362,8 @@ public final class BaseBlueprint {
 
 		// Bodenpersonal. Sechs Piloten, damit auch die Reservemaschinen
 		// besetzt werden koennen - ein Pilot wird beim Einsteigen verbraucht.
-		BlockPos quarters = origin.offset(facing, 42).offset(side, APRON_OFFSET + APRON_WIDTH - 8).withY(ground);
+		BlockPos quarters = origin.offset(facing, RUNWAY_LENGTH / 2 - 6)
+				.offset(side, APRON_OFFSET + APRON_WIDTH - 8).withY(ground);
 		SoldierRole[] roster = {
 				SoldierRole.PILOT, SoldierRole.PILOT, SoldierRole.PILOT,
 				SoldierRole.PILOT, SoldierRole.PILOT, SoldierRole.PILOT,
@@ -371,9 +380,9 @@ public final class BaseBlueprint {
 
 		// Wachposten rund um die Anlage, damit die Basis nicht offen liegt.
 		int[][] posts = {
-				{6, -RUNWAY_HALF_WIDTH - 3}, {30, -RUNWAY_HALF_WIDTH - 3},
-				{58, -RUNWAY_HALF_WIDTH - 3}, {88, -RUNWAY_HALF_WIDTH - 3},
-				{6, APRON_OFFSET + APRON_WIDTH - 5}, {88, APRON_OFFSET + APRON_WIDTH - 5},
+				{8, -RUNWAY_HALF_WIDTH - 3}, {RUNWAY_LENGTH / 3, -RUNWAY_HALF_WIDTH - 3},
+				{2 * RUNWAY_LENGTH / 3, -RUNWAY_HALF_WIDTH - 3}, {RUNWAY_LENGTH - 8, -RUNWAY_HALF_WIDTH - 3},
+				{8, APRON_OFFSET + APRON_WIDTH - 5}, {RUNWAY_LENGTH - 8, APRON_OFFSET + APRON_WIDTH - 5},
 		};
 		for (int[] post : posts) {
 			spawnSoldier(world, origin.offset(facing, post[0]).offset(side, post[1]).withY(ground),
