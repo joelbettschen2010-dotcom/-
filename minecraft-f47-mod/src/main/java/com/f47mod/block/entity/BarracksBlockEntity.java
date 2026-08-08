@@ -2,13 +2,19 @@ package com.f47mod.block.entity;
 
 import com.f47mod.entity.mob.SoldierEntity;
 import com.f47mod.entity.mob.SoldierRole;
+import com.f47mod.F47Config;
+import com.f47mod.entity.vehicle.ArmoredVehicleEntity;
 import com.f47mod.entity.vehicle.AutonomousF47Entity;
+import com.f47mod.entity.vehicle.B21Entity;
+import com.f47mod.entity.vehicle.TransportEntity;
 import com.f47mod.registry.ModBlockEntities;
 import com.f47mod.registry.ModEntities;
 import com.f47mod.util.Team;
 import com.f47mod.util.TeamMember;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
@@ -43,8 +49,8 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 
 	/** Ticks, bis von selbst ein Barren Nachschub eintrifft. */
 	private static final int SUPPLY_TICKS = 160;
-	/** Sollstaerke der Staffel - darunter wird Ersatz gebaut. */
-	private static final int SQUADRON_TARGET = 6;
+	/** Anteil der Sollstaerke, den eine einzelne Kaserne zu halten versucht. */
+	private static final double BARRACKS_SHARE = 0.5;
 	/** Eisenbarren fuer eine Ersatzmaschine. */
 	private static final int JET_COST = 20;
 	/** Ticks pro Ersatzmaschine (etwa 90 Sekunden). */
@@ -105,7 +111,7 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 		if (supplies < COST) {
 			return;
 		}
-		if (countSquad(world, pos) >= MAX_SQUAD) {
+		if (countSquad(world, pos) >= share(F47Config.get().garrisonTroops)) {
 			// Trupp ist vollzaehlig - Ausbildung pausiert.
 			progress = 0;
 			return;
@@ -168,7 +174,20 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 		if (supplies < JET_COST) {
 			return;
 		}
-		if (countSquadron(world, pos) >= SQUADRON_TARGET) {
+		// Was fehlt am dringendsten? Der Reihe nach Jaeger, Bomber,
+		// Transporter, Panzer - jeder bis zu seiner Sollstaerke.
+		F47Config config = F47Config.get();
+		EntityType<? extends Entity> missing = null;
+		if (countOf(world, pos, AutonomousF47Entity.class, true) < share(config.squadronFighters)) {
+			missing = ModEntities.AUTONOMOUS_F47;
+		} else if (countOf(world, pos, B21Entity.class, false) < share(config.squadronBombers)) {
+			missing = ModEntities.B21;
+		} else if (countOf(world, pos, TransportEntity.class, false) < share(config.squadronTransports)) {
+			missing = ModEntities.TRANSPORT;
+		} else if (countOf(world, pos, ArmoredVehicleEntity.class, false) < share(config.squadronVehicles)) {
+			missing = ModEntities.ARMORED_VEHICLE;
+		}
+		if (missing == null) {
 			jetProgress = 0;
 			return;
 		}
@@ -177,13 +196,35 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 		}
 		jetProgress = 0;
 		supplies -= JET_COST;
-		deployJet(world, pos);
+		deployVehicle(world, pos, missing);
 		markDirty();
 	}
 
-	/** Stellt eine fertige Ersatzmaschine auf dem Vorfeld ab. */
-	private void deployJet(World world, BlockPos pos) {
-		AutonomousF47Entity jet = ModEntities.AUTONOMOUS_F47.create(world);
+	/** Sollstaerke, die diese eine Kaserne zu halten versucht. */
+	private int share(int total) {
+		return Math.max(1, (int) Math.round(total * BARRACKS_SHARE));
+	}
+
+	/**
+	 * Zaehlt eigene Einheiten eines Musters im Umkreis des Flugplatzes.
+	 *
+	 * @param strict bei Jaegern noetig: Bomber und Transporter sind
+	 *               Unterklassen und wuerden sonst mitgezaehlt
+	 */
+	private <T extends Entity> int countOf(World world, BlockPos pos, Class<T> type, boolean strict) {
+		BlockPos field = homeBase != null ? homeBase : pos;
+		Box box = new Box(field).expand(240.0);
+		return world.getEntitiesByClass(type, box, unit -> {
+			if (strict && unit.getClass() != type) {
+				return false;
+			}
+			return unit instanceof TeamMember member && member.getTeam() == team;
+		}).size();
+	}
+
+	/** Stellt ein fertiges Ersatzgeraet auf dem Vorfeld ab. */
+	private void deployVehicle(World world, BlockPos pos, EntityType<? extends Entity> type) {
+		Entity jet = type.create(world);
 		if (jet == null) {
 			return;
 		}
@@ -196,14 +237,17 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 		}
 		// Nase in Bahnrichtung, damit sie ohne Wendemanoever losrollen kann.
 		jet.refreshPositionAndAngles(spot.x, spot.y, spot.z, homeHeading, 0.0f);
-		jet.setTeam(team);
-		jet.setHomeBase(field, homeHeading);
-		jet.randomiseCallsign();
-
+		if (jet instanceof TeamMember member) {
+			member.setTeam(team);
+		}
 		PlayerEntity owner = ownerUuid == null ? null : world.getPlayerByUuid(ownerUuid);
-		if (owner != null) {
-			jet.setOwner(owner);
-			owner.sendMessage(Text.translatable("message.f47.jet_ready", jet.getCallsign()), false);
+		if (jet instanceof AutonomousF47Entity aircraft) {
+			aircraft.setHomeBase(field, homeHeading);
+			aircraft.randomiseCallsign();
+			aircraft.setOwner(owner);
+			if (owner != null) {
+				owner.sendMessage(Text.translatable("message.f47.jet_ready", aircraft.getCallsign()), false);
+			}
 		}
 		world.spawnEntity(jet);
 		world.playSound(null, pos, SoundEvents.BLOCK_ANVIL_USE, SoundCategory.BLOCKS, 0.8f, 0.7f);

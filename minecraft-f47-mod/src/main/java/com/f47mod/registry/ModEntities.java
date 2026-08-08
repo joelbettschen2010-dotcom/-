@@ -45,21 +45,27 @@ public final class ModEntities {
 	 */
 	public static final EntityType<B21Entity> B21 = register("b21",
 			EntityType.Builder.<B21Entity>create(B21Entity::new, SpawnGroup.MISC)
-					.dimensions(6.0f, 1.8f)
+					// Ein Bomber ist ein Grossflugzeug - gut acht Bloecke Rumpf,
+					// sichtbar breiter als jeder Jaeger daneben.
+					.dimensions(8.0f, 2.6f)
 					.maxTrackingRange(16)
 					.trackingTickInterval(1));
 
 	/** Transporter - traegt Truppen und Geraet und betankt in der Luft. */
 	public static final EntityType<TransportEntity> TRANSPORT = register("transport",
 			EntityType.Builder.<TransportEntity>create(TransportEntity::new, SpawnGroup.MISC)
-					.dimensions(6.5f, 2.4f)
+					// Das groesste Muster im Verband: Truppen, Geraet und
+					// Treibstoff fuer die halbe Staffel gehen hier hinein.
+					.dimensions(9.0f, 3.2f)
 					.maxTrackingRange(16)
 					.trackingTickInterval(1));
 
 	/** Schuetzenpanzer - bringt die Bodentruppen ans Ziel. */
 	public static final EntityType<ArmoredVehicleEntity> ARMORED_VEHICLE = register("armored_vehicle",
 			EntityType.Builder.<ArmoredVehicleEntity>create(ArmoredVehicleEntity::new, SpawnGroup.MISC)
-					.dimensions(2.4f, 2.0f)
+					// Sechs Mann Besatzung brauchen Platz - das ist ein
+					// Schuetzenpanzer, kein Gelaendewagen.
+					.dimensions(4.0f, 2.8f)
 					.maxTrackingRange(12));
 
 	public static final EntityType<SoldierEntity> SOLDIER = register("soldier",

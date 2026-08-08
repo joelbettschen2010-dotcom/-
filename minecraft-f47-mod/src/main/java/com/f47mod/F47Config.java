@@ -156,6 +156,39 @@ public class F47Config {
 	 */
 	public int strikeRange = 2000;
 
+	// --- Staerke eines Stuetzpunkts ---------------------------------------
+	// Achtung: Das sind grosse Zahlen. Zwei Stuetzpunkte in voller Staerke
+	// sind rund neunhundert Einheiten mit eigener KI - das schafft nicht
+	// jeder Rechner fluessig. Wer ruckelt, halbiert hier einfach alles.
+	/** Jaeger je Stuetzpunkt. */
+	public int squadronFighters = 40;
+	/** Tarnkappenbomber je Stuetzpunkt. */
+	public int squadronBombers = 12;
+	/** Transportflugzeuge je Stuetzpunkt. */
+	public int squadronTransports = 12;
+	/** Schuetzenpanzer je Stuetzpunkt. */
+	public int squadronVehicles = 30;
+	/** Mann Bodenpersonal je Stuetzpunkt. */
+	public int garrisonTroops = 350;
+	/** Anzahl paralleler Start- und Landebahnen. */
+	public int runwayCount = 3;
+	/**
+	 * Traegt der Bausatz alles ab, was im Weg steht - auch ganze Berge?
+	 *
+	 * <p>An heisst: Innerhalb der Anlage wird bis zum Himmel abgeraeumt und
+	 * jede Senke aufgefuellt, das Gelaende ist danach tischeben. Das kann in
+	 * den Bergen sehr viele Bloecke bedeuten.
+	 */
+	public boolean levelTerrain = true;
+
+	// --- Groesse der Fahrzeuge --------------------------------------------
+	/** Groessenfaktor der B-21 gegenueber der F-47. */
+	public float bomberSizeFactor = 2.6f;
+	/** Groessenfaktor des Transporters. */
+	public float transportSizeFactor = 3.0f;
+	/** Groessenfaktor des Schuetzenpanzers. */
+	public float vehicleSizeFactor = 1.8f;
+
 	// --- Sonstiges --------------------------------------------------------
 	/** Explosionen beschaedigen Bloecke. Auf false stellen, um die Basis zu schonen. */
 	public boolean explosionsBreakBlocks = true;

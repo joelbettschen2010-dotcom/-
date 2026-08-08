@@ -55,7 +55,15 @@ public final class BaseBlueprint {
 	/** Wie weit neben der Bahn die Gebaeude stehen. */
 	private static final int APRON_OFFSET = 9;
 	/** Wie weit das Vorfeld seitlich reicht. */
-	private static final int APRON_WIDTH = 26;
+	/**
+	 * Wie weit das Vorfeld seitlich reicht.
+	 *
+	 * <p>Breit genug fuer eigene Spuren je Muster: Jaeger bei 10, Bomber bei
+	 * 30, Transporter bei 42, Panzer aussen. Enger ging es nicht - ein
+	 * Transporter ist neun Bloecke breit, und wer beim Aufstellen in einer
+	 * Hangarwand landet, entsteht gar nicht erst.
+	 */
+	private static final int APRON_WIDTH = 44;
 	/**
 	 * Hoehe, die ueber der Anlage freigeraeumt wird.
 	 *
@@ -80,6 +88,13 @@ public final class BaseBlueprint {
 	 * Maschine frei.
 	 */
 	private static final int PARKING_LANE = 10;
+	/**
+	 * Seitlicher Abstand zweier Bahnen samt ihrem Vorfeld.
+	 *
+	 * <p>Eine Bahn belegt von -12 (Rand) bis +35 (Vorfeldkante) - vierzig
+	 * Bloecke Versatz lassen dazwischen noch Platz zum Rollen.
+	 */
+	private static final int BAY_WIDTH = 62;
 
 	private BaseBlueprint() {
 	}
@@ -98,9 +113,13 @@ public final class BaseBlueprint {
 		int ground = origin.getY();
 		BaseConstruction.Plan plan = new BaseConstruction.Plan(world);
 
-		clearArea(plan, origin, facing, side, ground);
-		buildRunway(plan, origin, facing, side, ground);
-		buildApron(plan, origin, facing, side, ground, team, owner);
+		int bays = Math.max(1, F47Config.get().runwayCount);
+		clearArea(plan, origin, facing, side, ground, bays);
+		for (int bay = 0; bay < bays; bay++) {
+			BlockPos start = origin.offset(side, bay * BAY_WIDTH);
+			buildRunway(plan, start, facing, side, ground);
+			buildApron(plan, start, facing, side, ground, team, owner, bay == 0);
+		}
 
 		// Einheiten erst aufstellen, wenn die Bahn wirklich liegt - sonst
 		// fielen sie in das noch offene Gelaende.
@@ -149,17 +168,22 @@ public final class BaseBlueprint {
 	 * von Baeumen verstellt.
 	 */
 	private static void clearArea(BaseConstruction.Plan plan, BlockPos origin, Direction facing,
-			Direction side, int ground) {
+			Direction side, int ground, int bays) {
 		ServerWorld world = plan.world();
+		boolean level = F47Config.get().levelTerrain;
+		int outer = (bays - 1) * BAY_WIDTH + APRON_OFFSET + APRON_WIDTH;
 		for (int forward = -6; forward <= RUNWAY_LENGTH + 6; forward++) {
-			for (int across = -RUNWAY_HALF_WIDTH - 6; across <= APRON_OFFSET + APRON_WIDTH; across++) {
+			for (int across = -RUNWAY_HALF_WIDTH - 6; across <= outer; across++) {
 				BlockPos column = origin.offset(facing, forward).offset(side, across);
 
 				// Ueber dem Boden freiraeumen. Wie weit, verraet die Hoehenkarte:
 				// Ueber dem hoechsten Block ist ohnehin nur Luft, dort muss gar
 				// nicht erst gesucht werden.
-				int top = Math.min(world.getTopY(Heightmap.Type.WORLD_SURFACE,
-						column.getX(), column.getZ()), ground + CLEAR_HEIGHT);
+				// Bei eingeschalteter Einebnung faellt alles weg, was hoeher
+				// steht - auch ein ganzer Berg. Sonst nur bis zur lichten Hoehe.
+				int surface = world.getTopY(Heightmap.Type.WORLD_SURFACE,
+						column.getX(), column.getZ());
+				int top = level ? surface : Math.min(surface, ground + CLEAR_HEIGHT);
 				for (int y = ground + 1; y <= top; y++) {
 					BlockPos above = column.withY(y);
 					if (!world.getBlockState(above).isAir()) {
@@ -223,7 +247,7 @@ public final class BaseBlueprint {
 	// ------------------------------------------------------------------
 
 	private static void buildApron(BaseConstruction.Plan plan, BlockPos origin, Direction facing,
-			Direction side, int ground, Team team, @Nullable PlayerEntity owner) {
+			Direction side, int ground, Team team, @Nullable PlayerEntity owner, boolean mainBay) {
 		// --- Vorfeld: die ganze Flaeche zwischen Bahn und Gebaeuden ---
 		// Reicht ueber die volle Bahnlaenge. Endete es frueher, liefen
 		// startende Maschinen am Ende in unebenes Gelaende, blieben mit einer
@@ -241,6 +265,12 @@ public final class BaseBlueprint {
 		// --- Drei Hangars nebeneinander am Vorfeld ---
 		for (int index = 0; index < 3; index++) {
 			buildHangar(plan, origin, facing, side, ground, 14 + index * 36);
+		}
+
+		if (!mainBay) {
+			// Nebenbahnen bekommen nur Bahn, Vorfeld und Hangars. Radar,
+			// Flugabwehr und Kasernen stehen einmal fuer die ganze Anlage.
+			return;
 		}
 
 		// --- Zwei Radarstationen an den Enden, fuer Rundumsicht ---
@@ -335,109 +365,146 @@ public final class BaseBlueprint {
 	// Einheiten
 	// ------------------------------------------------------------------
 
+	/**
+	 * Stellt den ganzen Verband auf.
+	 *
+	 * <p>Die Staerke steht in der Konfiguration; ab Werk sind es vierzig
+	 * Jaeger, zwoelf Bomber, zwoelf Transporter, dreissig Panzer und
+	 * dreihundertfuenfzig Mann je Stuetzpunkt. Verteilt wird ueber alle
+	 * Bahnen - auf einem einzigen Abstellstreifen stuende das nie.
+	 */
 	private static void spawnUnits(ServerWorld world, BlockPos origin, Direction facing,
 			Direction side, int ground, Team team, @Nullable PlayerEntity owner) {
 		// Nase in Bahnrichtung: Die Maschinen sollen losrollen koennen, ohne
 		// sich erst umdrehen zu muessen.
 		float yaw = facing.asRotation();
 		BlockPos home = origin.offset(facing, RUNWAY_LENGTH / 2).withY(ground);
+		F47Config config = F47Config.get();
+		int bays = Math.max(1, config.runwayCount);
 
-		// Zwei bemannbare Maschinen, aufgereiht am Anfang der Bahn.
+		// Zwei bemannbare Maschinen fuer den Spieler, ganz vorne.
 		for (int i = 0; i < 2; i++) {
 			F47Entity jet = ModEntities.F47.create(world);
 			if (jet == null) {
 				continue;
 			}
-			BlockPos spot = origin.offset(facing, 5)
-					.offset(side, i == 0 ? -3 : 3).withY(ground + 1);
+			BlockPos spot = origin.offset(facing, 5).offset(side, i == 0 ? -3 : 3).withY(ground + 1);
 			jet.refreshPositionAndAngles(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, yaw, 0.0f);
 			jet.setTeam(team);
 			world.spawnEntity(jet);
 		}
 
-		// Sechs Drohnenjaeger in einer Reihe auf dem Abstellstreifen.
-		// Sie stehen bewusst alle auf derselben Linie: Die Maschine ist vier
-		// Bloecke breit, links liegt die Bahnbefeuerung, rechts beginnt bei 15
-		// die Hangarwand - eine zweite Reihe weiter aussen wuerde in der Wand
-		// stecken und bei jedem Tick eine Kollision ausloesen.
-		for (int i = 0; i < 6; i++) {
-			AutonomousF47Entity drone = ModEntities.AUTONOMOUS_F47.create(world);
-			if (drone == null) {
-				continue;
-			}
-			// Alle am Anfang der Bahn: Selbst die hinterste hat so noch ueber
-			// sechzig Bloecke Rollstrecke, und gebraucht werden rund fuenfzig.
-			BlockPos spot = origin.offset(facing, 2 + i * 6)
-					.offset(side, PARKING_LANE).withY(ground + 1);
-			drone.refreshPositionAndAngles(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, yaw, 0.0f);
-			drone.setTeam(team);
-			drone.setHomeBase(home, yaw);
-			drone.randomiseCallsign();
-			drone.setOwner(owner);
-			world.spawnEntity(drone);
-		}
+		// Flugzeuge auf die Abstellstreifen aller Bahnen verteilen.
+		// Abstaende nach Spannweite: Ein Transporter ist neun Bloecke breit,
+		// zwei davon neun Bloecke auseinander stehen ineinander - und was beim
+		// Aufstellen kollidiert, entsteht gar nicht erst.
+		deployAircraft(world, origin, facing, side, ground, team, owner, home, yaw, bays,
+				ModEntities.AUTONOMOUS_F47, config.squadronFighters, 0, 7);
+		deployAircraft(world, origin, facing, side, ground, team, owner, home, yaw, bays,
+				ModEntities.B21, config.squadronBombers, 20, 12);
+		deployAircraft(world, origin, facing, side, ground, team, owner, home, yaw, bays,
+				ModEntities.TRANSPORT, config.squadronTransports, 32, 14);
 
-		// Ein Tarnkappenbomber und ein Transporter je Basis - der eine schlaegt
-		// gegen Bodenziele zu, der andere betankt die Staffel in der Luft und
-		// verlaengert damit ihre Reichweite.
-		for (int i = 0; i < 2; i++) {
-			AutonomousF47Entity heavy = i == 0
-					? ModEntities.B21.create(world)
-					: ModEntities.TRANSPORT.create(world);
-			if (heavy == null) {
-				continue;
-			}
-			BlockPos spot = origin.offset(facing, 46 + i * 12)
-					.offset(side, PARKING_LANE).withY(ground + 1);
-			heavy.refreshPositionAndAngles(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, yaw, 0.0f);
-			heavy.setTeam(team);
-			heavy.setHomeBase(home, yaw);
-			heavy.randomiseCallsign();
-			heavy.setOwner(owner);
-			world.spawnEntity(heavy);
-		}
-
-		// Zwei Schuetzenpanzer - sie fahren die Infanterie zum Gegner, statt
-		// sie hunderte Bloecke zu Fuss laufen zu lassen.
-		for (int i = 0; i < 2; i++) {
+		// Panzer in Reihen auf dem Vorfeld.
+		for (int i = 0; i < config.squadronVehicles; i++) {
 			ArmoredVehicleEntity carrier = ModEntities.ARMORED_VEHICLE.create(world);
 			if (carrier == null) {
 				continue;
 			}
-			BlockPos spot = origin.offset(facing, 70 + i * 6)
-					.offset(side, PARKING_LANE + 6).withY(ground + 1);
+			int bay = i % bays;
+			int index = i / bays;
+			BlockPos spot = freeSpot(world, ModEntities.ARMORED_VEHICLE,
+					origin.offset(facing, 20 + index * 9)
+							.offset(side, bay * BAY_WIDTH + APRON_OFFSET + APRON_WIDTH - 6).withY(ground + 1),
+					facing, 6);
 			carrier.refreshPositionAndAngles(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, yaw, 0.0f);
 			carrier.setTeam(team);
 			world.spawnEntity(carrier);
 		}
 
-		// Bodenpersonal. Sechs Piloten, damit auch die Reservemaschinen
-		// besetzt werden koennen - ein Pilot wird beim Einsteigen verbraucht.
-		BlockPos quarters = origin.offset(facing, RUNWAY_LENGTH / 2 - 6)
-				.offset(side, APRON_OFFSET + APRON_WIDTH - 8).withY(ground);
-		SoldierRole[] roster = {
-				SoldierRole.PILOT, SoldierRole.PILOT, SoldierRole.PILOT,
-				SoldierRole.PILOT, SoldierRole.PILOT, SoldierRole.PILOT,
-				SoldierRole.ENGINEER, SoldierRole.ENGINEER, SoldierRole.ENGINEER,
-				SoldierRole.MEDIC, SoldierRole.MEDIC,
-				SoldierRole.HEAVY, SoldierRole.HEAVY, SoldierRole.HEAVY,
-				SoldierRole.RIFLEMAN, SoldierRole.RIFLEMAN, SoldierRole.RIFLEMAN,
-				SoldierRole.RIFLEMAN, SoldierRole.RIFLEMAN, SoldierRole.RIFLEMAN,
-		};
-		for (int i = 0; i < roster.length; i++) {
-			BlockPos spot = quarters.offset(facing, (i % 5) * 2).offset(side, (i / 5) * 2);
-			spawnSoldier(world, spot, yaw, roster[i], team, owner);
-		}
+		// Bodenpersonal. Die Mischung entspricht dem, was die Basis braucht:
+		// genug Piloten fuer alle Maschinen, Technik und Sanitaet, der Rest
+		// Infanterie.
+		int troops = Math.max(0, config.garrisonTroops);
+		int pilots = Math.min(troops, config.squadronFighters + config.squadronBombers
+				+ config.squadronTransports);
+		int engineers = troops / 12;
+		int medics = troops / 20;
+		int heavy = troops / 8;
 
-		// Wachposten rund um die Anlage, damit die Basis nicht offen liegt.
-		int[][] posts = {
-				{8, -RUNWAY_HALF_WIDTH - 3}, {RUNWAY_LENGTH / 3, -RUNWAY_HALF_WIDTH - 3},
-				{2 * RUNWAY_LENGTH / 3, -RUNWAY_HALF_WIDTH - 3}, {RUNWAY_LENGTH - 8, -RUNWAY_HALF_WIDTH - 3},
-				{8, APRON_OFFSET + APRON_WIDTH - 5}, {RUNWAY_LENGTH - 8, APRON_OFFSET + APRON_WIDTH - 5},
-		};
-		for (int[] post : posts) {
-			spawnSoldier(world, origin.offset(facing, post[0]).offset(side, post[1]).withY(ground),
-					yaw, SoldierRole.RIFLEMAN, team, owner);
+		for (int i = 0; i < troops; i++) {
+			SoldierRole role;
+			if (i < pilots) {
+				role = SoldierRole.PILOT;
+			} else if (i < pilots + engineers) {
+				role = SoldierRole.ENGINEER;
+			} else if (i < pilots + engineers + medics) {
+				role = SoldierRole.MEDIC;
+			} else if (i < pilots + engineers + medics + heavy) {
+				role = SoldierRole.HEAVY;
+			} else {
+				role = SoldierRole.RIFLEMAN;
+			}
+			// In Reihen ueber die ganze Anlage, damit sie nicht uebereinander
+			// stehen und sich gegenseitig wegschieben.
+			int bay = i % bays;
+			int index = i / bays;
+			BlockPos spot = origin.offset(facing, 12 + (index % 48) * 3)
+					.offset(side, bay * BAY_WIDTH + APRON_OFFSET + APRON_WIDTH - 14 - (index / 48) * 3)
+					.withY(ground);
+			spawnSoldier(world, spot, yaw, role, team, owner);
+		}
+	}
+
+	/**
+	 * Sucht ab dem Wunschplatz den naechsten, an dem die Maschine wirklich
+	 * frei steht.
+	 *
+	 * <p>Noetig, weil die Muster inzwischen bis zu neun Bloecke breit sind:
+	 * Ein von Hand ausgerechnetes Raster trifft frueher oder spaeter eine
+	 * Hangarwand oder eine schon abgestellte Maschine - und was beim
+	 * Aufstellen kollidiert, entsteht gar nicht erst. Im Versuch fehlten so
+	 * von vierzig Jaegern vierzehn und von zwoelf Transportern neun.
+	 */
+	private static BlockPos freeSpot(ServerWorld world,
+			net.minecraft.entity.EntityType<?> type, BlockPos wanted, Direction facing, int step) {
+		for (int attempt = 0; attempt < 24; attempt++) {
+			BlockPos candidate = wanted.offset(facing, attempt * step);
+			if (world.isSpaceEmpty(type.getSpawnBox(
+					candidate.getX() + 0.5, candidate.getY(), candidate.getZ() + 0.5))) {
+				return candidate;
+			}
+		}
+		return wanted;
+	}
+
+	/**
+	 * Reiht ein Muster auf den Abstellstreifen auf.
+	 *
+	 * @param lane Versatz quer zur Bahn, damit sich die Muster nicht
+	 *             gegenseitig auf denselben Platz stellen
+	 */
+	private static void deployAircraft(ServerWorld world, BlockPos origin, Direction facing,
+			Direction side, int ground, Team team, @Nullable PlayerEntity owner, BlockPos home,
+			float yaw, int bays, net.minecraft.entity.EntityType<? extends AutonomousF47Entity> type,
+			int count, int lane, int spacing) {
+		for (int i = 0; i < count; i++) {
+			AutonomousF47Entity aircraft = type.create(world);
+			if (aircraft == null) {
+				continue;
+			}
+			int bay = i % bays;
+			int index = i / bays;
+			BlockPos spot = freeSpot(world, type,
+					origin.offset(facing, 4 + index * spacing)
+							.offset(side, bay * BAY_WIDTH + PARKING_LANE + lane).withY(ground + 1),
+					facing, spacing);
+			aircraft.refreshPositionAndAngles(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, yaw, 0.0f);
+			aircraft.setTeam(team);
+			aircraft.setHomeBase(home, yaw);
+			aircraft.randomiseCallsign();
+			aircraft.setOwner(owner);
+			world.spawnEntity(aircraft);
 		}
 	}
 

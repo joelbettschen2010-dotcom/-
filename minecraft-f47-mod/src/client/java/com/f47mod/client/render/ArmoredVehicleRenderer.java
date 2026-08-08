@@ -1,5 +1,6 @@
 package com.f47mod.client.render;
 
+import com.f47mod.F47Config;
 import com.f47mod.F47Mod;
 import com.f47mod.entity.vehicle.ArmoredVehicleEntity;
 import com.f47mod.util.Team;
@@ -33,7 +34,7 @@ public class ArmoredVehicleRenderer extends EntityRenderer<ArmoredVehicleEntity>
 	public ArmoredVehicleRenderer(EntityRendererFactory.Context context) {
 		super(context);
 		this.root = context.getPart(LAYER);
-		this.shadowRadius = 1.4f;
+		this.shadowRadius = 1.4f * F47Config.get().vehicleSizeFactor;
 	}
 
 	public static TexturedModelData getTexturedModelData() {
@@ -63,7 +64,8 @@ public class ArmoredVehicleRenderer extends EntityRenderer<ArmoredVehicleEntity>
 		matrices.translate(0.0, 1.4, 0.0);
 		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-yaw));
 		matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(180.0f));
-		matrices.scale(1.0f, 1.0f, 1.0f);
+		float scale = F47Config.get().vehicleSizeFactor;
+		matrices.scale(scale, scale, scale);
 
 		VertexConsumer consumer = vertexConsumers.getBuffer(
 				RenderLayer.getEntityCutoutNoCull(getTexture(entity)));

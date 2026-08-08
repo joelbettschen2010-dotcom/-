@@ -14,6 +14,7 @@ import com.f47mod.entity.vehicle.F47Entity;
 import com.f47mod.net.ModNetworking;
 import com.f47mod.registry.ModBlockEntities;
 import com.f47mod.registry.ModBlocks;
+import com.f47mod.F47Config;
 import com.f47mod.F47Mod;
 import com.f47mod.registry.ModEntities;
 import net.fabricmc.api.ClientModInitializer;
@@ -83,9 +84,11 @@ public class F47ModClient implements ClientModInitializer {
 		// Bomber und Transporter teilen sich Modell und Renderer, nur Groesse
 		// und Textur unterscheiden sich - das spart ein zweites Modell.
 		EntityRendererRegistry.register(ModEntities.B21,
-				context -> new F47Renderer(context, 1.6f, F47Mod.id("textures/entity/b21.png")));
+				context -> new F47Renderer(context, F47Config.get().bomberSizeFactor,
+						F47Mod.id("textures/entity/b21.png")));
 		EntityRendererRegistry.register(ModEntities.TRANSPORT,
-				context -> new F47Renderer(context, 1.8f, F47Mod.id("textures/entity/transport.png")));
+				context -> new F47Renderer(context, F47Config.get().transportSizeFactor,
+						F47Mod.id("textures/entity/transport.png")));
 		EntityRendererRegistry.register(ModEntities.ARMORED_VEHICLE, ArmoredVehicleRenderer::new);
 		EntityRendererRegistry.register(ModEntities.SOLDIER, SoldierRenderer::new);
 		EntityRendererRegistry.register(ModEntities.COMBAT_DRONE, DroneRenderer::new);
