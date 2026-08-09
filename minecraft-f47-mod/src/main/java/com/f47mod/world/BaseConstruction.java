@@ -18,6 +18,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.function.IntConsumer;
 
 /**
  * Setzt einen geplanten Stuetzpunkt ueber mehrere Ticks hinweg.
@@ -45,6 +46,21 @@ public final class BaseConstruction {
 	 * hat den Server viereinhalb Sekunden lang blockiert.
 	 */
 	private static final int CHUNKS_PER_TICK = 1;
+
+	/**
+	 * Zeitbudget je Tick fuer die Gelaendearbeit, in Nanosekunden.
+	 *
+	 * <p>Anders als beim Bloeckesetzen laesst sich hier keine feste Stueckzahl
+	 * angeben: Eine Spalte ueber schon erzeugtem Gelaende kostet nichts, eine
+	 * ueber noch nie besuchtem loest die Weltgenerierung eines ganzen Chunks
+	 * aus - hundert Millisekunden fuer eine einzige Abfrage. Vorher lief das
+	 * komplett in einem Tick: Zwei Anlagen auf frischem Gelaende haben den
+	 * Server einunddreissig Sekunden lang blockiert. Mit acht Millisekunden je
+	 * Tick laeuft das Spiel weiter, und man sieht das Gelaende einebnen.
+	 */
+	private static final long SURVEY_BUDGET_NANOS = 8_000_000L;
+	/** Wie oft zwischendurch auf die Uhr gesehen wird. */
+	private static final int SURVEY_CHECK_EVERY = 64;
 
 	private static final Deque<Job> QUEUE = new ArrayDeque<>();
 
@@ -87,9 +103,26 @@ public final class BaseConstruction {
 		private final List<BlockState> states = new ArrayList<>();
 		private final List<Runnable> finishers = new ArrayList<>();
 		private final List<ChunkPos> chunks = new ArrayList<>();
+		/** Gelaendearbeit, Spalte fuer Spalte - laeuft vor allen Bloecken. */
+		@Nullable
+		private IntConsumer survey;
+		private int surveyColumns;
 
 		public Plan(ServerWorld world) {
 			this.world = world;
+		}
+
+		/**
+		 * Meldet Gelaendearbeit an, die erst beim Abarbeiten geschieht.
+		 *
+		 * <p>Sie laeuft vor jedem geplanten Block - das Einebnen wuerde eine
+		 * schon gesetzte Hangarwand sonst gleich wieder abraeumen. Die
+		 * Arbeitsschritte setzen ihre Bloecke deshalb selbst, statt sie
+		 * vorzumerken.
+		 */
+		public void survey(int columns, IntConsumer work) {
+			this.surveyColumns = columns;
+			this.survey = work;
 		}
 
 		public ServerWorld world() {
@@ -169,6 +202,7 @@ public final class BaseConstruction {
 		private final Plan plan;
 		private int index;
 		private int chunkIndex;
+		private int surveyIndex;
 		private boolean finished;
 
 		private Job(Plan plan) {
@@ -176,6 +210,18 @@ public final class BaseConstruction {
 		}
 
 		private void advance() {
+			if (plan.survey != null && surveyIndex < plan.surveyColumns) {
+				long deadline = System.nanoTime() + SURVEY_BUDGET_NANOS;
+				while (surveyIndex < plan.surveyColumns) {
+					plan.survey.accept(surveyIndex++);
+					if (surveyIndex % SURVEY_CHECK_EVERY == 0 && System.nanoTime() > deadline) {
+						break;
+					}
+				}
+				// Erst wenn das Gelaende steht, wird gebaut.
+				return;
+			}
+
 			if (index < plan.positions.size()) {
 				int end = Math.min(plan.positions.size(), index + BLOCKS_PER_TICK);
 				for (; index < end; index++) {

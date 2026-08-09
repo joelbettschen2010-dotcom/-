@@ -2,6 +2,7 @@ package com.f47mod.entity.ai;
 
 import com.f47mod.F47Config;
 import com.f47mod.entity.mob.SoldierEntity;
+import com.f47mod.util.EnemyIntel;
 import com.f47mod.util.Iff;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ai.goal.Goal;
@@ -50,6 +51,12 @@ public class AdvanceOnEnemyGoal extends Goal {
 		if (!F47Config.get().soldiersEngageAutomatically) {
 			return false;
 		}
+		// Wer auf HOLD steht, ist Wachmannschaft und bleibt. Ohne diese
+		// Ausnahme marschiert beim ersten Feindkontakt die komplette Besatzung
+		// los und laesst den Stuetzpunkt leer zurueck.
+		if (soldier.getStance() == SoldierEntity.Stance.HOLD) {
+			return false;
+		}
 		// Wer gerade jemanden im Visier hat, kaempft - der Vormarsch ruht.
 		if (soldier.getTarget() != null && soldier.getTarget().isAlive()) {
 			return false;
@@ -95,21 +102,17 @@ public class AdvanceOnEnemyGoal extends Goal {
 		soldier.getNavigation().startMovingTo(step.x, step.y, step.z, speed);
 	}
 
-	/** Wo steht der naechste Gegner? Grosszuegig gesucht, damit Entfernung egal ist. */
+	/**
+	 * Wo steht der Gegner? Aus dem gemeinsamen Lagebild, damit Entfernung
+	 * egal bleibt, ohne dass jeder Mann selbst das halbe Land absucht.
+	 */
 	@Nullable
 	private Vec3d findEnemyPosition() {
-		double reach = F47Config.get().strikeRange;
-		Box box = soldier.getBoundingBox().expand(reach);
-		Entity best = null;
-		double bestDistance = Double.MAX_VALUE;
-		for (Entity candidate : soldier.getWorld().getOtherEntities(soldier, box,
-				e -> Iff.isEnemy(soldier, e))) {
-			double distance = candidate.squaredDistanceTo(soldier);
-			if (distance < bestDistance) {
-				bestDistance = distance;
-				best = candidate;
-			}
+		Vec3d enemy = EnemyIntel.nearestEnemy(soldier.getWorld(), soldier.getTeam(),
+				soldier.getPos());
+		if (enemy == null || soldier.getPos().distanceTo(enemy) > F47Config.get().strikeRange) {
+			return null;
 		}
-		return best == null ? null : best.getPos();
+		return enemy;
 	}
 }

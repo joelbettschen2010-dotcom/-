@@ -83,11 +83,31 @@ Rund 130 000 Blöcke auf mäßig hügeligem Gelände (in den Bergen deutlich meh
 | **12 Transporter** | Truppen und Luftbetankung |
 | **30 Schützenpanzer** | fahren die Infanterie zum Gegner |
 | **350 Mann** | Piloten, Techniker, Sanitäter, Panzerabwehr, Schützen |
+| **300 Mann Energiewaffen** | Laser-, Railgun- und Plasmatrupps zu gleichen Teilen |
 
 Alle Zahlen stehen in `config/f47.json` (`squadronFighters`, `squadronBombers`,
-`squadronTransports`, `squadronVehicles`, `garrisonTroops`, `runwayCount`) —
-**wenn dein Rechner ruckelt, halbiere sie einfach.** Zwei Stützpunkte in voller
-Stärke sind rund 900 Einheiten mit eigener KI.
+`squadronTransports`, `squadronVehicles`, `garrisonTroops`,
+`garrisonEnergyTroops`, `runwayCount`) — **wenn dein Rechner ruckelt, halbiere
+sie einfach.** Zwei Stützpunkte in voller Stärke sind rund 1500 Einheiten mit
+eigener KI. Das ist viel: Für ein flüssiges Spiel auf einem normalen Rechner
+sind halbe Zahlen die ehrlichere Empfehlung.
+
+Die Infanterie tritt auf einem eigenen Feld an — auf der den Hangars
+abgewandten Seite der Bahn, die 650 Mann hätten sonst zwischen den Tragflächen
+gestanden.
+
+### Wer bleibt, wer zieht los
+
+| Rolle | Verhalten |
+|---|---|
+| Pilot, Techniker, Sanitäter | bleiben am Stützpunkt (`HOLD`) — sie halten den Betrieb aufrecht |
+| Schütze, Panzerabwehr, Laser, Railgun, Plasma | ziehen bei Feindkontakt los (`PATROL`) |
+
+Liegt der Gegner **weiter als 400 Blöcke** weg, marschiert die Kampftruppe
+nicht — sie besetzt ein bereitstehendes Transportflugzeug der eigenen Partei
+und lässt sich hinfliegen. Bei näheren Zielen ist der Fußmarsch schneller als
+das Warten auf einen Platz an Bord, dann greift der Lufttransport gar nicht
+erst.
 
 Das Gelände wird **vollständig eingeebnet**: Berge und Hügel im Weg werden bis
 zum Himmel abgetragen, Senken aufgefüllt. Danach ist die ganze Anlage tischeben.
@@ -346,7 +366,7 @@ Basis, greifen Feinde mit Raketen und Kanone an, melden sich per Chat
 
 ### Bodentruppen
 
-Fünf Rollen, jede mit eigener Aufgabe:
+Acht Rollen, jede mit eigener Aufgabe:
 
 | Rolle | Aufgabe |
 |---|---|
@@ -355,13 +375,21 @@ Fünf Rollen, jede mit eigener Aufgabe:
 | **Sanitäter** | Heilt verwundete Soldaten und dich |
 | **Techniker** | Repariert und betankt Jets am Boden |
 | **Pilot** | Besteigt bereitstehende autonome Jets |
+| **Lasertrupp** | Vierschüssige Laserstöße, 34 Blöcke, zündet das Ziel an |
+| **Railguntrupp** | Ein Schuss, 26 Schaden, 46 Blöcke — geht durch Panzerung |
+| **Plasmatrupp** | Explodierende Plasmakugel, Flächenwirkung auf 26 Blöcke |
 
 Rechtsklick auf einen Soldaten (oder mit dem Kommando-Tablet) schaltet sein
-Verhalten um: `Folgen` → `Stellung halten` → `Patrouille`.
+Verhalten um: `Folgen` → `Stellung halten` → `Patrouille`. `Stellung halten`
+heißt jetzt wörtlich: Diese Soldaten ziehen **nicht** in den Vormarsch und
+steigen auch in kein Transportflugzeug — so lässt sich eine Wachmannschaft
+festlegen.
 
 Die **Kaserne** bildet laufend Nachschub aus: Eisenbarren hineingeben (Rechtsklick),
 mit `Schleichen + Rechtsklick` die Rolle wählen. Alle 30 Sekunden rückt ein
-Soldat aus, solange Nachschub da ist.
+Soldat aus, solange Nachschub da ist. Von allein füllt sie zuerst fehlende
+Piloten, Technik und Sanitäter auf, danach die Energiewaffentrupps — die tragen
+den Vormarsch und verheizen sich entsprechend.
 
 ### Radar und Iron Dome
 

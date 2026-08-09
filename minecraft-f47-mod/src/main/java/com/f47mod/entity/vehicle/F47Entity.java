@@ -102,6 +102,8 @@ public class F47Entity extends Entity implements TeamMember {
 	private boolean directControl;
 	/** Anstellwinkel des letzten Ticks in Radiant - fuer Anzeige und Bot-Piloten. */
 	private float angleOfAttack;
+	/** Sprengt gerade - schuetzt vor der eigenen Explosion, siehe explode(). */
+	private boolean exploding;
 
 	public F47Entity(EntityType<? extends F47Entity> type, World world) {
 		super(type, world);
@@ -409,17 +411,28 @@ public class F47Entity extends Entity implements TeamMember {
 	}
 
 	public void explode() {
-		if (getWorld().isClient) {
+		if (getWorld().isClient || exploding) {
 			return;
 		}
+		exploding = true;
 		for (Entity passenger : getPassengerList()) {
 			passenger.stopRiding();
 		}
-		getWorld().createExplosion(this, getX(), getY(), getZ(), 3.5f, F47Config.get().explosionType());
-		if (getWorld() instanceof ServerWorld server) {
-			server.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, getX(), getY(), getZ(), 2, 1.5, 1.0, 1.5, 0.0);
-		}
+		// Erst abmelden, dann sprengen - und zwar zwingend in dieser
+		// Reihenfolge. Die eigene Explosion trifft naemlich auch die eigene
+		// Zelle: Sie ruft damit dieses damage() erneut auf, die Struktur steht
+		// laengst bei null, und explode() beginnt von vorn. Das endete nicht -
+		// im Versuch lief der Aufrufstapel ueber und riss den ganzen Server
+		// mit einem StackOverflowError mit. Ein abgemeldetes Entity nimmt
+		// keinen Schaden mehr, damit bricht die Kette.
+		double x = getX();
+		double y = getY();
+		double z = getZ();
 		discard();
+		getWorld().createExplosion(this, x, y, z, 3.5f, F47Config.get().explosionType());
+		if (getWorld() instanceof ServerWorld server) {
+			server.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, x, y, z, 2, 1.5, 1.0, 1.5, 0.0);
+		}
 	}
 
 	// ------------------------------------------------------------------

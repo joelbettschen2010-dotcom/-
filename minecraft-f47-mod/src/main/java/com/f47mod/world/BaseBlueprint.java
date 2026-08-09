@@ -11,6 +11,7 @@ import com.f47mod.entity.vehicle.F47Entity;
 import com.f47mod.registry.ModBlocks;
 import com.f47mod.registry.ModEntities;
 import com.f47mod.util.Team;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.SpawnReason;
@@ -21,6 +22,8 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.Heightmap;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.function.IntFunction;
 
 /**
  * Plant einen kompletten Luftwaffenstuetzpunkt.
@@ -95,6 +98,32 @@ public final class BaseBlueprint {
 	 * Bloecke Versatz lassen dazwischen noch Platz zum Rollen.
 	 */
 	private static final int BAY_WIDTH = 62;
+	/**
+	 * Wie weit das Antreteplatz der Infanterie neben der Bahn beginnt.
+	 *
+	 * <p>Auf der den Hangars abgewandten Seite. Das Vorfeld ist mit vierzig
+	 * Jaegern, zwoelf Bombern, zwoelf Transportern und dreissig Panzern bis auf
+	 * den letzten Streifen belegt - sechshundertfuenfzig Mann haetten dort
+	 * zwischen den Tragflaechen gestanden und sich gegenseitig weggeschoben.
+	 * Drueben ist Platz, und die Bahn liegt zwischen Infanterie und
+	 * Flugbetrieb.
+	 */
+	private static final int TROOP_FIELD_OFFSET = RUNWAY_HALF_WIDTH + 8;
+	/** Wie tief der Antreteplatz quer zur Bahn reicht. */
+	private static final int TROOP_FIELD_DEPTH = 30;
+	/** Plaetze je Reihe, laengs der Bahn. */
+	private static final int TROOP_COLUMNS = 70;
+	/** Abstand zweier Reihen. Ein Mann ist 0,6 Bloecke breit. */
+	private static final int TROOP_ROW_SPACING = 2;
+	/**
+	 * Erste Reihe der Energiewaffentruppe, gemessen ab
+	 * {@link #TROOP_FIELD_OFFSET}.
+	 *
+	 * <p>Weit genug hinter der konventionellen Infanterie, dass sich die
+	 * beiden Bloecke auch bei nur einer Bahn nicht ueberlappen: Dort braucht
+	 * jede Gruppe fuenf Reihen.
+	 */
+	private static final int ENERGY_FIELD_ROW = 6;
 
 	private BaseBlueprint() {
 	}
@@ -125,7 +154,7 @@ public final class BaseBlueprint {
 		// fielen sie in das noch offene Gelaende.
 		plan.afterwards(() -> spawnUnits(world, origin, facing, side, ground, team, owner));
 
-		keepLoaded(plan, origin.offset(facing, RUNWAY_LENGTH / 2));
+		keepLoaded(plan, origin, facing, side, bays);
 		BaseConstruction.enqueue(plan);
 		return plan.blockCount();
 	}
@@ -145,17 +174,45 @@ public final class BaseBlueprint {
 	 * erst entstehen, und einundachtzig davon auf einmal legen den Server
 	 * viereinhalb Sekunden lahm.
 	 */
-	private static void keepLoaded(BaseConstruction.Plan plan, BlockPos centre) {
-		int radius = F47Config.get().baseForceLoadRadiusChunks;
-		if (radius <= 0) {
+	private static void keepLoaded(BaseConstruction.Plan plan, BlockPos origin, Direction facing,
+			Direction side, int bays) {
+		int margin = F47Config.get().baseForceLoadRadiusChunks;
+		if (margin <= 0) {
 			return;
 		}
-		ChunkPos middle = new ChunkPos(centre);
-		for (int x = -radius; x <= radius; x++) {
-			for (int z = -radius; z <= radius; z++) {
-				plan.keepLoaded(new ChunkPos(middle.x + x, middle.z + z));
+		// Genau das Rechteck der Anlage, nicht ein Quadrat um ihre Mitte: Die
+		// Bahn ist hundertsechzig Bloecke lang, die Anlage quer dazu bei drei
+		// Bahnen noch breiter. Ein Quadrat, das beides fasst, waere fast
+		// doppelt so gross wie noetig - und jeder Chunk darin kostet Speicher.
+		BlockPos near = origin.offset(facing, -8)
+				.offset(side, -RUNWAY_HALF_WIDTH - 6 - TROOP_FIELD_DEPTH);
+		BlockPos far = origin.offset(facing, RUNWAY_LENGTH + 8)
+				.offset(side, (bays - 1) * BAY_WIDTH + APRON_OFFSET + APRON_WIDTH);
+		ChunkPos one = new ChunkPos(near);
+		ChunkPos two = new ChunkPos(far);
+		int minX = Math.min(one.x, two.x) - margin;
+		int maxX = Math.max(one.x, two.x) + margin;
+		int minZ = Math.min(one.z, two.z) - margin;
+		int maxZ = Math.max(one.z, two.z) + margin;
+		for (int x = minX; x <= maxX; x++) {
+			for (int z = minZ; z <= maxZ; z++) {
+				plan.keepLoaded(new ChunkPos(x, z));
 			}
 		}
+	}
+
+	/**
+	 * Wie breit die Anlage quer zur Bahn ist, in Bloecken.
+	 *
+	 * <p>Braucht {@code /f47 war}, um die beiden Basen weit genug
+	 * auseinanderzusetzen: Mit drei Bahnen ist eine Anlage breiter als der
+	 * frueher fest eingestellte Abstand - die zweite waere mitten in die erste
+	 * gebaut worden.
+	 */
+	public static int width() {
+		int bays = Math.max(1, F47Config.get().runwayCount);
+		return (bays - 1) * BAY_WIDTH + APRON_OFFSET + APRON_WIDTH
+				+ RUNWAY_HALF_WIDTH + 6 + TROOP_FIELD_DEPTH;
 	}
 
 	// ------------------------------------------------------------------
@@ -166,39 +223,50 @@ public final class BaseBlueprint {
 	 * Macht Platz: alles ueber dem Boden weg, Loecher darunter auffuellen.
 	 * Ohne das laege die Bahn auf huegeligem Gelaende in der Luft oder waere
 	 * von Baeumen verstellt.
+	 *
+	 * <p>Die Arbeit wird nur angemeldet, nicht sofort getan. Der Grund ist die
+	 * Weltgenerierung: Eine Anlage ist siebenunddreissigtausend Spalten gross,
+	 * und wo das Gelaende noch nie besucht wurde, laesst die erste Abfrage
+	 * Minecraft den ganzen Chunk erzeugen. In einem Tick erledigt hat das den
+	 * Server bei zwei Anlagen einunddreissig Sekunden lang blockiert.
 	 */
 	private static void clearArea(BaseConstruction.Plan plan, BlockPos origin, Direction facing,
 			Direction side, int ground, int bays) {
 		ServerWorld world = plan.world();
 		boolean level = F47Config.get().levelTerrain;
 		int outer = (bays - 1) * BAY_WIDTH + APRON_OFFSET + APRON_WIDTH;
-		for (int forward = -6; forward <= RUNWAY_LENGTH + 6; forward++) {
-			for (int across = -RUNWAY_HALF_WIDTH - 6; across <= outer; across++) {
-				BlockPos column = origin.offset(facing, forward).offset(side, across);
+		// Auf der Gegenseite kommt der Antreteplatz der Infanterie dazu.
+		int inner = -RUNWAY_HALF_WIDTH - 6 - TROOP_FIELD_DEPTH;
+		int width = outer - inner + 1;
+		int length = RUNWAY_LENGTH + 13;
 
-				// Ueber dem Boden freiraeumen. Wie weit, verraet die Hoehenkarte:
-				// Ueber dem hoechsten Block ist ohnehin nur Luft, dort muss gar
-				// nicht erst gesucht werden.
-				// Bei eingeschalteter Einebnung faellt alles weg, was hoeher
-				// steht - auch ein ganzer Berg. Sonst nur bis zur lichten Hoehe.
-				int surface = world.getTopY(Heightmap.Type.WORLD_SURFACE,
-						column.getX(), column.getZ());
-				int top = level ? surface : Math.min(surface, ground + CLEAR_HEIGHT);
-				for (int y = ground + 1; y <= top; y++) {
-					BlockPos above = column.withY(y);
-					if (!world.getBlockState(above).isAir()) {
-						plan.set(above, Blocks.AIR.getDefaultState());
-					}
-				}
-				// Unterbau: drei Schichten, damit nichts in der Luft haengt.
-				for (int y = 0; y >= -2; y--) {
-					BlockPos below = column.withY(ground + y);
-					if (world.getBlockState(below).isAir() || !world.getFluidState(below).isEmpty()) {
-						plan.set(below, ModBlocks.RUNWAY.getDefaultState());
-					}
+		plan.survey(width * length, column -> {
+			int forward = column / width - 6;
+			int across = column % width + inner;
+			BlockPos at = origin.offset(facing, forward).offset(side, across);
+
+			// Ueber dem Boden freiraeumen. Wie weit, verraet die Hoehenkarte:
+			// Ueber dem hoechsten Block ist ohnehin nur Luft, dort muss gar
+			// nicht erst gesucht werden.
+			// Bei eingeschalteter Einebnung faellt alles weg, was hoeher
+			// steht - auch ein ganzer Berg. Sonst nur bis zur lichten Hoehe.
+			int surface = world.getTopY(Heightmap.Type.WORLD_SURFACE, at.getX(), at.getZ());
+			int top = level ? surface : Math.min(surface, ground + CLEAR_HEIGHT);
+			for (int y = ground + 1; y <= top; y++) {
+				BlockPos above = at.withY(y);
+				if (!world.getBlockState(above).isAir()) {
+					world.setBlockState(above, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS);
 				}
 			}
-		}
+			// Unterbau: drei Schichten, damit nichts in der Luft haengt.
+			for (int y = 0; y >= -2; y--) {
+				BlockPos below = at.withY(ground + y);
+				if (world.getBlockState(below).isAir() || !world.getFluidState(below).isEmpty()) {
+					world.setBlockState(below, ModBlocks.RUNWAY.getDefaultState(),
+							Block.NOTIFY_LISTENERS);
+				}
+			}
+		});
 	}
 
 	// ------------------------------------------------------------------
@@ -432,28 +500,59 @@ public final class BaseBlueprint {
 		int medics = troops / 20;
 		int heavy = troops / 8;
 
-		for (int i = 0; i < troops; i++) {
-			SoldierRole role;
-			if (i < pilots) {
-				role = SoldierRole.PILOT;
-			} else if (i < pilots + engineers) {
-				role = SoldierRole.ENGINEER;
-			} else if (i < pilots + engineers + medics) {
-				role = SoldierRole.MEDIC;
-			} else if (i < pilots + engineers + medics + heavy) {
-				role = SoldierRole.HEAVY;
-			} else {
-				role = SoldierRole.RIFLEMAN;
+		deployTroops(world, origin, facing, side, ground, team, owner, yaw, troops, 0, index -> {
+			if (index < pilots) {
+				return SoldierRole.PILOT;
 			}
-			// In Reihen ueber die ganze Anlage, damit sie nicht uebereinander
-			// stehen und sich gegenseitig wegschieben.
-			int bay = i % bays;
-			int index = i / bays;
-			BlockPos spot = origin.offset(facing, 12 + (index % 48) * 3)
-					.offset(side, bay * BAY_WIDTH + APRON_OFFSET + APRON_WIDTH - 14 - (index / 48) * 3)
+			if (index < pilots + engineers) {
+				return SoldierRole.ENGINEER;
+			}
+			if (index < pilots + engineers + medics) {
+				return SoldierRole.MEDIC;
+			}
+			if (index < pilots + engineers + medics + heavy) {
+				return SoldierRole.HEAVY;
+			}
+			return SoldierRole.RIFLEMAN;
+		});
+
+		// Energiewaffentruppe: Laser, Railgun und Plasma zu gleichen Teilen.
+		// Eigener Block auf dem Antreteplatz, damit die Waffengattungen im
+		// Feld auseinanderzuhalten sind.
+		SoldierRole[] energy = { SoldierRole.LASER, SoldierRole.RAILGUN, SoldierRole.PLASMA };
+		deployTroops(world, origin, facing, side, ground, team, owner, yaw,
+				Math.max(0, config.garrisonEnergyTroops), ENERGY_FIELD_ROW,
+				index -> energy[index % energy.length]);
+	}
+
+	/**
+	 * Laesst Infanterie auf dem Antreteplatz antreten.
+	 *
+	 * <p>In Reihen laengs der Bahn, damit die Leute nicht uebereinander stehen
+	 * und sich gegenseitig wegschieben - bei sechshundertfuenfzig Mann summiert
+	 * sich das sonst zu einem Knaeuel, das minutenlang auseinanderdriftet.
+	 *
+	 * @param firstRow erste Reihe des Blocks, damit sich zwei Gruppen nicht
+	 *                 auf dieselben Plaetze stellen
+	 * @param roles    liefert zum laufenden Index die Rolle
+	 */
+	private static void deployTroops(ServerWorld world, BlockPos origin, Direction facing,
+			Direction side, int ground, Team team, @Nullable PlayerEntity owner, float yaw,
+			int count, int firstRow, IntFunction<SoldierRole> roles) {
+		for (int i = 0; i < count; i++) {
+			int column = i % TROOP_COLUMNS;
+			int row = firstRow + i / TROOP_COLUMNS;
+			BlockPos spot = origin.offset(facing, 12 + column * 2)
+					.offset(side, -TROOP_FIELD_OFFSET - row * TROOP_ROW_SPACING)
 					.withY(ground);
-			spawnSoldier(world, spot, yaw, role, team, owner);
+			SoldierRole role = roles.apply(i);
+			spawnSoldier(world, spot, yaw, role, team, owner, stanceFor(role));
 		}
+	}
+
+	/** Bodenpersonal bleibt am Posten, die Kampftruppe geht vor. */
+	private static SoldierEntity.Stance stanceFor(SoldierRole role) {
+		return role.isSupport() ? SoldierEntity.Stance.HOLD : SoldierEntity.Stance.PATROL;
 	}
 
 	/**
@@ -509,7 +608,7 @@ public final class BaseBlueprint {
 	}
 
 	private static void spawnSoldier(ServerWorld world, BlockPos pos, float yaw, SoldierRole role,
-			Team team, @Nullable PlayerEntity owner) {
+			Team team, @Nullable PlayerEntity owner, SoldierEntity.Stance stance) {
 		SoldierEntity soldier = ModEntities.SOLDIER.create(world);
 		if (soldier == null) {
 			return;
@@ -519,8 +618,10 @@ public final class BaseBlueprint {
 		soldier.setTeam(team);
 		soldier.setRole(role);
 		soldier.setOwner(owner);
-		// Am Posten bleiben, damit die Basis bewacht ist.
-		soldier.setStance(SoldierEntity.Stance.PATROL);
+		// Der Posten ist der Platz, an den zurueckgekehrt wird. HOLD heisst
+		// Wachmannschaft und bleibt dort, PATROL heisst Feldtruppe und zieht
+		// bei Feindkontakt los.
+		soldier.setStance(stance);
 		soldier.setGuardPost(pos);
 		world.spawnEntity(soldier);
 	}

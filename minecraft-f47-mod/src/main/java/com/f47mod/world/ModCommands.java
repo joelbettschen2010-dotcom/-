@@ -104,7 +104,10 @@ public final class ModCommands {
 		BlockPos centre = BlockPos.ofFloored(source.getPosition());
 		Direction facing = player != null ? player.getHorizontalFacing() : Direction.NORTH;
 		Direction across = facing.rotateYClockwise();
-		int gap = Math.max(80, F47Config.get().warBaseSeparation);
+		// Mindestens eine Anlagenbreite plus Rand - sonst baut die zweite Basis
+		// mitten in die erste. Mit drei Bahnen ist eine Anlage breiter als der
+		// eingestellte Abstand von hundertfuenfzig Bloecken.
+		int gap = Math.max(BaseBlueprint.width() + 40, F47Config.get().warBaseSeparation);
 
 		// Beide Bahnen laufen in dieselbe Richtung, die Basen liegen sich rein
 		// seitlich gegenueber. Liess man die rote Bahn entgegengesetzt laufen,
@@ -145,15 +148,22 @@ public final class ModCommands {
 				centre.putIfAbsent(jet.getTeam(), Vec3d.ofCenter(home));
 			}
 		}
+		// Energiewaffentruppe getrennt zaehlen: Sie traegt den Vormarsch, und
+		// ob davon noch jemand steht, sieht man sonst nirgends.
+		Map<Team, Integer> energy = new EnumMap<>(Team.class);
 		for (SoldierEntity soldier : world.getEntitiesByType(
 				TypeFilter.instanceOf(SoldierEntity.class), e -> true)) {
 			troops.merge(soldier.getTeam(), 1, Integer::sum);
+			if (soldier.getRole().usesEnergyWeapon()) {
+				energy.merge(soldier.getTeam(), 1, Integer::sum);
+			}
 		}
 
 		for (Team team : Team.values()) {
 			Text name = Text.translatable(team.translationKey()).formatted(team.formatting());
 			source.sendFeedback(() -> Text.translatable("message.f47.status_side", name,
-					jets.getOrDefault(team, 0), troops.getOrDefault(team, 0)), false);
+					jets.getOrDefault(team, 0), troops.getOrDefault(team, 0),
+					energy.getOrDefault(team, 0)), false);
 		}
 
 		Vec3d blue = centre.get(Team.BLUE);

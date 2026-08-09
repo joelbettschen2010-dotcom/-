@@ -31,6 +31,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 /**
@@ -44,8 +45,25 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 	private static final int TRAINING_TICKS = 600;
 	/** Eisenbarren pro Soldat. */
 	private static final int COST = 4;
-	/** Umkreis, in dem die Kaserne ihre eigenen Einheiten zaehlt. */
-	private static final double RANGE = 64.0;
+	/**
+	 * Umkreis, in dem die Kaserne ihre eigenen Einheiten zaehlt.
+	 *
+	 * <p>Grosszuegig, weil die Anlage es ist: Mit drei Bahnen ist sie quer gut
+	 * zweihundertfuenfzig Bloecke breit, und der Antreteplatz der Infanterie
+	 * liegt auf der anderen Seite der Bahn. Mit den frueheren
+	 * vierundsechzig Bloecken sah die Kaserne den halben Stuetzpunkt nicht und
+	 * bildete endlos weiter aus, weil der Trupp fuer sie nie vollzaehlig wurde.
+	 */
+	private static final double RANGE = 240.0;
+	/**
+	 * Ticks zwischen zwei Bestandsaufnahmen.
+	 *
+	 * <p>Durchzaehlen kostet: Der Umkreis umfasst ein paar tausend
+	 * Chunk-Abschnitte, und frueher geschah das mehrfach pro Tick. Zweimal pro
+	 * Sekunde reicht voellig - schneller als in zwei Sekunden ist ohnehin
+	 * niemand ausgebildet.
+	 */
+	private static final int CENSUS_TICKS = 40;
 
 	/** Ticks, bis von selbst ein Barren Nachschub eintrifft. */
 	private static final int SUPPLY_TICKS = 160;
@@ -69,6 +87,14 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 	private int jetProgress;
 	/** Uhr fuer den nachrueckenden Nachschub. */
 	private int supplyTimer;
+	/** Uhr fuer die Bestandsaufnahme. */
+	private int censusTimer;
+	/** Letzter Stand: eigene Soldaten im Umkreis. */
+	private int squadCount;
+	/** Letzter Stand: eigene Soldaten je Rolle. */
+	private final int[] roleCount = new int[SoldierRole.values().length];
+	/** Letzter Stand: eigene Maschinen ohne Besatzung. */
+	private int emptyJets;
 	private SoldierRole trainingRole = SoldierRole.RIFLEMAN;
 	/**
 	 * Legt der Spieler die Rolle von Hand fest, mischt sich die Kaserne nicht
@@ -118,13 +144,15 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 		if (supplies < COST) {
 			return;
 		}
-		if (countSquad(world, pos) >= share(F47Config.get().garrisonTroops)) {
+		census(world, pos);
+		F47Config config = F47Config.get();
+		if (squadCount >= share(config.garrisonTroops + config.garrisonEnergyTroops)) {
 			// Trupp ist vollzaehlig - Ausbildung pausiert.
 			progress = 0;
 			return;
 		}
 		if (!roleChosenByHand) {
-			trainingRole = neededRole(world, pos);
+			trainingRole = neededRole();
 		}
 		if (++progress < TRAINING_TICKS) {
 			if (progress % 40 == 0 && world instanceof ServerWorld server) {
@@ -147,29 +175,58 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 	 * damit Beschaedigtes wieder flott wird, dann die Panzerabwehr, und was
 	 * uebrig bleibt, wird Schuetze.
 	 */
-	private SoldierRole neededRole(World world, BlockPos pos) {
-		Box box = new Box(pos).expand(RANGE);
-		long emptyJets = world.getEntitiesByClass(AutonomousF47Entity.class, box,
-				jet -> jet.getTeam() == team && !jet.hasPilot()).size();
-		if (emptyJets > countRole(world, pos, SoldierRole.PILOT)) {
+	private SoldierRole neededRole() {
+		if (emptyJets > roleCount[SoldierRole.PILOT.ordinal()]) {
 			return SoldierRole.PILOT;
 		}
-		if (countRole(world, pos, SoldierRole.ENGINEER) < 3) {
+		if (roleCount[SoldierRole.ENGINEER.ordinal()] < 3) {
 			return SoldierRole.ENGINEER;
 		}
-		if (countRole(world, pos, SoldierRole.MEDIC) < 2) {
+		if (roleCount[SoldierRole.MEDIC.ordinal()] < 2) {
 			return SoldierRole.MEDIC;
 		}
-		if (countRole(world, pos, SoldierRole.HEAVY) < 3) {
+		if (roleCount[SoldierRole.HEAVY.ordinal()] < 3) {
 			return SoldierRole.HEAVY;
+		}
+		// Energiewaffentruppe nachziehen. Sie traegt den Vormarsch und
+		// verheizt sich entsprechend - ohne Nachschub ist der Stuetzpunkt nach
+		// zwei Wellen nur noch Wachmannschaft. Jede Gattung auf ein Drittel
+		// der Sollstaerke aufgefuellt, damit nicht alle drei Kasernen
+		// dasselbe ausbilden.
+		int perWeapon = share(Math.max(0, F47Config.get().garrisonEnergyTroops) / 3);
+		for (SoldierRole role : SoldierRole.values()) {
+			if (role.usesEnergyWeapon() && roleCount[role.ordinal()] < perWeapon) {
+				return role;
+			}
 		}
 		return SoldierRole.RIFLEMAN;
 	}
 
-	private int countRole(World world, BlockPos pos, SoldierRole role) {
-		Box box = new Box(pos).expand(RANGE);
-		return world.getEntitiesByClass(SoldierEntity.class, box,
-				soldier -> soldier.getTeam() == team && soldier.getRole() == role).size();
+	/**
+	 * Zaehlt durch, wer noch da ist - Soldaten nach Rolle und unbemannte
+	 * Maschinen.
+	 *
+	 * <p>Gebuendelt und gedrosselt: Frueher lief fuer jede einzelne Abfrage ein
+	 * eigener Suchlauf ueber den ganzen Flugplatz, und das jeden Tick. Bei
+	 * sechshundertfuenfzig Mann je Partei ist das die teuerste Stelle im ganzen
+	 * Mod.
+	 */
+	private void census(World world, BlockPos pos) {
+		if (--censusTimer > 0) {
+			return;
+		}
+		censusTimer = CENSUS_TICKS;
+		BlockPos field = homeBase != null ? homeBase : pos;
+		Box box = new Box(field).expand(RANGE);
+		Arrays.fill(roleCount, 0);
+		squadCount = 0;
+		for (SoldierEntity soldier : world.getEntitiesByClass(SoldierEntity.class, box,
+				candidate -> candidate.getTeam() == team)) {
+			squadCount++;
+			roleCount[soldier.getRole().ordinal()]++;
+		}
+		emptyJets = world.getEntitiesByClass(AutonomousF47Entity.class, box,
+				jet -> jet.getTeam() == team && !jet.hasPilot()).size();
 	}
 
 	/**
@@ -305,7 +362,10 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 				world.getRandom().nextFloat() * 360.0f, 0.0f);
 		soldier.setTeam(team);
 		soldier.setRole(trainingRole);
-		soldier.setStance(SoldierEntity.Stance.PATROL);
+		// Bodenpersonal bleibt am Posten, die Kampftruppe zieht bei
+		// Feindkontakt los - genauso wie bei der Erstbesetzung aus dem Bausatz.
+		soldier.setStance(trainingRole.isSupport()
+				? SoldierEntity.Stance.HOLD : SoldierEntity.Stance.PATROL);
 		soldier.setGuardPost(pos);
 
 		PlayerEntity owner = ownerUuid == null ? null : world.getPlayerByUuid(ownerUuid);
@@ -321,10 +381,10 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 		world.playSound(null, pos, SoundEvents.BLOCK_ANVIL_USE, SoundCategory.BLOCKS, 0.6f, 1.2f);
 	}
 
-	/** Wie viele eigene Soldaten stehen schon im Umkreis? */
+	/** Wie viele eigene Soldaten stehen schon im Umkreis? Letzter Zaehlstand. */
 	private int countSquad(World world, BlockPos pos) {
-		Box box = new Box(pos).expand(48.0);
-		return world.getEntitiesByClass(SoldierEntity.class, box, soldier -> soldier.getTeam() == team).size();
+		census(world, pos);
+		return squadCount;
 	}
 
 	/**

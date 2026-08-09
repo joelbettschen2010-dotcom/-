@@ -41,6 +41,10 @@ public class TransportEntity extends AutonomousF47Entity {
 	private static final double BOOM_RANGE = 26.0;
 	/** Ab diesem Fuellstand gilt eine Maschine als bedueftig. */
 	private static final float THIRSTY = 0.55f;
+	/** Umkreis, in dem ein Gegner als "Absetzgebiet erreicht" zaehlt. */
+	private static final double DROP_ZONE = 60.0;
+	/** Hoechste Hoehe ueber Grund, aus der abgesetzt wird. */
+	private static final double DROP_ALTITUDE = 30.0;
 
 	public TransportEntity(EntityType<? extends TransportEntity> type, World world) {
 		super(type, world);
@@ -77,6 +81,41 @@ public class TransportEntity extends AutonomousF47Entity {
 			return;
 		}
 		refuelNearby();
+		dropTroops();
+	}
+
+	/**
+	 * Setzt mitgefuehrte Truppen ueber dem Ziel ab.
+	 *
+	 * <p>Erst wenn der Transporter wirklich beim Gegner ist und tief genug
+	 * fliegt - aus Patrouillenhoehe abgeworfen kaeme unten niemand lebend an.
+	 * Die Soldaten steigen im Anflug aus und fallen die letzten Bloecke; das
+	 * ist die Absetzhoehe, keine Notlandung.
+	 */
+	private void dropTroops() {
+		if (getPassengerList().isEmpty() || getOrder() == Order.PARKED) {
+			return;
+		}
+		Box box = getBoundingBox().expand(DROP_ZONE);
+		boolean overEnemy = !getWorld().getOtherEntities(this, box,
+				e -> Iff.isEnemy(this, e)).isEmpty();
+		if (!overEnemy) {
+			return;
+		}
+		// Nur aus geringer Hoehe ueber Grund absetzen.
+		int ground = getWorld().getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING,
+				getBlockPos().getX(), getBlockPos().getZ());
+		if (getY() - ground > DROP_ALTITUDE) {
+			return;
+		}
+		for (Entity passenger : java.util.List.copyOf(getPassengerList())) {
+			passenger.stopRiding();
+			passenger.refreshPositionAfterTeleport(
+					getX() + random.nextDouble() * 8 - 4,
+					getY() - 1,
+					getZ() + random.nextDouble() * 8 - 4);
+		}
+		playSound(net.minecraft.sound.SoundEvents.BLOCK_IRON_DOOR_OPEN, 1.2f, 0.7f);
 	}
 
 	/**

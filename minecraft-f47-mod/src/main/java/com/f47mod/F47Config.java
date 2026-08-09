@@ -117,18 +117,19 @@ public class F47Config {
 
 	// --- Stuetzpunkt ------------------------------------------------------
 	/**
-	 * Wie viele Chunks rund um einen neu gebauten Stuetzpunkt dauerhaft geladen
+	 * Wie viele Chunks Rand um einen neu gebauten Stuetzpunkt dauerhaft geladen
 	 * bleiben. Ohne das haelt Minecraft nur die Umgebung des Spielers am Laufen,
 	 * und die Basis steht still, sobald man wegfliegt - Jets starten nicht,
 	 * Soldaten kaempfen nicht.
 	 *
-	 * <p>6 deckt einen Kreis von gut hundert Bloecken ab und damit die
-	 * Warteschleife der Staffel. Kleiner heisst: Die Maschinen fliegen hinaus
-	 * und bleiben dort stehen, weil ausserhalb nicht mehr gerechnet wird. Auf
-	 * 0 stellen, wenn der Rechner das nicht mitmacht - dann laeuft die Basis
-	 * nur in Spielernaehe.
+	 * <p>Die Anlage selbst wird immer ganz geladen; das hier ist nur der
+	 * Streifen darum herum, in dem die Warteschleife liegt. Ein Quadrat um die
+	 * Bahnmitte reichte frueher - inzwischen ist die Anlage mit drei Bahnen und
+	 * Antreteplatz gut zweihundertfuenfzig Bloecke breit, und die aeusseren
+	 * Bahnen lagen ausserhalb: Dort stand alles still. Auf 0 stellen, wenn der
+	 * Rechner das nicht mitmacht - dann laeuft die Basis nur in Spielernaehe.
 	 */
-	public int baseForceLoadRadiusChunks = 6;
+	public int baseForceLoadRadiusChunks = 2;
 	/**
 	 * Abstand zwischen den beiden Basen, die {@code /f47 war} aufstellt.
 	 *
@@ -170,6 +171,15 @@ public class F47Config {
 	public int squadronVehicles = 30;
 	/** Mann Bodenpersonal je Stuetzpunkt. */
 	public int garrisonTroops = 350;
+	/**
+	 * Zusaetzliche Infanterie mit Energiewaffen je Stuetzpunkt.
+	 *
+	 * <p>Laser, Railgun und Plasma zu gleichen Teilen. Diese Leute sind reine
+	 * Bodentruppe: Sie bewachen keinen Posten auf Dauer, sondern marschieren
+	 * auf den Gegner zu - und liegt der weiter als vierhundert Bloecke weg,
+	 * lassen sie sich vom Transporter hinbringen.
+	 */
+	public int garrisonEnergyTroops = 300;
 	/** Anzahl paralleler Start- und Landebahnen. */
 	public int runwayCount = 3;
 	/**

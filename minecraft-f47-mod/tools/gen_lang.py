@@ -87,7 +87,8 @@ ENTRIES = {
                                 "Die Parteien finden sich von allein.",
                                 "Two bases established - %s blocks, %s blocks apart. "
                                 "The sides will find each other on their own."),
-    "message.f47.status_side": ("%s: %s Maschinen, %s Mann", "%s: %s aircraft, %s troops"),
+    "message.f47.status_side": ("%s: %s Maschinen, %s Mann (davon %s mit Energiewaffen)",
+                                "%s: %s aircraft, %s troops (%s with energy weapons)"),
     "message.f47.status_one_side": ("Es steht nur eine Partei da - deshalb greift niemand an. "
                                     "Mit dem Bausatz im Schleichen eine Gegenbasis setzen, oder /f47 war benutzen.",
                                     "Only one side is present - that is why nobody attacks. "
@@ -134,6 +135,9 @@ ENTRIES = {
     "role.f47.medic": ("Sanitaeter", "Medic"),
     "role.f47.engineer": ("Techniker", "Engineer"),
     "role.f47.pilot": ("Pilot", "Pilot"),
+    "role.f47.laser": ("Lasertrupp", "Laser Trooper"),
+    "role.f47.railgun": ("Railguntrupp", "Railgun Trooper"),
+    "role.f47.plasma": ("Plasmatrupp", "Plasma Trooper"),
 
     "stance.f47.follow": ("Folgen", "Follow"),
     "stance.f47.hold": ("Stellung halten", "Hold Position"),

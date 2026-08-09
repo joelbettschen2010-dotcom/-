@@ -2,6 +2,7 @@ package com.f47mod.entity.vehicle;
 
 import com.f47mod.F47Config;
 import com.f47mod.entity.mob.SoldierEntity;
+import com.f47mod.util.EnemyIntel;
 import com.f47mod.util.Iff;
 import com.f47mod.util.Team;
 import com.f47mod.util.TeamMember;
@@ -191,24 +192,18 @@ public class ArmoredVehicleEntity extends Entity implements TeamMember, MissionL
 				SoundCategory.NEUTRAL, 0.5f, 1.8f);
 	}
 
+	/**
+	 * Wohin gefahren wird. Aus dem gemeinsamen Lagebild - der Schwerpunkt der
+	 * Gegenseite liegt auf deren Stuetzpunkt, und genau dorthin soll der
+	 * Panzer.
+	 */
 	@Nullable
 	private Vec3d findEnemyPosition() {
-		double reach = F47Config.get().strikeRange;
-		Box box = getBoundingBox().expand(reach);
-		Entity best = null;
-		double bestDistance = Double.MAX_VALUE;
-		for (Entity candidate : getWorld().getOtherEntities(this, box, e -> Iff.isEnemy(this, e))) {
-			// Bodenziele - hinter Flugzeugen herzufahren waere sinnlos.
-			if (!candidate.isOnGround()) {
-				continue;
-			}
-			double distance = candidate.squaredDistanceTo(this);
-			if (distance < bestDistance) {
-				bestDistance = distance;
-				best = candidate;
-			}
+		Vec3d enemy = EnemyIntel.nearestEnemy(getWorld(), getTeam(), getPos());
+		if (enemy == null || getPos().distanceTo(enemy) > F47Config.get().strikeRange) {
+			return null;
 		}
-		return best == null ? null : best.getPos();
+		return enemy;
 	}
 
 	// ------------------------------------------------------------------
@@ -245,12 +240,17 @@ public class ArmoredVehicleEntity extends Entity implements TeamMember, MissionL
 		float left = dataTracker.get(ARMOUR) - amount;
 		dataTracker.set(ARMOUR, left);
 		if (left <= 0.0f) {
-			if (getWorld() instanceof ServerWorld server) {
-				server.createExplosion(this, getX(), getY(), getZ(), 3.0f,
-						F47Config.get().explosionType());
-			}
 			removeAllPassengers();
+			// Erst abmelden, dann sprengen: Die eigene Explosion trifft sonst
+			// die eigene Wanne und ruft damage() erneut auf - bei dreissig eng
+			// abgestellten Panzern reisst diese Kette den Aufrufstapel mit.
+			double x = getX();
+			double y = getY();
+			double z = getZ();
 			discard();
+			if (getWorld() instanceof ServerWorld server) {
+				server.createExplosion(this, x, y, z, 3.0f, F47Config.get().explosionType());
+			}
 		}
 		return true;
 	}

@@ -3,12 +3,14 @@ package com.f47mod.entity.mob;
 import com.f47mod.F47Config;
 import com.f47mod.entity.ai.AdvanceOnEnemyGoal;
 import com.f47mod.entity.ai.BoardJetGoal;
+import com.f47mod.entity.ai.BoardTransportGoal;
 import com.f47mod.entity.ai.EngineerServiceGoal;
 import com.f47mod.entity.ai.FollowCommanderGoal;
 import com.f47mod.entity.ai.GuardPostGoal;
 import com.f47mod.entity.ai.MedicGoal;
 import com.f47mod.entity.projectile.BulletEntity;
 import com.f47mod.entity.projectile.MissileEntity;
+import com.f47mod.entity.projectile.PlasmaBoltEntity;
 import com.f47mod.registry.ModItems;
 import com.f47mod.util.Iff;
 import com.f47mod.util.Team;
@@ -95,14 +97,24 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob, T
 		goalSelector.add(1, new BoardJetGoal(this));
 		goalSelector.add(2, new MedicGoal(this));
 		goalSelector.add(2, new EngineerServiceGoal(this));
-		goalSelector.add(3, new ProjectileAttackGoal(this, 1.0, 20, 26.0f));
+		goalSelector.add(3, new ProjectileAttackGoal(this, 1.0, 20, 46.0f));
 		goalSelector.add(4, new FollowCommanderGoal(this, 1.15, 6.0f, 22.0f));
-		goalSelector.add(5, new GuardPostGoal(this, 0.9));
-		// Nach dem Postendienst: Wer nichts zu tun hat, sucht den Gegner auf -
-		// sonst steht der Trupp bis in alle Ewigkeit auf seinem Platz herum.
+		// Vormarsch vor Postendienst - und zwar zwingend in dieser Reihenfolge.
+		// Andersherum lief es nicht: Der Postendienst greift, sobald ueberhaupt
+		// ein Posten gesetzt ist, und das ist bei jedem Mann aus dem Bausatz der
+		// Fall. Er belegte damit dauerhaft die Bewegungssteuerung, und der
+		// Vormarsch darunter kam nie an die Reihe - der Trupp stand am Platz
+		// herum, genau wie vorher.
+		//
+		// Umgekehrt schadet es nichts: Der Vormarsch meldet sich von selbst ab,
+		// wenn kein Gegner in Reichweite ist, und dann uebernimmt wieder der
+		// Postendienst. Vor dem Fussmarsch wird geprueft, ob ein Flug schneller
+		// ist.
+		goalSelector.add(5, new BoardTransportGoal(this, 1.1));
 		goalSelector.add(6, new AdvanceOnEnemyGoal(this, 1.05));
-		goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 10.0f));
-		goalSelector.add(8, new LookAroundGoal(this));
+		goalSelector.add(7, new GuardPostGoal(this, 0.9));
+		goalSelector.add(8, new LookAtEntityGoal(this, PlayerEntity.class, 10.0f));
+		goalSelector.add(9, new LookAroundGoal(this));
 
 		targetSelector.add(1, new RevengeGoal(this));
 		// Ein einziges Ziel-Goal reicht: Gegner ist alles der anderen Partei
@@ -148,6 +160,10 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob, T
 			case MEDIC -> new ItemStack(net.minecraft.item.Items.GOLDEN_APPLE);
 			case ENGINEER -> new ItemStack(ModItems.TITANIUM_PLATE);
 			case PILOT -> new ItemStack(ModItems.COMMAND_TABLET);
+			// Die Energiewaffeninfanterie traegt sichtbar, womit sie schiesst.
+			case LASER -> new ItemStack(ModItems.LASER_RIFLE);
+			case RAILGUN -> new ItemStack(ModItems.RAILGUN);
+			case PLASMA -> new ItemStack(ModItems.PLASMA_LAUNCHER);
 		};
 		equipStack(EquipmentSlot.MAINHAND, weapon);
 		setEquipmentDropChance(EquipmentSlot.MAINHAND, 0.0f);
@@ -256,11 +272,27 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob, T
 			return;
 		}
 
+		if (role == SoldierRole.PLASMA) {
+			// Plasma wirkt in der Flaeche - dafuer gibt es ein eigenes Geschoss.
+			PlasmaBoltEntity bolt = new PlasmaBoltEntity(getWorld(), this);
+			bolt.setTeam(getTeam());
+			bolt.setPosition(origin.x, origin.y, origin.z);
+			bolt.setVelocity(aim.x, aim.y, aim.z, 2.4f, 2.0f);
+			getWorld().spawnEntity(bolt);
+			playSound(SoundEvents.ENTITY_BLAZE_SHOOT, 0.8f, 1.4f);
+			return;
+		}
+
 		float damage = role == SoldierRole.RIFLEMAN
 				? F47Config.get().soldierRifleDamage
 				: role.damage;
-		// Kurze Salve statt Einzelschuss.
-		int shots = role == SoldierRole.RIFLEMAN ? 3 : 1;
+		// Kurze Salve statt Einzelschuss. Der Laser feuert am schnellsten,
+		// die Railgun setzt einen einzigen schweren Treffer.
+		int shots = switch (role) {
+			case RIFLEMAN -> 3;
+			case LASER -> 4;
+			default -> 1;
+		};
 		for (int i = 0; i < shots; i++) {
 			BulletEntity bullet = new BulletEntity(getWorld(), this, damage);
 			bullet.setTeam(getTeam());
@@ -268,7 +300,9 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob, T
 			bullet.setVelocity(aim.x, aim.y, aim.z, 3.2f, 3.0f);
 			getWorld().spawnEntity(bullet);
 		}
-		playSound(SoundEvents.BLOCK_DISPENSER_LAUNCH, 0.9f, 1.7f);
+		playSound(role.usesEnergyWeapon()
+				? SoundEvents.BLOCK_BEACON_POWER_SELECT
+				: SoundEvents.BLOCK_DISPENSER_LAUNCH, 0.9f, 1.7f);
 	}
 
 	@Override

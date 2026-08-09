@@ -1,6 +1,7 @@
 package com.f47mod.entity.vehicle;
 
 import com.f47mod.F47Config;
+import com.f47mod.util.EnemyIntel;
 import com.f47mod.util.Iff;
 import com.f47mod.world.MissionLoader;
 import net.minecraft.entity.Entity;
@@ -536,18 +537,13 @@ public class AutonomousF47Entity extends F47Entity implements MissionLoader.Miss
 			return;
 		}
 		sweepTimer = 100;
-		double reach = F47Config.get().strikeRange;
-		Box box = getBoundingBox().expand(reach);
-		Entity nearest = null;
-		double best = Double.MAX_VALUE;
-		for (Entity candidate : getWorld().getOtherEntities(this, box, e -> Iff.isEnemy(this, e))) {
-			double distance = candidate.squaredDistanceTo(this);
-			if (distance < best) {
-				best = distance;
-				nearest = candidate;
-			}
-		}
-		knownEnemy = nearest == null ? null : nearest.getPos();
+		// Aus dem gemeinsamen Lagebild statt aus einer eigenen Grossraumsuche:
+		// Der Schwerpunkt der Gegenseite ist deren Stuetzpunkt, und dorthin
+		// soll die Staffel ohnehin. Die eigene Suche kostete pro Maschine
+		// einen Wuerfel von viertausend Bloecken Kantenlaenge.
+		Vec3d enemy = EnemyIntel.nearestEnemy(getWorld(), getTeam(), getPos());
+		knownEnemy = enemy != null
+				&& getPos().distanceTo(enemy) <= F47Config.get().strikeRange ? enemy : null;
 	}
 
 	/**
