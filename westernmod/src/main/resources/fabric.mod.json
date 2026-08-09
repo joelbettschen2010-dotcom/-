@@ -1,0 +1,28 @@
+{
+	"schemaVersion": 1,
+	"id": "westernmod",
+	"version": "${version}",
+	"name": "Wild West",
+	"description": "Ein kompletter Wilder Westen für Minecraft: Städte per Item spawnen, Cowboys, Sheriffs und Banditen mit echten Schießereien, Planwagen als Fahrzeuge, Revolver, Winchester, Dynamit und mehr.",
+	"authors": [
+		"Joel"
+	],
+	"contact": {},
+	"license": "MIT",
+	"icon": "assets/westernmod/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"ch.joel.westernmod.WesternMod"
+		],
+		"client": [
+			"ch.joel.westernmod.client.WesternModClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.16.0",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}

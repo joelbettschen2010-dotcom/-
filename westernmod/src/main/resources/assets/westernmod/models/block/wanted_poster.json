@@ -1,0 +1,41 @@
+{
+  "parent": "block/block",
+  "textures": {
+    "poster": "westernmod:block/wanted_poster",
+    "particle": "westernmod:block/wanted_poster"
+  },
+  "elements": [
+    {
+      "from": [
+        2,
+        2,
+        14
+      ],
+      "to": [
+        14,
+        15,
+        15.5
+      ],
+      "faces": {
+        "north": {
+          "texture": "#poster"
+        },
+        "south": {
+          "texture": "#poster"
+        },
+        "east": {
+          "texture": "#poster"
+        },
+        "west": {
+          "texture": "#poster"
+        },
+        "up": {
+          "texture": "#poster"
+        },
+        "down": {
+          "texture": "#poster"
+        }
+      }
+    }
+  ]
+}

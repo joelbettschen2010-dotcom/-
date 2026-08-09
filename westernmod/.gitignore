@@ -1,0 +1,14 @@
+# Gradle
+.gradle/
+build/
+
+# Entwicklungs-Spielstände von runClient / runServer
+run/
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project

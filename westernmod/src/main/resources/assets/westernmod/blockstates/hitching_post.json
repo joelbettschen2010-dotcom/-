@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "westernmod:block/hitching_post"
+    },
+    "facing=south": {
+      "model": "westernmod:block/hitching_post",
+      "y": 180
+    },
+    "facing=east": {
+      "model": "westernmod:block/hitching_post",
+      "y": 90
+    },
+    "facing=west": {
+      "model": "westernmod:block/hitching_post",
+      "y": 270
+    }
+  }
+}
