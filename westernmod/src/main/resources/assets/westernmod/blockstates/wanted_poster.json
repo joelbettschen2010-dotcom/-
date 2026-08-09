@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "westernmod:block/wanted_poster"
+    },
+    "facing=south": {
+      "model": "westernmod:block/wanted_poster",
+      "y": 180
+    },
+    "facing=east": {
+      "model": "westernmod:block/wanted_poster",
+      "y": 90
+    },
+    "facing=west": {
+      "model": "westernmod:block/wanted_poster",
+      "y": 270
+    }
+  }
+}

@@ -1,3 +1,6 @@
+> **Weitere Projekte in diesem Repo:** [🤠 Wild West — Minecraft-Mod](westernmod/) für
+> Minecraft Java 1.21.1 (Fabric).
+
 # 🚲 Velo Navi Schweiz
 
 Eine Velo-/E-Bike-Navigations-App für die **ganze Schweiz**. Sie schlägt

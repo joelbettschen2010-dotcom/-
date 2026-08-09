@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/door_top_left",
+  "textures": {
+    "bottom": "westernmod:block/saloon_door_bottom",
+    "top": "westernmod:block/saloon_door_top"
+  }
+}

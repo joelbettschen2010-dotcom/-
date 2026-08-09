@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "WWW",
+    "WCW",
+    "S S"
+  ],
+  "key": {
+    "W": {
+      "tag": "minecraft:planks"
+    },
+    "C": {
+      "item": "minecraft:chest"
+    },
+    "S": {
+      "tag": "minecraft:logs"
+    }
+  },
+  "result": {
+    "id": "westernmod:wagon",
+    "count": 1
+  }
+}
