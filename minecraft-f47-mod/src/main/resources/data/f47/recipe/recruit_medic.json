@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "PPP",
+    "PMP",
+    "PEP"
+  ],
+  "key": {
+    "P": {
+      "item": "minecraft:paper"
+    },
+    "M": {
+      "item": "minecraft:golden_apple"
+    },
+    "E": {
+      "item": "minecraft:emerald"
+    }
+  },
+  "result": {
+    "id": "f47:recruit_medic",
+    "count": 1
+  }
+}

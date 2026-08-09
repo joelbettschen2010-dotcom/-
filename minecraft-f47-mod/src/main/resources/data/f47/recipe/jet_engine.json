@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "PPP",
+    "PRP",
+    "PPP"
+  ],
+  "key": {
+    "P": {
+      "item": "f47:titanium_plate"
+    },
+    "R": {
+      "item": "minecraft:redstone_block"
+    }
+  },
+  "result": {
+    "id": "f47:jet_engine",
+    "count": 1
+  }
+}

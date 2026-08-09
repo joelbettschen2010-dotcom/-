@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "PIP",
+    "PIP",
+    "PIP"
+  ],
+  "key": {
+    "P": {
+      "item": "f47:titanium_plate"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    }
+  },
+  "result": {
+    "id": "f47:hangar_door",
+    "count": 3
+  }
+}

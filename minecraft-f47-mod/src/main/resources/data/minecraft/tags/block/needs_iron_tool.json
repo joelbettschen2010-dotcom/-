@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "f47:titanium_ore",
+    "f47:deepslate_titanium_ore",
+    "f47:titanium_block",
+    "f47:radar",
+    "f47:iron_dome"
+  ]
+}

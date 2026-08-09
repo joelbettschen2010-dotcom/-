@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "minecraft:coal"
+    },
+    {
+      "item": "minecraft:coal"
+    },
+    {
+      "item": "minecraft:coal"
+    },
+    {
+      "item": "minecraft:coal"
+    },
+    {
+      "item": "minecraft:glass_bottle"
+    }
+  ],
+  "result": {
+    "id": "f47:jet_fuel",
+    "count": 2
+  }
+}

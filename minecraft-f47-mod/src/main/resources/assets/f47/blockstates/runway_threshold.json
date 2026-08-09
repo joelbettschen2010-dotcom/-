@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "f47:block/runway_threshold"
+    },
+    "facing=east": {
+      "model": "f47:block/runway_threshold",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "f47:block/runway_threshold",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "f47:block/runway_threshold",
+      "y": 270
+    }
+  }
+}

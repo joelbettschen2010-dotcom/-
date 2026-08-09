@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "PPP",
+    "PMP",
+    "PEP"
+  ],
+  "key": {
+    "P": {
+      "item": "minecraft:paper"
+    },
+    "M": {
+      "item": "minecraft:feather"
+    },
+    "E": {
+      "item": "minecraft:emerald"
+    }
+  },
+  "result": {
+    "id": "f47:recruit_pilot",
+    "count": 1
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " G ",
+    "GPG",
+    " P "
+  ],
+  "key": {
+    "G": {
+      "item": "minecraft:gunpowder"
+    },
+    "P": {
+      "item": "f47:titanium_plate"
+    }
+  },
+  "result": {
+    "id": "f47:aim_missile",
+    "count": 2
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "PPP",
+    "IHI",
+    "III"
+  ],
+  "key": {
+    "P": {
+      "item": "f47:titanium_plate"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "H": {
+      "item": "minecraft:hopper"
+    }
+  },
+  "result": {
+    "id": "f47:rearm_pad",
+    "count": 1
+  }
+}

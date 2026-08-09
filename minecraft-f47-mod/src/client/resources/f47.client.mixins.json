@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.f47mod.mixin.client",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "GameRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

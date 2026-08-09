@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "f47:block/runway_centerline"
+    },
+    "facing=east": {
+      "model": "f47:block/runway_centerline",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "f47:block/runway_centerline",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "f47:block/runway_centerline",
+      "y": 270
+    }
+  }
+}

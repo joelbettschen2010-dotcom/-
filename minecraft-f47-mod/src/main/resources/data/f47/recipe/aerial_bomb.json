@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "PPP",
+    "PGP",
+    "PPP"
+  ],
+  "key": {
+    "P": {
+      "item": "f47:titanium_plate"
+    },
+    "G": {
+      "item": "minecraft:gunpowder"
+    }
+  },
+  "result": {
+    "id": "f47:aerial_bomb",
+    "count": 2
+  }
+}

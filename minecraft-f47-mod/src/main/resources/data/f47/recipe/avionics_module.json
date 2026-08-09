@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " R ",
+    "CAC",
+    " P "
+  ],
+  "key": {
+    "R": {
+      "item": "minecraft:redstone"
+    },
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "P": {
+      "item": "f47:titanium_plate"
+    }
+  },
+  "result": {
+    "id": "f47:avionics_module",
+    "count": 1
+  }
+}

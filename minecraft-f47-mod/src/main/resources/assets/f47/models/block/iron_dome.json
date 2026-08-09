@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "top": "f47:block/iron_dome_top",
+    "side": "f47:block/iron_dome_side",
+    "bottom": "f47:block/iron_dome_side"
+  }
+}

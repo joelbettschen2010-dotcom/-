@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "PPB",
+    "CEC",
+    "PP "
+  ],
+  "key": {
+    "P": {
+      "item": "f47:titanium_plate"
+    },
+    "B": {
+      "item": "minecraft:blaze_powder"
+    },
+    "C": {
+      "item": "f47:composite_plate"
+    },
+    "E": {
+      "item": "f47:energy_cell"
+    }
+  },
+  "result": {
+    "id": "f47:plasma_launcher",
+    "count": 1
+  }
+}

@@ -1,0 +1,528 @@
+package com.f47mod.block.entity;
+
+import com.f47mod.entity.mob.SoldierEntity;
+import com.f47mod.entity.mob.SoldierRole;
+import com.f47mod.F47Config;
+import com.f47mod.entity.vehicle.ArmoredVehicleEntity;
+import com.f47mod.entity.vehicle.AutonomousF47Entity;
+import com.f47mod.entity.vehicle.B21Entity;
+import com.f47mod.entity.vehicle.TransportEntity;
+import com.f47mod.registry.ModBlockEntities;
+import com.f47mod.registry.ModEntities;
+import com.f47mod.util.Team;
+import com.f47mod.util.TeamMember;
+import com.f47mod.world.BaseRegistry;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Arrays;
+import java.util.UUID;
+
+/**
+ * Ausbildungsbetrieb der Kaserne: verbraucht Nachschub und stellt in festen
+ * Abstaenden neue Soldaten auf, solange der Trupp noch nicht voll ist.
+ */
+public class BarracksBlockEntity extends BlockEntity implements TeamMember {
+	public static final int MAX_SUPPLIES = 64;
+	public static final int MAX_SQUAD = 20;
+	/** Ticks pro Ausbildung (etwa 30 Sekunden). */
+	private static final int TRAINING_TICKS = 600;
+	/** Eisenbarren pro Soldat. */
+	private static final int COST = 4;
+	/**
+	 * Umkreis, in dem die Kaserne ihre eigenen Einheiten zaehlt.
+	 *
+	 * <p>Grosszuegig, weil die Anlage es ist: Mit drei Bahnen ist sie quer gut
+	 * zweihundertfuenfzig Bloecke breit, und der Antreteplatz der Infanterie
+	 * liegt auf der anderen Seite der Bahn. Mit den frueheren
+	 * vierundsechzig Bloecken sah die Kaserne den halben Stuetzpunkt nicht und
+	 * bildete endlos weiter aus, weil der Trupp fuer sie nie vollzaehlig wurde.
+	 */
+	private static final double RANGE = 240.0;
+	/**
+	 * Ticks zwischen zwei Bestandsaufnahmen.
+	 *
+	 * <p>Durchzaehlen kostet: Der Umkreis umfasst ein paar tausend
+	 * Chunk-Abschnitte, und frueher geschah das mehrfach pro Tick. Zweimal pro
+	 * Sekunde reicht voellig - schneller als in zwei Sekunden ist ohnehin
+	 * niemand ausgebildet.
+	 */
+	private static final int CENSUS_TICKS = 40;
+
+	/** Ticks, bis von selbst ein Barren Nachschub eintrifft. */
+	private static final int SUPPLY_TICKS = 160;
+	/**
+	 * Anteil der Sollstaerke, den eine einzelne Kaserne anpeilt.
+	 *
+	 * <p>Volle Staerke, nicht die Haelfte: Beide Kasernen zaehlen denselben
+	 * Bestand, wer nur die Haelfte anpeilt, laesst den Verband auf der Haelfte
+	 * stehenbleiben. Doppelt gebaut wird trotzdem nicht - sobald das Soll
+	 * erreicht ist, hoeren beide auf.
+	 */
+	private static final double BARRACKS_SHARE = 1.0;
+	/** Eisenbarren fuer eine Ersatzmaschine. */
+	private static final int JET_COST = 20;
+	/** Ticks pro Ersatzmaschine (etwa 90 Sekunden). */
+	private static final int JET_TICKS = 1800;
+
+	private int supplies;
+	private int progress;
+	/** Fortschritt am Ersatzflugzeug, unabhaengig von der Ausbildung. */
+	private int jetProgress;
+	/** Uhr fuer den nachrueckenden Nachschub. */
+	private int supplyTimer;
+	/** Uhr fuer die Bestandsaufnahme. */
+	private int censusTimer;
+	/** Schon beim Verzeichnis gemeldet? Nur einmal je Sitzung noetig. */
+	private boolean announced;
+	/** Letzter Stand: eigene Soldaten im Umkreis. */
+	private int squadCount;
+	/** Letzter Stand: eigene Soldaten je Rolle. */
+	private final int[] roleCount = new int[SoldierRole.values().length];
+	/** Letzter Stand: eigene Maschinen ohne Besatzung. */
+	private int emptyJets;
+	private SoldierRole trainingRole = SoldierRole.RIFLEMAN;
+	/**
+	 * Legt der Spieler die Rolle von Hand fest, mischt sich die Kaserne nicht
+	 * mehr ein - sonst waere jedes Umstellen am Kommandopult nach dreissig
+	 * Sekunden wieder ueberschrieben.
+	 */
+	private boolean roleChosenByHand;
+	@Nullable
+	private UUID ownerUuid;
+	/** Wo die Bahn liegt - dort werden Ersatzmaschinen abgestellt. */
+	@Nullable
+	private BlockPos homeBase;
+	/** Richtung der Bahn in Grad, damit Ersatz richtig herum steht. */
+	private float homeHeading;
+	private Team team = Team.BLUE;
+
+	public BarracksBlockEntity(BlockPos pos, BlockState state) {
+		super(ModBlockEntities.BARRACKS, pos, state);
+	}
+
+	public static void serverTick(World world, BlockPos pos, BlockState state, BarracksBlockEntity barracks) {
+		barracks.announceBase(world, pos);
+		barracks.replenish();
+		barracks.rebuildSquadron(world, pos);
+		barracks.trainSoldier(world, pos);
+	}
+
+	/**
+	 * Meldet den eigenen Stuetzpunkt beim Verzeichnis an.
+	 *
+	 * <p>Eigentlich macht das der Bausatz beim Bauen. Anlagen aus aelteren
+	 * Spielstaenden kennen das Verzeichnis aber nicht - sie waeren fuer die
+	 * Gegenseite unsichtbar geblieben und haetten sich nie gefunden. Die
+	 * Kaserne weiss, wo ihre Bahn liegt, und traegt sie deshalb selbst nach.
+	 * Doppelte Eintraege filtert das Verzeichnis.
+	 */
+	private void announceBase(World world, BlockPos pos) {
+		if (announced || world.getTime() % 100 != 0) {
+			return;
+		}
+		announced = true;
+		BaseRegistry.register(world, team, homeBase != null ? homeBase : pos);
+	}
+
+	/**
+	 * Nachschub rueckt von selbst nach.
+	 *
+	 * <p>Ohne das ist die Basis nach sechzehn Ausbildungen erschoepft und
+	 * erholt sich nie wieder von einem Angriff - genau das, was sie eigentlich
+	 * leisten soll. Der Zulauf ist langsam genug, dass Verluste weh tun.
+	 */
+	private void replenish() {
+		if (supplies >= MAX_SUPPLIES) {
+			return;
+		}
+		if (++supplyTimer >= SUPPLY_TICKS) {
+			supplyTimer = 0;
+			supplies++;
+			markDirty();
+		}
+	}
+
+	/** Bildet Ersatz aus - und zwar in der Rolle, die der Basis gerade fehlt. */
+	private void trainSoldier(World world, BlockPos pos) {
+		if (supplies < COST) {
+			return;
+		}
+		census(world, pos);
+		F47Config config = F47Config.get();
+		if (squadCount >= share(config.garrisonTroops + config.garrisonEnergyTroops)) {
+			// Trupp ist vollzaehlig - Ausbildung pausiert.
+			progress = 0;
+			return;
+		}
+		if (!roleChosenByHand) {
+			trainingRole = neededRole();
+		}
+		if (++progress < TRAINING_TICKS) {
+			if (progress % 40 == 0 && world instanceof ServerWorld server) {
+				server.spawnParticles(ParticleTypes.SMOKE,
+						pos.getX() + 0.5, pos.getY() + 1.1, pos.getZ() + 0.5, 2, 0.3, 0.1, 0.3, 0.01);
+			}
+			return;
+		}
+		progress = 0;
+		supplies -= COST;
+		deploy(world, pos);
+		markDirty();
+	}
+
+	/**
+	 * Welche Rolle fehlt am dringendsten?
+	 *
+	 * <p>Der Reihe nach: Erst muessen leere Maschinen einen Piloten bekommen -
+	 * ein Jet ohne Besatzung steht nur herum. Danach Technik und Sanitaet,
+	 * damit Beschaedigtes wieder flott wird, dann die Panzerabwehr, und was
+	 * uebrig bleibt, wird Schuetze.
+	 */
+	private SoldierRole neededRole() {
+		if (emptyJets > roleCount[SoldierRole.PILOT.ordinal()]) {
+			return SoldierRole.PILOT;
+		}
+		if (roleCount[SoldierRole.ENGINEER.ordinal()] < 3) {
+			return SoldierRole.ENGINEER;
+		}
+		if (roleCount[SoldierRole.MEDIC.ordinal()] < 2) {
+			return SoldierRole.MEDIC;
+		}
+		if (roleCount[SoldierRole.HEAVY.ordinal()] < 3) {
+			return SoldierRole.HEAVY;
+		}
+		// Energiewaffentruppe nachziehen. Sie traegt den Vormarsch und
+		// verheizt sich entsprechend - ohne Nachschub ist der Stuetzpunkt nach
+		// zwei Wellen nur noch Wachmannschaft. Jede Gattung auf ein Drittel
+		// der Sollstaerke aufgefuellt, damit nicht alle drei Kasernen
+		// dasselbe ausbilden.
+		int perWeapon = share(Math.max(0, F47Config.get().garrisonEnergyTroops) / 3);
+		for (SoldierRole role : SoldierRole.values()) {
+			if (role.usesEnergyWeapon() && roleCount[role.ordinal()] < perWeapon) {
+				return role;
+			}
+		}
+		return SoldierRole.RIFLEMAN;
+	}
+
+	/**
+	 * Zaehlt durch, wer noch da ist - Soldaten nach Rolle und unbemannte
+	 * Maschinen.
+	 *
+	 * <p>Gebuendelt und gedrosselt: Frueher lief fuer jede einzelne Abfrage ein
+	 * eigener Suchlauf ueber den ganzen Flugplatz, und das jeden Tick. Bei
+	 * sechshundertfuenfzig Mann je Partei ist das die teuerste Stelle im ganzen
+	 * Mod.
+	 */
+	private void census(World world, BlockPos pos) {
+		if (--censusTimer > 0) {
+			return;
+		}
+		censusTimer = CENSUS_TICKS;
+		BlockPos field = homeBase != null ? homeBase : pos;
+		Box box = new Box(field).expand(RANGE);
+		Arrays.fill(roleCount, 0);
+		squadCount = 0;
+		for (SoldierEntity soldier : world.getEntitiesByClass(SoldierEntity.class, box,
+				candidate -> candidate.getTeam() == team)) {
+			squadCount++;
+			roleCount[soldier.getRole().ordinal()]++;
+		}
+		emptyJets = world.getEntitiesByClass(AutonomousF47Entity.class, box,
+				jet -> jet.getTeam() == team && !jet.hasPilot()).size();
+	}
+
+	/**
+	 * Baut abgeschossene Maschinen nach, bis die Staffel wieder vollzaehlig
+	 * ist. Die neue steht unbemannt auf dem Vorfeld - einen Piloten holt sie
+	 * sich selbst, sobald die Kaserne einen ausgebildet hat.
+	 */
+	private void rebuildSquadron(World world, BlockPos pos) {
+		if (supplies < JET_COST) {
+			return;
+		}
+		// Was fehlt am dringendsten? Der Reihe nach Jaeger, Bomber,
+		// Transporter, Panzer - jeder bis zu seiner Sollstaerke.
+		F47Config config = F47Config.get();
+		EntityType<? extends Entity> missing = null;
+		if (countOf(world, pos, AutonomousF47Entity.class, true) < share(config.squadronFighters)) {
+			missing = ModEntities.AUTONOMOUS_F47;
+		} else if (countOf(world, pos, B21Entity.class, false) < share(config.squadronBombers)) {
+			missing = ModEntities.B21;
+		} else if (countOf(world, pos, TransportEntity.class, false) < share(config.squadronTransports)) {
+			missing = ModEntities.TRANSPORT;
+		} else if (countOf(world, pos, ArmoredVehicleEntity.class, false) < share(config.squadronVehicles)) {
+			missing = ModEntities.ARMORED_VEHICLE;
+		}
+		if (missing == null) {
+			jetProgress = 0;
+			return;
+		}
+		if (++jetProgress < JET_TICKS) {
+			return;
+		}
+		jetProgress = 0;
+		supplies -= JET_COST;
+		deployVehicle(world, pos, missing);
+		markDirty();
+	}
+
+	/** Sollstaerke, die diese eine Kaserne zu halten versucht. */
+	private int share(int total) {
+		return Math.max(1, (int) Math.round(total * BARRACKS_SHARE));
+	}
+
+	/**
+	 * Zaehlt eigene Einheiten eines Musters im Umkreis des Flugplatzes.
+	 *
+	 * @param strict bei Jaegern noetig: Bomber und Transporter sind
+	 *               Unterklassen und wuerden sonst mitgezaehlt
+	 */
+	private <T extends Entity> int countOf(World world, BlockPos pos, Class<T> type, boolean strict) {
+		BlockPos field = homeBase != null ? homeBase : pos;
+		Box box = new Box(field).expand(240.0);
+		return world.getEntitiesByClass(type, box, unit -> {
+			if (strict && unit.getClass() != type) {
+				return false;
+			}
+			return unit instanceof TeamMember member && member.getTeam() == team;
+		}).size();
+	}
+
+	/** Stellt ein fertiges Ersatzgeraet auf dem Vorfeld ab. */
+	private void deployVehicle(World world, BlockPos pos, EntityType<? extends Entity> type) {
+		Entity jet = type.create(world);
+		if (jet == null) {
+			return;
+		}
+		BlockPos field = homeBase != null ? homeBase : pos;
+		Vec3d spot = findParkingSpot(world, field);
+		if (spot == null) {
+			// Alles voll - dann eben beim naechsten Anlauf.
+			jetProgress = JET_TICKS - 100;
+			return;
+		}
+		// Nase in Bahnrichtung, damit sie ohne Wendemanoever losrollen kann.
+		jet.refreshPositionAndAngles(spot.x, spot.y, spot.z, homeHeading, 0.0f);
+		if (jet instanceof TeamMember member) {
+			member.setTeam(team);
+		}
+		PlayerEntity owner = ownerUuid == null ? null : world.getPlayerByUuid(ownerUuid);
+		if (jet instanceof AutonomousF47Entity aircraft) {
+			aircraft.setHomeBase(field, homeHeading);
+			aircraft.randomiseCallsign();
+			aircraft.setOwner(owner);
+			if (owner != null) {
+				owner.sendMessage(Text.translatable("message.f47.jet_ready", aircraft.getCallsign()), false);
+			}
+		}
+		world.spawnEntity(jet);
+		world.playSound(null, pos, SoundEvents.BLOCK_ANVIL_USE, SoundCategory.BLOCKS, 0.8f, 0.7f);
+	}
+
+	/**
+	 * Sucht einen Stellplatz, auf dem die Maschine wirklich frei steht.
+	 *
+	 * <p>Notwendig, weil sie vier Bloecke breit ist: Ein fester Punkt neben
+	 * dem Heimatflugplatz landet frueher oder spaeter in einer Hangarwand oder
+	 * in einer schon abgestellten Maschine. Wer eingeklemmt startet, loest bei
+	 * jedem Tick eine Kollision aus und kommt nie auf Fahrt.
+	 *
+	 * @return Mittelpunkt eines freien Platzes oder {@code null}
+	 */
+	@Nullable
+	private Vec3d findParkingSpot(World world, BlockPos field) {
+		// Vom Flugplatz aus in beide Richtungen der Bahn entlang tasten.
+		for (int step = 0; step <= 84; step += 6) {
+			for (int sign = 1; sign >= -1; sign -= 2) {
+				for (Direction along : new Direction[] {Direction.NORTH, Direction.EAST}) {
+					BlockPos candidate = field.offset(along, step * sign).up();
+					Vec3d centre = new Vec3d(candidate.getX() + 0.5, candidate.getY(),
+							candidate.getZ() + 0.5);
+					Box box = ModEntities.AUTONOMOUS_F47.getSpawnBox(centre.x, centre.y, centre.z);
+					if (world.isSpaceEmpty(box)
+							&& world.getEntitiesByClass(AutonomousF47Entity.class, box, jet -> true).isEmpty()) {
+						return centre;
+					}
+				}
+				if (step == 0) {
+					// Der Ausgangspunkt selbst muss nur einmal geprueft werden.
+					break;
+				}
+			}
+		}
+		return null;
+	}
+
+	/** Stellt einen fertig ausgebildeten Soldaten vor der Kaserne auf. */
+	private void deploy(World world, BlockPos pos) {
+		SoldierEntity soldier = ModEntities.SOLDIER.create(world);
+		if (soldier == null) {
+			return;
+		}
+		BlockPos spawn = pos.up();
+		soldier.refreshPositionAndAngles(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5,
+				world.getRandom().nextFloat() * 360.0f, 0.0f);
+		soldier.setTeam(team);
+		soldier.setRole(trainingRole);
+		// Bodenpersonal bleibt am Posten, die Kampftruppe zieht bei
+		// Feindkontakt los - genauso wie bei der Erstbesetzung aus dem Bausatz.
+		soldier.setStance(trainingRole.isSupport()
+				? SoldierEntity.Stance.HOLD : SoldierEntity.Stance.PATROL);
+		soldier.setGuardPost(pos);
+
+		PlayerEntity owner = ownerUuid == null ? null : world.getPlayerByUuid(ownerUuid);
+		if (owner != null) {
+			soldier.setOwner(owner);
+			owner.sendMessage(Text.translatable("message.f47.soldier_ready",
+					Text.translatable(trainingRole.translationKey())), false);
+		}
+		if (soldier.getWorld() instanceof ServerWorld server) {
+			soldier.initialize(server, world.getLocalDifficulty(spawn), SpawnReason.TRIGGERED, null);
+		}
+		world.spawnEntity(soldier);
+		world.playSound(null, pos, SoundEvents.BLOCK_ANVIL_USE, SoundCategory.BLOCKS, 0.6f, 1.2f);
+	}
+
+	/** Wie viele eigene Soldaten stehen schon im Umkreis? Letzter Zaehlstand. */
+	private int countSquad(World world, BlockPos pos) {
+		census(world, pos);
+		return squadCount;
+	}
+
+	/**
+	 * Wie viele Maschinen gehoeren zu dieser Basis?
+	 *
+	 * <p>Gezaehlt wird nach Heimatflugplatz, nicht nach Entfernung: Eine
+	 * patrouillierende Maschine ist fuenfzig Bloecke weit weg und eine im
+	 * Angriff noch weiter. Wer nur die Umgebung absucht, haelt die halbe
+	 * Staffel fuer abgeschossen und baut immer weiter nach - im Versuch
+	 * standen so nach fuenf Minuten neunzehn statt zwoelf Maschinen da.
+	 */
+	private int countSquadron(World world, BlockPos pos) {
+		BlockPos field = homeBase != null ? homeBase : pos;
+		// Grosszuegiger Umkreis, damit auch ein Angriffsflug mitzaehlt.
+		Box box = new Box(field).expand(220.0);
+		return world.getEntitiesByClass(AutonomousF47Entity.class, box, jet -> {
+			if (jet.getTeam() != team) {
+				return false;
+			}
+			BlockPos home = jet.getHomeBase();
+			// Grosszuegig, weil Bahnmitte und Abstellstreifen weit auseinander
+			// liegen koennen: Bei einer hundertsechzig Bloecke langen Bahn sind
+			// es siebzig. Mit einem engen Radius zaehlt die Kaserne die eigene
+			// Staffel nicht mehr mit und baut endlos Ersatz.
+			return home == null || home.isWithinDistance(field, 128.0);
+		}).size();
+	}
+
+	@Override
+	public Team getTeam() {
+		return team;
+	}
+
+	@Override
+	public void setTeam(Team team) {
+		this.team = team;
+		markDirty();
+	}
+
+	public int addSupplies(int count) {
+		int accepted = Math.min(MAX_SUPPLIES - supplies, count);
+		if (accepted > 0) {
+			supplies += accepted;
+			markDirty();
+		}
+		return accepted;
+	}
+
+	public int getSupplies() {
+		return supplies;
+	}
+
+	public int getSquadSize() {
+		return world == null ? 0 : countSquad(world, getPos());
+	}
+
+	public SoldierRole getTrainingRole() {
+		return trainingRole;
+	}
+
+	public SoldierRole cycleRole() {
+		SoldierRole[] values = SoldierRole.values();
+		trainingRole = values[(trainingRole.ordinal() + 1) % values.length];
+		// Ab jetzt bestimmt der Spieler, nicht mehr der Bedarf.
+		roleChosenByHand = true;
+		progress = 0;
+		markDirty();
+		return trainingRole;
+	}
+
+	public void setOwner(PlayerEntity player) {
+		ownerUuid = player.getUuid();
+		markDirty();
+	}
+
+	/** Wo die Bahn liegt - dorthin kommen Ersatzmaschinen. */
+	public void setHomeBase(BlockPos pos, float heading) {
+		homeBase = pos.toImmutable();
+		homeHeading = heading;
+		markDirty();
+	}
+
+	@Override
+	protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
+		super.writeNbt(nbt, registries);
+		nbt.putInt("Supplies", supplies);
+		nbt.putInt("Progress", progress);
+		nbt.putInt("JetProgress", jetProgress);
+		nbt.putInt("SupplyTimer", supplyTimer);
+		nbt.putInt("Role", trainingRole.ordinal());
+		nbt.putBoolean("RoleByHand", roleChosenByHand);
+		nbt.putInt("Team", team.ordinal());
+		if (ownerUuid != null) {
+			nbt.putUuid("Owner", ownerUuid);
+		}
+		if (homeBase != null) {
+			nbt.putLong("HomeBase", homeBase.asLong());
+			nbt.putFloat("HomeHeading", homeHeading);
+		}
+	}
+
+	@Override
+	protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
+		super.readNbt(nbt, registries);
+		supplies = nbt.getInt("Supplies");
+		progress = nbt.getInt("Progress");
+		jetProgress = nbt.getInt("JetProgress");
+		supplyTimer = nbt.getInt("SupplyTimer");
+		trainingRole = SoldierRole.byOrdinal(nbt.getInt("Role"));
+		roleChosenByHand = nbt.getBoolean("RoleByHand");
+		team = Team.byOrdinal(nbt.getInt("Team"));
+		if (nbt.containsUuid("Owner")) {
+			ownerUuid = nbt.getUuid("Owner");
+		}
+		if (nbt.contains("HomeBase")) {
+			homeBase = BlockPos.fromLong(nbt.getLong("HomeBase"));
+			homeHeading = nbt.getFloat("HomeHeading");
+		}
+	}
+}
