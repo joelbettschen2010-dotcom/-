@@ -8,6 +8,7 @@ import com.f47mod.entity.ai.EngineerServiceGoal;
 import com.f47mod.entity.ai.FollowCommanderGoal;
 import com.f47mod.entity.ai.GuardPostGoal;
 import com.f47mod.entity.ai.MedicGoal;
+import com.f47mod.entity.ai.SoldierAttackGoal;
 import com.f47mod.entity.projectile.BulletEntity;
 import com.f47mod.entity.projectile.MissileEntity;
 import com.f47mod.entity.projectile.PlasmaBoltEntity;
@@ -22,7 +23,7 @@ import net.minecraft.entity.ai.RangedAttackMob;
 import net.minecraft.entity.ai.goal.ActiveTargetGoal;
 import net.minecraft.entity.ai.goal.LookAroundGoal;
 import net.minecraft.entity.ai.goal.LookAtEntityGoal;
-import net.minecraft.entity.ai.goal.ProjectileAttackGoal;
+
 import net.minecraft.entity.ai.goal.RevengeGoal;
 import net.minecraft.entity.ai.goal.SwimGoal;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
@@ -84,9 +85,13 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob, T
 		return MobEntity.createMobAttributes()
 				.add(EntityAttributes.GENERIC_MAX_HEALTH, 24.0)
 				.add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.30)
-				// Weit genug, um einen Gegner ueber das ganze Vorfeld hinweg zu
-				// erfassen. Vierzig reichte nur bis zum naechsten Hangar.
-				.add(EntityAttributes.GENERIC_FOLLOW_RANGE, 96.0)
+				// Etwas ueber Waffenreichweite. Groesser klingt verlockend, ist
+				// aber teuer: Dieselbe Zahl begrenzt auch die Wegsuche, und die
+				// kostet ungefaehr quadratisch. Mit sechsundneunzig dauerte ein
+				// Server-Tick bei elfhundert Soldaten hundertachtzig Sekunden.
+				// Auf Entfernung findet ohnehin der Vormarsch den Gegner, nicht
+				// die Zielsuche.
+				.add(EntityAttributes.GENERIC_FOLLOW_RANGE, 52.0)
 				.add(EntityAttributes.GENERIC_ATTACK_DAMAGE, 4.0)
 				.add(EntityAttributes.GENERIC_ARMOR, 4.0);
 	}
@@ -97,7 +102,7 @@ public class SoldierEntity extends PathAwareEntity implements RangedAttackMob, T
 		goalSelector.add(1, new BoardJetGoal(this));
 		goalSelector.add(2, new MedicGoal(this));
 		goalSelector.add(2, new EngineerServiceGoal(this));
-		goalSelector.add(3, new ProjectileAttackGoal(this, 1.0, 20, 46.0f));
+		goalSelector.add(3, new SoldierAttackGoal(this, 1.0, 20, 46.0f));
 		goalSelector.add(4, new FollowCommanderGoal(this, 1.15, 6.0f, 22.0f));
 		// Vormarsch vor Postendienst - und zwar zwingend in dieser Reihenfolge.
 		// Andersherum lief es nicht: Der Postendienst greift, sobald ueberhaupt

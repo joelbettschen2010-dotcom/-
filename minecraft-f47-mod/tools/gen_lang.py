@@ -97,8 +97,10 @@ ENTRIES = {
     "message.f47.status_ok": ("die Staffeln finden sich", "the squadrons will find each other"),
     "message.f47.status_too_far": ("zu weit auseinander, sie finden sich nie",
                                     "too far apart, they will never meet"),
-    "message.f47.status_chunks": ("%s Chunks werden fuer laufende Einsaetze mitgerechnet",
-                                  "%s chunks kept loaded for ongoing missions"),
+    "message.f47.status_chunks": ("%s Chunks werden gerechnet (%s Gefechtsstreifen, "
+                                  "%s unterwegs). Ist das 0, laeuft nur, was du gerade siehst.",
+                                  "%s chunks ticking (%s battlefield, %s en route). "
+                                  "If this is 0, only what you are looking at runs."),
     "message.f47.chunks_released": ("%s dauerhaft geladene Chunks freigegeben - "
                                     "die Basen laufen jetzt nur noch in deiner Naehe weiter.",
                                     "Released %s force-loaded chunks - "

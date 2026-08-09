@@ -1,12 +1,15 @@
 package com.f47mod.util;
 
+import com.f47mod.world.BaseRegistry;
 import net.minecraft.entity.Entity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -58,6 +61,27 @@ public final class EnemyIntel {
 			if (distance < bestDistance) {
 				bestDistance = distance;
 				best = entry.getValue();
+			}
+		}
+		if (best != null) {
+			return best;
+		}
+		// Keine gegnerische Einheit gerechnet - das heisst nicht, dass es keine
+		// gibt. Genau hier lag der Fehler: Steht die Gegenbasis gerade still,
+		// existieren dort keine Einheiten, und beide Seiten hielten sich fuer
+		// allein auf der Welt. Der eingetragene Stuetzpunkt verschwindet nicht,
+		// wenn niemand hinsieht.
+		for (Map.Entry<Team, List<BlockPos>> entry : BaseRegistry.all(world).entrySet()) {
+			if (entry.getKey() == team) {
+				continue;
+			}
+			for (BlockPos base : entry.getValue()) {
+				Vec3d pos = Vec3d.ofCenter(base);
+				double distance = pos.squaredDistanceTo(from);
+				if (distance < bestDistance) {
+					bestDistance = distance;
+					best = pos;
+				}
 			}
 		}
 		return best;

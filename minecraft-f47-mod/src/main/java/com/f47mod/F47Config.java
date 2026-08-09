@@ -155,7 +155,25 @@ public class F47Config {
 	 * Wunsch war ausdruecklich, dass sie angreifen, egal wie weit weg der
 	 * Gegner steht.
 	 */
-	public int strikeRange = 2000;
+	public int strikeRange = 40000;
+	/**
+	 * Wie weit zwei verfeindete Stuetzpunkte hoechstens auseinanderliegen
+	 * duerfen, damit der Luftraum dazwischen dauerhaft gerechnet wird.
+	 *
+	 * <p>Das ist die Stelle, an der der Krieg vorher stehenblieb: Die Anlagen
+	 * selbst liefen, der Raum dazwischen nicht - die Staffel flog hinaus und
+	 * blieb auf halbem Weg einfach stehen. Groesser heisst mehr Gefecht ohne
+	 * Spieler, kostet aber Speicher; jenseits dieser Grenze uebernimmt die
+	 * mitgefuehrte Blase je Einheit.
+	 */
+	public int battlefieldSpan = 1500;
+	/**
+	 * Obergrenze fuer den dauerhaft gerechneten Gefechtsstreifen, in Chunks.
+	 *
+	 * <p>Zum Vergleich: Bei Sichtweite 12 haelt Minecraft rund 625 Chunks um
+	 * den Spieler. Auf 0 stellen schaltet den Streifen ab.
+	 */
+	public int battlefieldChunkBudget = 700;
 
 	// --- Staerke eines Stuetzpunkts ---------------------------------------
 	// Achtung: Das sind grosse Zahlen. Zwei Stuetzpunkte in voller Staerke

@@ -155,6 +155,11 @@ public final class BaseBlueprint {
 		plan.afterwards(() -> spawnUnits(world, origin, facing, side, ground, team, owner));
 
 		keepLoaded(plan, origin, facing, side, bays);
+		// Eintragen, damit die Gegenseite den Stuetzpunkt auch dann findet,
+		// wenn hier gerade nichts gerechnet wird.
+		BlockPos centre = origin.offset(facing, RUNWAY_LENGTH / 2)
+				.offset(side, ((bays - 1) * BAY_WIDTH + APRON_OFFSET + APRON_WIDTH) / 2);
+		BaseRegistry.register(world, team, centre);
 		BaseConstruction.enqueue(plan);
 		return plan.blockCount();
 	}

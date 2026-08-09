@@ -59,7 +59,7 @@
   "message.f47.status_distance": "Distance between bases: %s blocks - %s",
   "message.f47.status_ok": "the squadrons will find each other",
   "message.f47.status_too_far": "too far apart, they will never meet",
-  "message.f47.status_chunks": "%s chunks kept loaded for ongoing missions",
+  "message.f47.status_chunks": "%s chunks ticking (%s battlefield, %s en route). If this is 0, only what you are looking at runs.",
   "message.f47.chunks_released": "Released %s force-loaded chunks - bases now only run while you are nearby.",
   "team.f47.blue": "Blue Force",
   "team.f47.red": "Red Force",

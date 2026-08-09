@@ -59,7 +59,7 @@
   "message.f47.status_distance": "Abstand der Basen: %s Bloecke - %s",
   "message.f47.status_ok": "die Staffeln finden sich",
   "message.f47.status_too_far": "zu weit auseinander, sie finden sich nie",
-  "message.f47.status_chunks": "%s Chunks werden fuer laufende Einsaetze mitgerechnet",
+  "message.f47.status_chunks": "%s Chunks werden gerechnet (%s Gefechtsstreifen, %s unterwegs). Ist das 0, laeuft nur, was du gerade siehst.",
   "message.f47.chunks_released": "%s dauerhaft geladene Chunks freigegeben - die Basen laufen jetzt nur noch in deiner Naehe weiter.",
   "team.f47.blue": "Blaue Partei",
   "team.f47.red": "Rote Partei",

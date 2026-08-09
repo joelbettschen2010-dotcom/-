@@ -183,7 +183,11 @@ public final class ModCommands {
 		source.sendFeedback(() -> Text.translatable("message.f47.status_distance", distance,
 				Text.translatable(reachable ? "message.f47.status_ok" : "message.f47.status_too_far")
 						.formatted(reachable ? Formatting.GREEN : Formatting.RED)), false);
+		// Die entscheidende Zahl, wenn "nichts passiert, ausser ich fliege hin":
+		// Ohne festgehaltene Chunks rechnet Minecraft dort nicht, und dann steht
+		// der Krieg buchstaeblich still.
 		source.sendFeedback(() -> Text.translatable("message.f47.status_chunks",
+				world.getForcedChunks().size(), BattlefieldLoader.heldChunks(),
 				MissionLoader.heldChunks()), false);
 		return distance;
 	}
@@ -195,6 +199,14 @@ public final class ModCommands {
 	private static int releaseChunks(CommandContext<ServerCommandSource> context) {
 		ServerCommandSource source = context.getSource();
 		ServerWorld world = source.getWorld();
+
+		// Erst die Lader abmelden, sonst fordern sie im naechsten Tick alles
+		// wieder an - und der Befehl bliebe wirkungslos.
+		BattlefieldLoader.release(world);
+		MissionLoader.release(world);
+		if (source.getServer() != null) {
+			BaseRegistry.clear(source.getServer());
+		}
 
 		// Kopieren, bevor wir darueber laufen - setChunkForced aendert die Menge.
 		long[] forced = world.getForcedChunks().toLongArray();

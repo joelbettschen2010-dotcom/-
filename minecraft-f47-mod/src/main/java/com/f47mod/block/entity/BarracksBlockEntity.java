@@ -11,6 +11,7 @@ import com.f47mod.registry.ModBlockEntities;
 import com.f47mod.registry.ModEntities;
 import com.f47mod.util.Team;
 import com.f47mod.util.TeamMember;
+import com.f47mod.world.BaseRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.Entity;
@@ -89,6 +90,8 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 	private int supplyTimer;
 	/** Uhr fuer die Bestandsaufnahme. */
 	private int censusTimer;
+	/** Schon beim Verzeichnis gemeldet? Nur einmal je Sitzung noetig. */
+	private boolean announced;
 	/** Letzter Stand: eigene Soldaten im Umkreis. */
 	private int squadCount;
 	/** Letzter Stand: eigene Soldaten je Rolle. */
@@ -116,9 +119,27 @@ public class BarracksBlockEntity extends BlockEntity implements TeamMember {
 	}
 
 	public static void serverTick(World world, BlockPos pos, BlockState state, BarracksBlockEntity barracks) {
+		barracks.announceBase(world, pos);
 		barracks.replenish();
 		barracks.rebuildSquadron(world, pos);
 		barracks.trainSoldier(world, pos);
+	}
+
+	/**
+	 * Meldet den eigenen Stuetzpunkt beim Verzeichnis an.
+	 *
+	 * <p>Eigentlich macht das der Bausatz beim Bauen. Anlagen aus aelteren
+	 * Spielstaenden kennen das Verzeichnis aber nicht - sie waeren fuer die
+	 * Gegenseite unsichtbar geblieben und haetten sich nie gefunden. Die
+	 * Kaserne weiss, wo ihre Bahn liegt, und traegt sie deshalb selbst nach.
+	 * Doppelte Eintraege filtert das Verzeichnis.
+	 */
+	private void announceBase(World world, BlockPos pos) {
+		if (announced || world.getTime() % 100 != 0) {
+			return;
+		}
+		announced = true;
+		BaseRegistry.register(world, team, homeBase != null ? homeBase : pos);
 	}
 
 	/**

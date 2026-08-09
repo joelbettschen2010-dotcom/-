@@ -133,12 +133,25 @@ siehst den Stützpunkt also entstehen, statt dass das Spiel einfriert.
 > die übrigen zeitversetzt, damit immer ein Teil der Staffel am Boden auftankt.
 > Aufträge gibst du mit dem Kommando-Tablet, nötig ist das aber nicht.
 
-> **Die Basis läuft weiter, auch wenn du weg bist.** Beim Bauen bleiben die
-> Chunks rund um den Stützpunkt dauerhaft geladen (Standard: 6 Chunks Radius,
-> deckt den Patrouillenkreis ab). Ohne das rechnet Minecraft nur in deiner
-> Umgebung, und die ganze Anlage steht still, sobald du wegfliegst. Bremst das
-> deinen Rechner, stell `baseForceLoadRadiusChunks` in `config/f47.json` kleiner
-> oder auf `0`; `/f47 unload` gibt alle geladenen Chunks sofort wieder frei.
+> **Die Basis läuft weiter, auch wenn du weg bist — und der Luftraum dazwischen
+> auch.** Minecraft rechnet nur dort, wo ein Spieler ist oder wo ein Chunk
+> ausdrücklich festgehalten wird. Deshalb wird dreierlei festgehalten:
+>
+> | Was | Wofür |
+> |---|---|
+> | die Anlage selbst | Bahn, Hangars, Kasernen, alles darauf |
+> | der **Gefechtsstreifen** zwischen zwei verfeindeten Basen | genau dort findet der Krieg statt |
+> | eine kleine Blase je Einheit unterwegs | für Einsätze über größere Entfernung |
+>
+> Nur die Anlagen festzuhalten reichte nicht: Die Staffel startete, flog dem
+> Gegner entgegen, verließ den gehaltenen Bereich — und blieb dort stehen. Aus
+> der Ferne sah das so aus, als geschehe kurz etwas und dann nichts mehr, und
+> wer hinflog, brachte alles mit seinem eigenen Spieler wieder zum Laufen.
+>
+> `/f47 status` sagt dir, wie viele Chunks gerade gerechnet werden. **Steht dort
+> 0, läuft nur, was du gerade siehst.** Bremst das deinen Rechner, stell
+> `battlefieldChunkBudget` in `config/f47.json` kleiner oder auf `0`;
+> `/f47 unload` gibt alles sofort wieder frei.
 
 > **Wichtig:** Ohne Schub fällt die Maschine wie ein Stein — genau wie ein echtes
 > Flugzeug braucht die F-47 Fahrt, um zu fliegen. Die Warnung
@@ -516,8 +529,11 @@ Dort lässt sich vieles anpassen, ohne den Mod neu zu bauen:
 | `jetMaxHealth` | Panzerung der F-47 | `60` |
 | `stealthDetectionFactor` | Wie stark Tarnung wirkt (kleiner = besser) | `0.22` |
 | `jetModelScale` | **Wie groß die F-47 gezeichnet wird** | `1.8` |
-| `baseForceLoadRadiusChunks` | Chunks um die Basis, die geladen bleiben | `4` |
-| `warBaseSeparation` | Abstand der Basen bei `/f47 war` | `180` |
+| `baseForceLoadRadiusChunks` | Rand in Chunks um die Anlage, der geladen bleibt | `2` |
+| `battlefieldChunkBudget` | **Obergrenze für den Gefechtsstreifen zwischen den Basen** | `700` |
+| `battlefieldSpan` | Bis zu welchem Basenabstand der Streifen gehalten wird | `1500` |
+| `strikeRange` | **Auf welche Entfernung Einheiten den Gegner erkennen** | `40000` |
+| `warBaseSeparation` | Mindestabstand der Basen bei `/f47 war` | `150` |
 
 **Tipp:** Wenn dir die Explosionen deine Basis zerlegen, setze
 `explosionsBreakBlocks` auf `false`.
@@ -585,8 +601,9 @@ python3 tools/gen_lang.py     # Sprachdateien (Deutsch + Englisch)
 | Einheit wechselt die Seite nicht | Truppenabzeichen direkt auf die Einheit rechtsklicken, nicht daneben |
 | Startbahn zu bauen ist mühsam | `Basis-Bausatz` benutzen oder `/f47 base` eingeben |
 | **Nichts greift sich an** | `/f47 status` eingeben — sagt dir, ob eine zweite Partei da ist und ob der Abstand passt |
-| **Sie kreisen nur über der Basis** | Kein Gegner in 320 Blöcken Umkreis. Näher zusammen bauen oder `/f47 war` benutzen |
-| **Es passiert nur, wenn ich daneben stehe** | `baseForceLoadRadiusChunks` in `config/f47.json` steht auf `0` — auf `4` setzen |
+| **Sie kreisen nur über der Basis** | `/f47 status` prüfen: Steht dort eine zweite Partei? Erkannt wird der Gegner auf 40 000 Blöcke, aber nur, wenn seine Basis eingetragen ist — mit `Basis-Bausatz`, `/f47 base` oder `/f47 war` gebaut, nicht von Hand gesetzt |
+| **Es passiert nur, wenn ich daneben stehe** | `/f47 status` prüfen: Steht bei den Chunks 0, wird nichts festgehalten. `battlefieldChunkBudget` in `config/f47.json` steht dann auf `0` — auf `700` setzen. Nach `/f47 unload` ist das normal, dann die Basen neu bauen |
+| **Es läuft kurz und hört dann auf** | Die Basen stehen weiter auseinander als `battlefieldSpan` (1500). Näher zusammen bauen oder den Wert erhöhen |
 | **Die Jets sind winzig** | Alte Mod-Datei. Die neue ersetzen; sonst `jetModelScale` in `config/f47.json` prüfen |
 | Die Staffel bleibt am Boden stehen | Kein Pilot an Bord (Kaserne baut Nachschub) oder Tank unter einem Viertel — ein Techniker muss auftanken |
 | Joystick wird nicht gefunden | Vor dem Spielstart anschließen, dann `J` drücken — oben steht die Geräteliste |

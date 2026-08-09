@@ -33,10 +33,14 @@ public class AdvanceOnEnemyGoal extends Goal {
 	private static final double LEG = 24.0;
 	/** Ab hier gilt der Gegner als erreicht; das Kampfziel uebernimmt. */
 	private static final double CONTACT = 20.0;
+	/** Mindestabstand zweier Wegsuchen desselben Mannes, in Ticks. */
+	private static final int MIN_REPATH = 15;
 
 	private final SoldierEntity soldier;
 	private final double speed;
 	private int searchTimer;
+	/** Sperre zwischen zwei Wegsuchen, damit nicht alle gleichzeitig suchen. */
+	private int stepTimer;
 	@Nullable
 	private Vec3d objective;
 
@@ -92,9 +96,13 @@ public class AdvanceOnEnemyGoal extends Goal {
 			objective = null;
 			return;
 		}
-		if (!soldier.getNavigation().isIdle()) {
+		if (!soldier.getNavigation().isIdle() || --stepTimer > 0) {
 			return;
 		}
+		// Versetzt neu suchen. Ohne diese Sperre kommen ganze Reihen im selben
+		// Tick am Etappenziel an und suchen alle gleichzeitig einen neuen Weg -
+		// sechshundert Wegsuchen in einem Tick reissen jeden Server um.
+		stepTimer = MIN_REPATH + soldier.getRandom().nextInt(MIN_REPATH);
 		// In Etappen marschieren: Ein Wegpunkt ueber hunderte Bloecke wuerde
 		// die Wegfindung ueberfordern, sie bricht solche Auftraege sofort ab.
 		Vec3d direction = objective.subtract(soldier.getPos()).normalize();
